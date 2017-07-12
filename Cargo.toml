@@ -1,0 +1,6 @@
+[package]
+name = "shade"
+version = "0.1.0"
+
+[dependencies]
+cvmath = { git = 'https://github.com/CasualX/cgmath' }
