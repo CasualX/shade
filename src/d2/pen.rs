@@ -280,7 +280,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 
 		// Add vertices
 		for i in 0..n + 1 {
-			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts);
+			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
 			vp[i] = pen.to_vertex(pt);
 		}
 	}
@@ -299,7 +299,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 
 		// Add vertices
 		for i in 0..n + 1 {
-			let pt = bezier3(i as i32 as f32 / n as i32 as f32, pts);
+			let pt = bezier3(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2], pts[3]);
 			vp[i] = pen.to_vertex(pt);
 		}
 	}
