@@ -1,9 +1,7 @@
-/*!
-Mocked shader.
-*/
 
 use ::{Primitive, Index, Shader, IVertex};
 
+/// Mocked shader.
 #[derive(Debug, Default)]
 pub struct MockShader<V> {
 	pub prim: Primitive,

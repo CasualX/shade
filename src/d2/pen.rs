@@ -2,7 +2,7 @@
 use ::std::cmp;
 
 use ::{Shader, Primitive, Index};
-use super::{Point, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2, bezier3};
+use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2, bezier3};
 
 //----------------------------------------------------------------
 
@@ -23,12 +23,12 @@ impl Default for Pen {
 	}
 }
 impl ToVertex<ColorV> for Pen {
-	fn to_vertex(&self, pt: Point) -> ColorV {
+	fn to_vertex(&self, pt: Point2) -> ColorV {
 		ColorV { pt, fg: self.color, bg: self.color }
 	}
 }
 impl ToVertex<TexV> for Pen {
-	fn to_vertex(&self, pt: Point) -> TexV {
+	fn to_vertex(&self, pt: Point2) -> TexV {
 		TexV { pt, uv: pt }
 	}
 }
@@ -38,13 +38,13 @@ impl ToVertex<TexV> for Pen {
 /// Line drawing functions.
 pub trait IPen {
 	/// Creates the Path drawing context.
-	fn draw_path(&mut self, pen: &Pen, cursor: Point) -> DrawPath<Self> {
+	fn draw_path(&mut self, pen: &Pen, cursor: Point2) -> DrawPath<Self> {
 		DrawPath { shader: self, cursor, color: pen.color }
 	}
 	/// Draws a line from `a` to `b`.
-	fn draw_line(&mut self, pen: &Pen, a: Point, b: Point);
+	fn draw_line(&mut self, pen: &Pen, a: Point2, b: Point2);
 	/// Draws lines.
-	fn draw_lines(&mut self, pen: &Pen, pts: &[Point], lines: &[(Index, Index)]);
+	fn draw_lines(&mut self, pen: &Pen, pts: &[Point2], lines: &[(Index, Index)]);
 	/// Draws a rectangle with lines.
 	fn draw_line_rect(&mut self, pen: &Pen, rc: &Rect);
 	/// Draws a rounded rectangle with lines.
@@ -54,30 +54,30 @@ pub trait IPen {
 	/// Draws a line through all the points.
 	///
 	/// Optionally loops by drawing a line back to the start.
-	fn draw_poly_line(&mut self, pen: &Pen, pts: &[Point], close: bool);
+	fn draw_poly_line(&mut self, pen: &Pen, pts: &[Point2], close: bool);
 	/// Draws an ellipse touching the sides of the given rectangle.
 	fn draw_ellipse(&mut self, pen: &Pen, rc: &Rect);
 	/// Draws an ellipse arc segment.
 	fn draw_arc(&mut self, pen: &Pen, rc: &Rect, start: Rad, sweep: Rad);
 	/// Draws a quadratic bezier curve with given control points.
-	fn draw_bezier2(&mut self, pen: &Pen, pts: &[Point; 3]);
+	fn draw_bezier2(&mut self, pen: &Pen, pts: &[Point2; 3]);
 	/// Draws a cubic bezier curve with given control points.
-	fn draw_bezier3(&mut self, pen: &Pen, pts: &[Point; 4]);
+	fn draw_bezier3(&mut self, pen: &Pen, pts: &[Point2; 4]);
 	/// Draws a cubic hermite spline with given control points and tension.
-	fn draw_cspline(&mut self, pen: &Pen, pts: &[Point], tension: f32);
+	fn draw_cspline(&mut self, pen: &Pen, pts: &[Point2], tension: f32);
 }
 
 #[derive(Debug)]
 pub struct DrawPath<'a, T: ?Sized + 'a> {
 	shader: &'a mut T,
-	cursor: Point,
+	cursor: Point2,
 	color: Color,
 }
 impl<'a, T: Shader<'a>> DrawPath<'a, T> where Pen: ToVertex<T::Vertex> {
-	pub fn move_to(&mut self, pt: Point) -> &mut Self {
+	pub fn move_to(&mut self, pt: Point2) -> &mut Self {
 		self.cursor = pt; self
 	}
-	pub fn cursor(&self) -> Point {
+	pub fn cursor(&self) -> Point2 {
 		self.cursor
 	}
 	pub fn set_color(&mut self, color: Color) -> &mut Self {
@@ -86,30 +86,30 @@ impl<'a, T: Shader<'a>> DrawPath<'a, T> where Pen: ToVertex<T::Vertex> {
 	pub fn color(&self) -> &Color {
 		&self.color
 	}
-	pub fn line_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn line_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		self.cursor = pt;
 		self.color = color;
 		unimplemented!()
 	}
-	pub fn arc_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn arc_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		self.cursor = pt;
 		self.color = color;
 		unimplemented!()
 	}
-	pub fn curve_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn curve_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		self.cursor = pt;
 		self.color = color;
 		unimplemented!()
 	}
-	pub fn dline_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn dline_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		let next = self.cursor + pt;
 		self.line_to(next, color)
 	}
-	pub fn darc_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn darc_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		let next = self.cursor + pt;
 		self.arc_to(next, color)
 	}
-	pub fn dcurve_to(&mut self, pt: Point, color: Color) -> &mut Self {
+	pub fn dcurve_to(&mut self, pt: Point2, color: Color) -> &mut Self {
 		let next = self.cursor + pt;
 		self.curve_to(next, color)
 	}
@@ -118,7 +118,7 @@ impl<'a, T: Shader<'a>> DrawPath<'a, T> where Pen: ToVertex<T::Vertex> {
 //----------------------------------------------------------------
 
 impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
-	fn draw_line(&mut self, pen: &Pen, a: Point, b: Point) {
+	fn draw_line(&mut self, pen: &Pen, a: Point2, b: Point2) {
 		// 2 vertices, 1 primitive, 2 indices
 		draw_primitive!(
 			self;
@@ -128,8 +128,11 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 			pen.to_vertex(b),
 		);
 	}
-	fn draw_lines(&mut self, pen: &Pen, pts: &[Point], lines: &[(Index, Index)]) {
+	fn draw_lines(&mut self, pen: &Pen, pts: &[Point2], lines: &[(Index, Index)]) {
+		// pts.len() vertices, lines.len() primitives, lines.len() * 2 indices
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, pts.len(), lines.len());
+		debug_assert_eq!(vp.len(), pts.len());
+		debug_assert_eq!(ip.len(), lines.len() * 2);
 		// Add indices
 		for i in 0..lines.len() {
 			// Must be indices into the points slice
@@ -172,7 +175,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		// TODO? Do it properly so the edges are synced up
 		unimplemented!()
 	}
-	fn draw_poly_line(&mut self, pen: &Pen, pts: &[Point], close: bool) {
+	fn draw_poly_line(&mut self, pen: &Pen, pts: &[Point2], close: bool) {
 		// Degenerate polyline
 		if pts.len() < 2 {
 			return;
@@ -181,6 +184,8 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		// close: n vertices, n primitives, n * 2 indices
 		let n = pts.len() - (!close) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, pts.len(), n);
+		debug_assert_eq!(vp.len(), pts.len());
+		debug_assert_eq!(ip.len(), n * 2);
 		// Add indices
 		for i in 0..n {
 			ip[i * 2] += i as Index;
@@ -196,8 +201,10 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 	}
 	fn draw_ellipse(&mut self, pen: &Pen, rc: &Rect) {
 		// n vertices, n primitives, n * 2 indices
-		let n = ((pen.segments & !3) + 4) as usize;
+		let n = cmp::max(3, pen.segments) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, n, n);
+		debug_assert_eq!(vp.len(), n);
+		debug_assert_eq!(ip.len(), n * 2);
 
 		// Add incides
 		for i in 0..n - 1 {
@@ -210,7 +217,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
 		let radius = rc.size() * 0.5;
 		let center = rc.top_left() + radius;
-		let mut pt = Point::new(1.0, 0.0);
+		let mut pt = Point2(1.0, 0.0);
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
@@ -230,6 +237,8 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		// n + 1 vertices, n primitives, n * 2 indices
 		let n = cmp::max(pen.segments, 2) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, n + 1, n);
+		debug_assert_eq!(vp.len(), n + 1);
+		debug_assert_eq!(ip.len(), n * 2);
 
 		// Add incides
 		for i in 0..n {
@@ -243,7 +252,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		let center = rc.top_left() + radius;
 		let mut pt = {
 			let (y, x) = start.sin_cos();
-			Point::new(x, y)
+			Point2(x, y)
 		};
 
 		// Add vertices
@@ -256,10 +265,12 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 			pt.y = s * x + c * pt.y;
 		}
 	}
-	fn draw_bezier2(&mut self, pen: &Pen, pts: &[Point; 3]) {
+	fn draw_bezier2(&mut self, pen: &Pen, pts: &[Point2; 3]) {
 		// n + 1 vertices, n primitives, n * 2 indices
 		let n = cmp::max(pen.segments, 2) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, n + 1, n);
+		debug_assert_eq!(vp.len(), n + 1);
+		debug_assert_eq!(ip.len(), n * 2);
 
 		// Add indices
 		for i in 0..n {
@@ -273,10 +284,12 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 			vp[i] = pen.to_vertex(pt);
 		}
 	}
-	fn draw_bezier3(&mut self, pen: &Pen, pts: &[Point; 4]) {
+	fn draw_bezier3(&mut self, pen: &Pen, pts: &[Point2; 4]) {
 		// n + 1 vertices, n primitives, n * 2 indices
 		let n = cmp::max(pen.segments, 2) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, n + 1, n);
+		debug_assert_eq!(vp.len(), n + 1);
+		debug_assert_eq!(ip.len(), n * 2);
 
 		// Add indices
 		for i in 0..n {
@@ -290,14 +303,14 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 			vp[i] = pen.to_vertex(pt);
 		}
 	}
-	fn draw_cspline(&mut self, pen: &Pen, pts: &[Point], tension: f32) {
+	fn draw_cspline(&mut self, pen: &Pen, pts: &[Point2], tension: f32) {
 		// Degenerate cspline
 		if pts.len() < 2 {
 			return;
 		}
 
 		// On first iteration, incoming velocity is zero
-		let mut u = Point::default();
+		let mut u = Point2::default();
 		let mut v;
 		let tension = (1.0 - tension) * 0.5;
 
@@ -305,7 +318,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 			// Calculate the end point velocity
 			v = if i == pts.len() - 2 {
 				// On last iteration, outgoing velocity is zero
-				Point::default()
+				Point2::default()
 			}
 			else {
 				(pts[i + 2] - pts[i]) * tension

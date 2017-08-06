@@ -1,7 +1,7 @@
-use super::Point;
+use super::Point2;
 
 #[inline]
-pub fn bezier2(x: f32, pts: &[Point; 3]) -> Point {
+pub fn bezier2(x: f32, pts: &[Point2; 3]) -> Point2 {
 	let s = x;
 	let t = 1.0 - s;
 	let term1 = pts[0] * (s * s);
@@ -11,7 +11,7 @@ pub fn bezier2(x: f32, pts: &[Point; 3]) -> Point {
 }
 
 #[inline]
-pub fn bezier3(x: f32, pts: &[Point; 4]) -> Point {
+pub fn bezier3(x: f32, pts: &[Point2; 4]) -> Point2 {
 	let s = x;
 	let t = 1.0 - s;
 	let term1 = pts[0] * (s * s * s);
@@ -22,7 +22,7 @@ pub fn bezier3(x: f32, pts: &[Point; 4]) -> Point {
 }
 
 /*
-pub fn bezier(x: f32, pts: &mut [Point]) {
+pub fn bezier(x: f32, pts: &mut [Point2]) {
 	let s = x;
 	let t = 1.0 - s;
 	let n = pts.len();

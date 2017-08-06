@@ -1,6 +1,6 @@
 
 use ::{Shader, Primitive};
-use super::{Point, Rect, ToVertex, TexV};
+use super::{Point2, Vec2, Rect, ToVertex, TexV};
 
 //----------------------------------------------------------------
 
@@ -9,10 +9,10 @@ pub struct Stamp {
 	pub uv: Rect,
 }
 impl ToVertex<TexV> for Stamp {
-	fn to_vertex(&self, pt: Point) -> TexV {
+	fn to_vertex(&self, pt: Point2) -> TexV {
 		TexV { pt, uv: pt }
 	}
-	fn to_vertex_uv(&self, pt: Point, uv: Point) -> TexV {
+	fn to_vertex_uv(&self, pt: Point2, uv: Point2) -> TexV {
 		TexV { pt, uv }
 	}
 }
@@ -21,7 +21,7 @@ impl ToVertex<TexV> for Stamp {
 
 pub trait IStamp {
 	fn stamp_rect(&mut self, stamp: &Stamp, rc: &Rect);
-	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point, x: &Point, y: &Point);
+	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point2, x: &Vec2, y: &Vec2);
 }
 
 impl<'a, T: Shader<'a>> IStamp for T where Stamp: ToVertex<T::Vertex> {
@@ -36,7 +36,7 @@ impl<'a, T: Shader<'a>> IStamp for T where Stamp: ToVertex<T::Vertex> {
 			stamp.to_vertex_uv(rc.bottom_left(), stamp.uv.bottom_left()),
 		);
 	}
-	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point, x: &Point, y: &Point) {
+	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point2, x: &Vec2, y: &Vec2) {
 		draw_primitive!(
 			self;
 			Primitive::Triangles;

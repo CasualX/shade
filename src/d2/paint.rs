@@ -1,7 +1,7 @@
 use ::std::cmp;
 
 use ::{Primitive, Shader, Index};
-use super::{Point, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2};
+use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2};
 
 //----------------------------------------------------------------
 
@@ -24,18 +24,19 @@ impl Default for Paint {
 	}
 }
 impl ToVertex<ColorV> for Paint {
-	fn to_vertex(&self, pt: Point) -> ColorV {
+	fn to_vertex(&self, pt: Point2) -> ColorV {
 		ColorV { pt, fg: self.color1, bg: self.color2 }
 	}
 }
 impl ToVertex<TexV> for Paint {
-	fn to_vertex(&self, pt: Point) -> TexV {
+	fn to_vertex(&self, pt: Point2) -> TexV {
 		TexV { pt, uv: pt }
 	}
 }
 
 //----------------------------------------------------------------
 
+/// Filling shapes with paint.
 pub trait IPaint {
 	/// Fills a rectangle.
 	fn fill_rect(&mut self, paint: &Paint, rc: &Rect);
@@ -44,11 +45,11 @@ pub trait IPaint {
 	/// Fills a rectangle with rounded edges.
 	fn fill_round_rect(&mut self, paint: &Paint, rc: &Rect, sx: f32, sy: f32);
 	/// Fills a convex shape with given points.
-	fn fill_convex(&mut self, paint: &Paint, pts: &[Point]);
+	fn fill_convex(&mut self, paint: &Paint, pts: &[Point2]);
 	/// Fills triangles.
-	fn fill_polygon(&mut self, paint: &Paint, pts: &[Point], triangles: &[(Index, Index, Index)]);
+	fn fill_polygon(&mut self, paint: &Paint, pts: &[Point2], triangles: &[(Index, Index, Index)]);
 	/// Fills a quad.
-	fn fill_quad(&mut self, paint: &Paint, top_left: &Point, top_right: &Point, bottom_left: &Point, bottom_right: &Point);
+	fn fill_quad(&mut self, paint: &Paint, top_left: &Point2, top_right: &Point2, bottom_left: &Point2, bottom_right: &Point2);
 	/// Fills an ellipse.
 	fn fill_ellipse(&mut self, paint: &Paint, rc: &Rect);
 	/// Fills a pie.
@@ -56,7 +57,7 @@ pub trait IPaint {
 	/// Fills a ring.
 	fn fill_ring(&mut self, paint: &Paint, rc: &Rect, width: f32);
 	/// Fills the area between the pivot point and a quadratic bezier curve.
-	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point, pts: &[Point; 3]);
+	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point2, pts: &[Point2; 3]);
 }
 
 impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
@@ -85,10 +86,10 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 			paint.to_vertex(rc.top_right()),
 			paint.to_vertex(rc.bottom_right()),
 			paint.to_vertex(rc.bottom_left()),
-			paint.to_vertex(rc.top_left() + Point::new(thickness, thickness)),
-			paint.to_vertex(rc.top_right() + Point::new(-thickness, thickness)),
-			paint.to_vertex(rc.bottom_right() + Point::new(-thickness, -thickness)),
-			paint.to_vertex(rc.bottom_left() + Point::new(thickness, -thickness)),
+			paint.to_vertex(rc.top_left() + Point2(thickness, thickness)),
+			paint.to_vertex(rc.top_right() + Point2(-thickness, thickness)),
+			paint.to_vertex(rc.bottom_right() + Point2(-thickness, -thickness)),
+			paint.to_vertex(rc.bottom_left() + Point2(thickness, -thickness)),
 		);
 	}
 	fn fill_round_rect(&mut self, paint: &Paint, rc: &Rect, sx: f32, sy: f32) {
@@ -104,7 +105,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 		// TODO? Do it properly so the edges are synced up
 		unimplemented!()
 	}
-	fn fill_convex(&mut self, paint: &Paint, pts: &[Point]) {
+	fn fill_convex(&mut self, paint: &Paint, pts: &[Point2]) {
 		// Degenerate convex shape
 		if pts.len() < 3 {
 			return;
@@ -123,7 +124,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 			vp[v] = paint.to_vertex(pts[v]);
 		}
 	}
-	fn fill_polygon(&mut self, paint: &Paint, pts: &[Point], triangles: &[(Index, Index, Index)]) {
+	fn fill_polygon(&mut self, paint: &Paint, pts: &[Point2], triangles: &[(Index, Index, Index)]) {
 		let (vp, ip) = self.draw_primitive(Primitive::Triangles, pts.len(), triangles.len());
 		// Add indices
 		for i in 0..triangles.len() {
@@ -141,7 +142,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 			vp[v] = paint.to_vertex(pts[v]);
 		}
 	}
-	fn fill_quad(&mut self, paint: &Paint, top_left: &Point, top_right: &Point, bottom_left: &Point, bottom_right: &Point) {
+	fn fill_quad(&mut self, paint: &Paint, top_left: &Point2, top_right: &Point2, bottom_left: &Point2, bottom_right: &Point2) {
 		// 4 vertices, 2 primitives, 6 indices
 		draw_primitive!(
 			self;
@@ -155,7 +156,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 	}
 	fn fill_ellipse(&mut self, paint: &Paint, rc: &Rect) {
 		// n + 1 vertices, n primitives, n * 3 indices
-		let n = ((paint.segments & !3) + 4) as usize;
+		let n = cmp::max(3, paint.segments) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Triangles, n + 1, n);
 
 		// Add indices
@@ -170,7 +171,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
 		let radius = rc.size() * 0.5;
 		let center = rc.top_left() + radius;
-		let mut pt = Point::new(1.0, 0.0);
+		let mut pt = Point2(1.0, 0.0);
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
@@ -204,7 +205,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 		let center = rc.top_left() + radius;
 		let mut pt = {
 			let (y, x) = start.sin_cos();
-			Point::new(x, y)
+			Point2(x, y)
 		};
 
 		// Add vertices
@@ -218,7 +219,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 		}
 	}
 	fn fill_ring(&mut self, paint: &Paint, rc: &Rect, width: f32) { unimplemented!() }
-	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point, pts: &[Point; 3]) {
+	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point2, pts: &[Point2; 3]) {
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(paint.segments, 2) as usize;
 		let (vp, ip) = self.draw_primitive(Primitive::Lines, n + 2, n);

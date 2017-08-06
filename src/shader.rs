@@ -18,6 +18,8 @@ macro_rules! draw_primitive {
 		const N_INDICES: usize = draw_primitive!(@count $($index),*);
 		assert_eq!(0, N_INDICES % $prim as u8 as usize);
 		let (_vp, _ip) = $shade.draw_primitive($prim, N_VERTS, N_INDICES / $prim as u8 as usize);
+		debug_assert_eq!(_vp.len(), N_VERTS);
+		debug_assert_eq!(_ip.len(), N_INDICES);
 		let _ip = _ip.as_mut_ptr();
 		let _vp = _vp.as_mut_ptr();
 		let _i = -1isize;
