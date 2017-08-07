@@ -3,7 +3,7 @@ Shader Objects.
 */
 
 use ::vertex::{IVertex, Index};
-use ::Primitive;
+use ::{Primitive, CanvasLock, ICanvas, VertexBuffer};
 
 #[macro_export]
 macro_rules! draw_primitive {
@@ -38,6 +38,8 @@ macro_rules! draw_primitive {
 pub trait Shader<'a> {
 	type Vertex: IVertex;
 	type Context;
+
+	fn new<VB>(lock: CanvasLock<'a, VB>) -> Self where VB: VertexBuffer<Self::Vertex>;
 
 	fn uid() -> u32;
 
