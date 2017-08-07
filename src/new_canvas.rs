@@ -58,6 +58,36 @@ impl<VB> ICanvas for Canvas<VB> {
 		Self::VertexBuffers: VertexBuffer<S::Vertex>,
 		S: Shader<'a>
 	{
+		let shader_uid = S::uid();
+		let new_batch = {
+			if let Some(last_batch) = self.batches.last_mut() {
+				// If the last batch has not been specialized, claim it
+				if last_batch.shader_uid == 0 {
+					last_batch.shader_uid = shader_uid;
+					false
+				}
+				// If last batch has a different primitive or shader_uid, new batch
+				else if last_batch.shader_uid != shader_uid {
+					true
+				}
+				// Appending to the last batch
+				else {
+					false
+				}
+			}
+			// Create the first batch
+			else {
+				true
+			}
+		};
+		if new_batch {
+			self.batches.push(Batch {
+				vertex_uid: S::Vertex::uid(),
+				shader_uid: shader_uid,
+				vertices: 0..0,
+				indices: 0..0,
+			});
+		}
 		S::new(CanvasLock(self))
 	}
 }
