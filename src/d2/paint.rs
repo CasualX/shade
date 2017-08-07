@@ -233,7 +233,7 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 		// Add vertices
 		vp[0] = paint.to_vertex(*pivot);
 		for i in 1..n + 2 {
-			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts);
+			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
 			vp[i] = paint.to_vertex(pt);
 		}
 	}

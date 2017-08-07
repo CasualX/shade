@@ -206,7 +206,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		debug_assert_eq!(vp.len(), n);
 		debug_assert_eq!(ip.len(), n * 2);
 
-		// Add incides
+		// Add indices
 		for i in 0..n - 1 {
 			ip[i * 2] += i as Index;
 			ip[i * 2 + 1] += (i + 1) as Index;
@@ -240,7 +240,7 @@ impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
 		debug_assert_eq!(vp.len(), n + 1);
 		debug_assert_eq!(ip.len(), n * 2);
 
-		// Add incides
+		// Add indices
 		for i in 0..n {
 			ip[i * 2] += i as Index;
 			ip[i * 2 + 1] += (i + 1) as Index;

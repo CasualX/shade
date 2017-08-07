@@ -19,16 +19,9 @@ impl<V: IVertex> Shader<'static> for MockShader<V> {
 	fn set_context(&mut self, ctx: &()) {}
 	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]) {
 		self.prim = prim;
-		self.istart += 1 + self.verts.len() as Index;
 		self.nprims = nprims;
-		if self.verts.capacity() < nverts {
-			let reserve = nverts - self.verts.capacity();
-			self.verts.reserve(reserve);
-		}
-		let verts = unsafe {
-			self.verts.set_len(nverts);
-			&mut self.verts[..]
-		};
+		// Allocate indices
+		self.istart += 1 + self.verts.len() as Index;
 		let nindices = prim as u8 as usize * nprims;
 		if self.indices.capacity() < nindices {
 			let reserve = nindices - self.indices.capacity();
@@ -40,6 +33,15 @@ impl<V: IVertex> Shader<'static> for MockShader<V> {
 				*it = self.istart;
 			}
 			&mut self.indices[..]
+		};
+		// Allocate vertices
+		if self.verts.capacity() < nverts {
+			let reserve = nverts - self.verts.capacity();
+			self.verts.reserve(reserve);
+		}
+		let verts = unsafe {
+			self.verts.set_len(nverts);
+			&mut self.verts[..]
 		};
 		(verts, indices)
 	}

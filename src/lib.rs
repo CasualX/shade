@@ -3,6 +3,7 @@ use cvmath::prelude as cgmath;
 
 mod graphics;
 mod canvas;
+mod new_canvas;
 #[macro_use]
 mod shader;
 mod vertex;
@@ -14,5 +15,5 @@ pub use self::shader::{Shader};
 pub use self::vertex::{IVertex, PlaceV, Index};
 pub use self::types::{Primitive, Blend, Visualize, Stencil};
 
-pub mod soft;
+// pub mod soft;
 pub mod d2;
