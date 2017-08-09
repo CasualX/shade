@@ -3,7 +3,7 @@ Shader Objects.
 */
 
 use ::vertex::{IVertex, Index};
-use ::{Primitive, CanvasLock, ICanvas, VertexBuffer};
+use ::{Primitive};
 
 #[macro_export]
 macro_rules! draw_primitive {
@@ -35,11 +35,9 @@ macro_rules! draw_primitive {
 	};
 }
 
-pub trait Shader<'a> {
+pub trait Shader {
 	type Vertex: IVertex;
 	type Context;
-
-	fn new<VB>(lock: CanvasLock<'a, VB>) -> Self where VB: VertexBuffer<Self::Vertex>;
 
 	fn uid() -> u32;
 
@@ -47,5 +45,4 @@ pub trait Shader<'a> {
 	fn set_context(&mut self, ctx: &Self::Context);
 
 	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]);
-	fn new_batch(&mut self);
 }

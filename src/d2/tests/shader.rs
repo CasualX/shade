@@ -11,7 +11,7 @@ pub struct MockShader<V> {
 	pub indices: Vec<Index>,
 }
 
-impl<V: IVertex> Shader<'static> for MockShader<V> {
+impl<V: IVertex> Shader for MockShader<V> {
 	type Vertex = V;
 	type Context = ();
 	fn uid() -> u32 { 0 }
@@ -45,5 +45,4 @@ impl<V: IVertex> Shader<'static> for MockShader<V> {
 		};
 		(verts, indices)
 	}
-	fn new_batch(&mut self) {}
 }

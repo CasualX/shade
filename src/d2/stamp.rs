@@ -24,7 +24,7 @@ pub trait IStamp {
 	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point2, x: &Vec2, y: &Vec2);
 }
 
-impl<'a, T: Shader<'a>> IStamp for T where Stamp: ToVertex<T::Vertex> {
+impl<S: Shader> IStamp for S where Stamp: ToVertex<S::Vertex> {
 	fn stamp_rect(&mut self, stamp: &Stamp, rc: &Rect) {
 		draw_primitive!(
 			self;

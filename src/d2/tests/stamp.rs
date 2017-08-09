@@ -1,5 +1,5 @@
 
-use super::super::{IStamp, Stamp, Point2, Vec2, Rect, Rad, TexV};
+use super::super::{IStamp, Stamp, Point2, Vec2, Rect, TexV};
 use super::MockShader;
 use ::{Primitive};
 

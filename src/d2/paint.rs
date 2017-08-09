@@ -60,7 +60,7 @@ pub trait IPaint {
 	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point2, pts: &[Point2; 3]);
 }
 
-impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
+impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 	fn fill_rect(&mut self, paint: &Paint, rc: &Rect) {
 		// 4 vertices, 2 primitives, 6 indices
 		draw_primitive!(
@@ -218,7 +218,52 @@ impl<'a, T: Shader<'a>> IPaint for T where Paint: ToVertex<T::Vertex> {
 			pt.y = s * x + c * pt.y;
 		}
 	}
-	fn fill_ring(&mut self, paint: &Paint, rc: &Rect, width: f32) { unimplemented!() }
+	fn fill_ring(&mut self, paint: &Paint, rc: &Rect, width: f32) {
+		// n * 2 vertices, n * 2 primitives, n * 6 indices
+		let n = cmp::max(3, paint.segments) as usize;
+		let (vp, ip) = self.draw_primitive(Primitive::Triangles, n * 2, n * 2);
+
+		// Add indices
+		for i in 0..n - 1 {
+			let v = i * 2;
+			let i = i * 6;
+			ip[i] += v as Index;
+			ip[i + 1] += (v + 1) as Index;
+			ip[i + 2] += (v + 2) as Index;
+			ip[i + 3] += (v + 1) as Index;
+			ip[i + 4] += (v + 2) as Index;
+			ip[i + 5] += (v + 3) as Index;
+		}
+		{
+			let v = (n - 1) * 2;
+			let i = (n - 1) * 6;
+			ip[i] += v as Index;
+			ip[i + 1] += (v + 1) as Index;
+			// ip[i + 2] += 0;
+			ip[i + 3] += (v + 1) as Index;
+			// ip[i + 4] += 0;
+			ip[i + 5] += 1;
+		}
+
+		// Precompute trigs
+		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
+		let radius = rc.size() * 0.5;
+		let width = radius - Point2::dup(width);
+		let center = rc.top_left() + radius;
+		let mut pt = Point2(1.0, 0.0);
+
+		// Add vertices
+		// http://slabode.exofire.net/circle_draw.shtml
+		for i in 0..n {
+			let i = i * 2;
+			vp[i] = paint.to_vertex(pt * radius + center);
+			vp[i + 1] = paint.to_vertex(pt * (radius - width) + center);
+			// Apply rotation matrix
+			let x = pt.x;
+			pt.x = c * x - s * pt.y;
+			pt.y = s * x + c * pt.y;
+		}
+	}
 	fn fill_bezier2(&mut self, paint: &Paint, pivot: &Point2, pts: &[Point2; 3]) {
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(paint.segments, 2) as usize;

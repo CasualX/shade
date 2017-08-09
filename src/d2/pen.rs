@@ -68,12 +68,12 @@ pub trait IPen {
 }
 
 #[derive(Debug)]
-pub struct DrawPath<'a, T: ?Sized + 'a> {
-	shader: &'a mut T,
+pub struct DrawPath<'a, S: ?Sized + 'a> {
+	shader: &'a mut S,
 	cursor: Point2,
 	color: Color,
 }
-impl<'a, T: Shader<'a>> DrawPath<'a, T> where Pen: ToVertex<T::Vertex> {
+impl<'a, S: Shader> DrawPath<'a, S> where Pen: ToVertex<S::Vertex> {
 	pub fn move_to(&mut self, pt: Point2) -> &mut Self {
 		self.cursor = pt; self
 	}
@@ -117,7 +117,7 @@ impl<'a, T: Shader<'a>> DrawPath<'a, T> where Pen: ToVertex<T::Vertex> {
 
 //----------------------------------------------------------------
 
-impl<'a, T: Shader<'a>> IPen for T where Pen: ToVertex<T::Vertex> {
+impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 	fn draw_line(&mut self, pen: &Pen, a: Point2, b: Point2) {
 		// 2 vertices, 1 primitive, 2 indices
 		draw_primitive!(
