@@ -5,6 +5,8 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(u8)]
 pub enum Primitive {
+	#[doc(hidden)]
+	Unspecified = 0,
 	/// List of points.
 	Points = 1,
 	/// List of line segments.

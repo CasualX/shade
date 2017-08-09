@@ -13,15 +13,29 @@ pub trait ICanvas {
 
 #[derive(Clone, Debug)]
 pub struct Batch {
-	vertex_uid: u32,
 	shader_uid: u32,
-	vertices: ops::Range<u32>,
-	indices: ops::Range<u32>,
+	vertex_uid: u32,
+	prim: Primitive,
+	num_vert: Index,
+	num_prim: Index,
 }
 
 pub struct CanvasLock<'a, VB: 'a>(&'a mut Canvas<VB>);
 impl<'a, VB> CanvasLock<'a, VB> {
 	pub fn draw_primitive<V: IVertex>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [V], &mut [Index]) where VB: VertexBuffer<V> {
+		let batch = {
+			let last_batch = *self.0.batches.last_mut().expect("expected at least one batch");
+			if last_batch.prim == Primitive::Unspecified {
+				self.0.batches.last_mut().unwrap()
+			}
+			else {
+				self.0.batches.push(Batch { prim, num_vert: 0, num_prim: 0, ..last_batch });
+				self.0.batches.last_mut().unwrap()
+			}
+		};
+		batch.prim = prim;
+		batch.num_prim += nprims as Index;
+		batch.num_vert += nverts as Index;
 		// Allocate indices
 		let nindices = prim as usize * nprims;
 		if self.0.indices.capacity() - self.0.indices.len() < nindices {
