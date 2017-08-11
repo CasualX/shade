@@ -27,12 +27,24 @@ pub trait Polygon {
 	///
 	/// # Examples
 	///
+	/// <svg width="400" height="200" viewBox="-2 0 8 5" xmlns="http://www.w3.org/2000/svg">
+	///   <rect fill="none" stroke="green" stroke-width="0.025" x="-1" y="1" width="8" height="3.5" />
+	///   <polygon fill="none" stroke="black" stroke-width="0.025" points="1,1 7,2 3,4.5 -1,4" />
+	/// </svg>
+	///
+	/// The example below visualizes the input points (the black polygon) and its resulting bounding box (the green rectangle).
+	///
 	/// ```
 	/// use shade::d2::{Polygon, Point2, Rect};
 	///
-	/// let pts = vec![Point2(1.0, 1.0), Point2(2.0, 5.0), Point2(4.0, -1.0)];
+	/// let pts = vec![
+	/// 	Point2(1.0, 1.0),
+	/// 	Point2(7.0, 2.0),
+	/// 	Point2(3.0, 4.5),
+	/// 	Point2(-1.0, 4.0),
+	/// ];
 	///
-	/// let result = Rect(Point2(1.0, -1.0), Point2(4.0, 5.0));
+	/// let result = Rect(Point2(-1.0, 1.0), Point2(7.0, 4.5));
 	/// assert_eq!(pts.bounds(), result);
 	/// ```
 	fn bounds(&self) -> Rect;
@@ -143,50 +155,79 @@ impl<T: ?Sized + AsRef<[Point2]>> Polygon for T {
 		// Notes:
 		// https://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Convex_hull/Monotone_chain
 		// http://geomalgorithms.com/a12-_hull-3.html
-		let mut sorted = self.as_ref().to_owned();
-		convex_hull_inplace(&mut sorted)
+
+		let pts = self.as_ref();
+		if pts.len() < 2 {
+			let mut result = Vec::new();
+			if pts.len() == 1 {
+				result.push(0);
+			}
+			return result;
+		}
+
+		// Cross product between (OA) and (OB)
+		let cross = |o: Index, a: Index, b: Index| -> f32 {
+			let o = pts[o as usize];
+			let a = pts[a as usize];
+			let b = pts[b as usize];
+			(a - o).cross(b - o)
+		};
+
+		// Allocate small polygons on the stack for sorting
+		const STACK_SIZE: usize = 64;
+		let mut array: [Index; STACK_SIZE];
+		let mut owned: Vec<Index>;
+		let sorted = if pts.len() > STACK_SIZE {
+			owned = (0..pts.len() as Index).collect();
+			&mut owned
+		}
+		else {
+			array = unsafe { ::std::mem::uninitialized() };
+			for i in 0..pts.len() {
+				array[i] = i as Index;
+			}
+			&mut array[..pts.len()]
+		};
+		sorted.sort_by(|&a, &b| {
+			use ::std::cmp::Ordering;
+			let a = pts[a as usize];
+			let b = pts[b as usize];
+			let d = if a.x == b.x { a.y - b.y } else { a.x - b.x };
+			if d < 0.0 { Ordering::Less }
+			else if d > 0.0 { Ordering::Greater }
+			else { Ordering::Equal }
+		});
+
+		// Allocate worst-case space
+		let mut result = Vec::with_capacity(pts.len() + 1);
+		unsafe { result.set_len(pts.len() + 1); }
+
+		let mut k = 0;
+		for i in 0..pts.len() {
+			while k >= 2 && cross(result[k - 2], result[k - 1], sorted[i]) <= 0.0 {
+				k -= 1;
+			}
+			result[k] = sorted[i];
+			k += 1;
+		}
+
+		let t = k + 1;
+		for i in (0..pts.len() - 1).rev() {
+			while k >= t && cross(result[k - 2], result[k - 1], sorted[i]) <= 0.0 {
+				k -= 1;
+			}
+			result[k] = sorted[i];
+			k += 1;
+		}
+
+		unsafe { result.set_len(k - 1); }
+		return result;
 	}
 	fn triangulate(&self) -> Vec<(Index, Index, Index)> {
 		unimplemented!()
 	}
 }
 
-fn convex_hull_inplace(pts: &mut [Point2]) -> Vec<Index> {
-	pts.sort_by(|v1, v2| {
-		use ::std::cmp::Ordering;
-		if v1.x < v2.x { Ordering::Less }
-		else if v1.x == v2.x && v1.y < v2.y { Ordering::Less }
-		else { Ordering::Greater }
-	});
-
-	let mut result = Vec::with_capacity(pts.len());
-	unsafe { result.set_len(pts.len()); }
-
-	// Build the lower hull
-	let mut k = 0;
-	for i in 0..pts.len() {
-		while k >= 2 && Point2::cross(pts[k - 1] - pts[k - 2], pts[i] - pts[k - 2]) <= 0.0 {
-			k -= 1;
-		}
-		result[k] = i as Index;
-		k += 1;
-	}
-
-	// Build the upper hull
-	let t = k + 1;
-	let mut i = (pts.len() - 2) as isize;
-	while i >= 0 {
-		while k >= t && Point2::cross(pts[k - 1] - pts[k - 2], pts[i as usize] - pts[k - 2]) <= 0.0 {
-			k -= 1;
-		}
-		result[k] = i as Index;
-		k += 1;
-		i -= 1;
-	}
-
-	unsafe { result.set_len(k - 1); }
-	result
-}
 //----------------------------------------------------------------
 
 use ::std::slice;
@@ -224,5 +265,24 @@ mod tests {
 		let pts = [Point2(1.0, -1.0), Point2(-2.0, 2.0)];
 		let result = [(&pts[1], &pts[0]), (&pts[0], &pts[1])];
 		assert!(pts.edges().eq(result.iter().cloned()));
+	}
+
+	#[test]
+	fn convex_hull() {
+		let pts = &[
+			Point2(-1.0, -1.0),
+			Point2(-1.0, 1.0),
+			Point2(1.0, 2.0),
+			Point2(2.0, 3.0),
+			Point2(3.0, 2.0),
+			Point2(4.0, 4.0),
+			Point2(5.0, 2.0),
+			Point2(5.0, -1.0),
+			Point2(5.0, -2.0),
+			Point2(3.0, -1.0),
+			Point2(1.0, -2.0),
+		];
+		let hull = pts.convex_hull();
+		assert_eq!(hull, &[0, 10, 8, 6, 5, 3, 1]);
 	}
 }
