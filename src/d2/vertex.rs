@@ -3,8 +3,7 @@ use ::vertex::IVertex;
 use super::{Point2, Color};
 
 pub trait ToVertex<V> {
-	fn to_vertex(&self, pt: Point2) -> V;
-	fn to_vertex_uv(&self, pt: Point2, _uv: Point2) -> V { self.to_vertex(pt) }
+	fn to_vertex(&self, pt: Point2, index: usize) -> V;
 }
 
 //----------------------------------------------------------------

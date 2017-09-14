@@ -23,12 +23,12 @@ impl Default for Pen {
 	}
 }
 impl ToVertex<ColorV> for Pen {
-	fn to_vertex(&self, pt: Point2) -> ColorV {
+	fn to_vertex(&self, pt: Point2, _index: usize) -> ColorV {
 		ColorV { pt, fg: self.color, bg: self.color }
 	}
 }
 impl ToVertex<TexV> for Pen {
-	fn to_vertex(&self, pt: Point2) -> TexV {
+	fn to_vertex(&self, pt: Point2, _index: usize) -> TexV {
 		TexV { pt, uv: pt }
 	}
 }
@@ -124,8 +124,8 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 			self;
 			Primitive::Lines;
 			0, 1;
-			pen.to_vertex(a),
-			pen.to_vertex(b),
+			pen.to_vertex(a, 0),
+			pen.to_vertex(b, 1),
 		);
 	}
 	fn draw_lines(&mut self, pen: &Pen, pts: &[Point2], lines: &[(Index, Index)]) {
@@ -144,7 +144,7 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 		}
 		// Add vertices
 		for v in 0..pts.len() {
-			vp[v] = pen.to_vertex(pts[v]);
+			vp[v] = pen.to_vertex(pts[v], v);
 		}
 	}
 	fn draw_line_rect(&mut self, pen: &Pen, rc: &Rect) {
@@ -153,10 +153,10 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 			self;
 			Primitive::Lines;
 			0, 1, 1, 2, 2, 3, 3, 0;
-			pen.to_vertex(rc.top_left()),
-			pen.to_vertex(rc.top_right()),
-			pen.to_vertex(rc.bottom_right()),
-			pen.to_vertex(rc.bottom_left()),
+			pen.to_vertex(rc.top_left(), 0),
+			pen.to_vertex(rc.top_right(), 1),
+			pen.to_vertex(rc.bottom_right(), 2),
+			pen.to_vertex(rc.bottom_left(), 3),
 		);
 	}
 	fn draw_round_rect(&mut self, pen: &Pen, rc: &Rect, sx: f32, sy: f32) {
@@ -195,8 +195,8 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 			ip[n * 2 - 1] -= n as Index;
 		}
 		// Add vertices
-		for i in 0..pts.len() {
-			vp[i] = pen.to_vertex(pts[i]);
+		for v in 0..pts.len() {
+			vp[v] = pen.to_vertex(pts[v], v);
 		}
 	}
 	fn draw_ellipse(&mut self, pen: &Pen, rc: &Rect) {
@@ -221,8 +221,8 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
-		for i in 0..n {
-			vp[i] = pen.to_vertex(pt * radius + center);
+		for v in 0..n {
+			vp[v] = pen.to_vertex(pt * radius + center, v);
 			// Apply rotation matrix
 			let x = pt.x;
 			pt.x = c * x - s * pt.y;
@@ -257,8 +257,8 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
-		for i in 0..n {
-			vp[i] = pen.to_vertex(pt * radius + center);
+		for v in 0..n {
+			vp[v] = pen.to_vertex(pt * radius + center, v);
 			// Apply rotation matrix
 			let x = pt.x;
 			pt.x = c * x - s * pt.y;
@@ -279,9 +279,9 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 		}
 
 		// Add vertices
-		for i in 0..n + 1 {
-			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
-			vp[i] = pen.to_vertex(pt);
+		for v in 0..n + 1 {
+			let pt = bezier2(v as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
+			vp[v] = pen.to_vertex(pt, v);
 		}
 	}
 	fn draw_bezier3(&mut self, pen: &Pen, pts: &[Point2; 4]) {
@@ -298,9 +298,9 @@ impl<S: Shader> IPen for S where Pen: ToVertex<S::Vertex> {
 		}
 
 		// Add vertices
-		for i in 0..n + 1 {
-			let pt = bezier3(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2], pts[3]);
-			vp[i] = pen.to_vertex(pt);
+		for v in 0..n + 1 {
+			let pt = bezier3(v as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2], pts[3]);
+			vp[v] = pen.to_vertex(pt, v);
 		}
 	}
 	fn draw_cspline(&mut self, pen: &Pen, pts: &[Point2], tension: f32) {

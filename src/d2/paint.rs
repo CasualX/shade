@@ -24,12 +24,12 @@ impl Default for Paint {
 	}
 }
 impl ToVertex<ColorV> for Paint {
-	fn to_vertex(&self, pt: Point2) -> ColorV {
+	fn to_vertex(&self, pt: Point2, _index: usize) -> ColorV {
 		ColorV { pt, fg: self.color1, bg: self.color2 }
 	}
 }
 impl ToVertex<TexV> for Paint {
-	fn to_vertex(&self, pt: Point2) -> TexV {
+	fn to_vertex(&self, pt: Point2, _index: usize) -> TexV {
 		TexV { pt, uv: pt }
 	}
 }
@@ -67,10 +67,10 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 			self;
 			Primitive::Triangles;
 			0, 1, 2, 0, 2, 3;
-			paint.to_vertex(rc.top_left()),
-			paint.to_vertex(rc.top_right()),
-			paint.to_vertex(rc.bottom_right()),
-			paint.to_vertex(rc.bottom_left()),
+			paint.to_vertex(rc.top_left(), 0),
+			paint.to_vertex(rc.top_right(), 1),
+			paint.to_vertex(rc.bottom_right(), 2),
+			paint.to_vertex(rc.bottom_left(), 3),
 		);
 	}
 	fn fill_edge_rect(&mut self, paint: &Paint, rc: &Rect, thickness: f32) {
@@ -82,14 +82,14 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 			1, 6, 5, 1, 2, 6,
 			2, 7, 6, 2, 3, 7,
 			3, 4, 7, 3, 0, 4;
-			paint.to_vertex(rc.top_left()),
-			paint.to_vertex(rc.top_right()),
-			paint.to_vertex(rc.bottom_right()),
-			paint.to_vertex(rc.bottom_left()),
-			paint.to_vertex(rc.top_left() + Point2(thickness, thickness)),
-			paint.to_vertex(rc.top_right() + Point2(-thickness, thickness)),
-			paint.to_vertex(rc.bottom_right() + Point2(-thickness, -thickness)),
-			paint.to_vertex(rc.bottom_left() + Point2(thickness, -thickness)),
+			paint.to_vertex(rc.top_left(), 0),
+			paint.to_vertex(rc.top_right(), 1),
+			paint.to_vertex(rc.bottom_right(), 2),
+			paint.to_vertex(rc.bottom_left(), 3),
+			paint.to_vertex(rc.top_left() + Point2(thickness, thickness), 4),
+			paint.to_vertex(rc.top_right() + Point2(-thickness, thickness), 5),
+			paint.to_vertex(rc.bottom_right() + Point2(-thickness, -thickness), 6),
+			paint.to_vertex(rc.bottom_left() + Point2(thickness, -thickness), 7),
 		);
 	}
 	fn fill_round_rect(&mut self, paint: &Paint, rc: &Rect, sx: f32, sy: f32) {
@@ -121,7 +121,7 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 		}
 		// Add vertices
 		for v in 0..pts.len() {
-			vp[v] = paint.to_vertex(pts[v]);
+			vp[v] = paint.to_vertex(pts[v], v);
 		}
 	}
 	fn fill_polygon(&mut self, paint: &Paint, pts: &[Point2], triangles: &[(Index, Index, Index)]) {
@@ -139,7 +139,7 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 		}
 		// Add vertices
 		for v in 0..pts.len() {
-			vp[v] = paint.to_vertex(pts[v]);
+			vp[v] = paint.to_vertex(pts[v], v);
 		}
 	}
 	fn fill_quad(&mut self, paint: &Paint, top_left: &Point2, top_right: &Point2, bottom_left: &Point2, bottom_right: &Point2) {
@@ -148,10 +148,10 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 			self;
 			Primitive::Triangles;
 			0, 1, 2, 0, 2, 3;
-			paint.to_vertex(*top_left),
-			paint.to_vertex(*top_right),
-			paint.to_vertex(*bottom_right),
-			paint.to_vertex(*bottom_left),
+			paint.to_vertex(*top_left, 0),
+			paint.to_vertex(*top_right, 1),
+			paint.to_vertex(*bottom_right, 2),
+			paint.to_vertex(*bottom_left, 3),
 		);
 	}
 	fn fill_ellipse(&mut self, paint: &Paint, rc: &Rect) {
@@ -175,9 +175,9 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
-		vp[0] = paint.to_vertex(center);
-		for i in 1..n + 1 {
-			vp[i] = paint.to_vertex(pt * radius + center);
+		vp[0] = paint.to_vertex(center, 0);
+		for v in 1..n + 1 {
+			vp[v] = paint.to_vertex(pt * radius + center, v);
 			// Apply rotation matrix
 			let x = pt.x;
 			pt.x = c * x - s * pt.y;
@@ -210,8 +210,8 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
-		for i in 0..n {
-			vp[i] = paint.to_vertex(pt * radius + center);
+		for v in 0..n {
+			vp[v] = paint.to_vertex(pt * radius + center, v);
 			// Apply rotation matrix
 			let x = pt.x;
 			pt.x = c * x - s * pt.y;
@@ -254,10 +254,10 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 
 		// Add vertices
 		// http://slabode.exofire.net/circle_draw.shtml
-		for i in 0..n {
-			let i = i * 2;
-			vp[i] = paint.to_vertex(pt * radius + center);
-			vp[i + 1] = paint.to_vertex(pt * (radius - width) + center);
+		for v in 0..n {
+			let v = v * 2;
+			vp[v] = paint.to_vertex(pt * radius + center, v);
+			vp[v + 1] = paint.to_vertex(pt * (radius - width) + center, v + 1);
 			// Apply rotation matrix
 			let x = pt.x;
 			pt.x = c * x - s * pt.y;
@@ -276,10 +276,10 @@ impl<S: Shader> IPaint for S where Paint: ToVertex<S::Vertex> {
 		}
 
 		// Add vertices
-		vp[0] = paint.to_vertex(*pivot);
-		for i in 1..n + 2 {
-			let pt = bezier2(i as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
-			vp[i] = paint.to_vertex(pt);
+		vp[0] = paint.to_vertex(*pivot, 0);
+		for v in 1..n + 2 {
+			let pt = bezier2(v as i32 as f32 / n as i32 as f32, pts[0], pts[1], pts[2]);
+			vp[v] = paint.to_vertex(pt, v);
 		}
 	}
 }
