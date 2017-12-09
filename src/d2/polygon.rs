@@ -2,7 +2,7 @@
 Polygon functions.
 */
 
-use std::slice;
+use std::{mem, slice};
 
 use {Index};
 use super::{Point2, Rect};
@@ -292,7 +292,7 @@ pub fn convex_hull(pts: &[Point2]) -> Vec<Index> {
 		&mut owned
 	}
 	else {
-		array = unsafe { ::std::mem::uninitialized() };
+		array = unsafe { mem::uninitialized() };
 		for i in 0..pts.len() {
 			array[i] = i as Index;
 		}
