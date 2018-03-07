@@ -1,6 +1,6 @@
 
-use ::{Shader, Index, Primitive, ICanvas, VertexBuffer};
-use ::d2::ColorV;
+use {Shader, Index, Primitive, ICanvas, VertexBuffer};
+use d2::ColorV;
 use super::Uniforms;
 
 pub struct Solid<'a, CV: ICanvas + 'a> {

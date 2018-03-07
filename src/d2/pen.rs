@@ -1,7 +1,7 @@
 
-use ::std::cmp;
+use std::cmp;
 
-use ::{Shader, Primitive, Index};
+use {Shader, Primitive, Index};
 use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2, bezier3};
 
 //----------------------------------------------------------------

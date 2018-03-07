@@ -2,8 +2,8 @@
 Render queue.
 */
 
-use ::d2::ColorV;
-use ::{ICanvas, Index, PlaceV, Primitive};
+use d2::ColorV;
+use {ICanvas, Index, PlaceV, Primitive};
 use super::Uniforms;
 
 #[derive(Debug)]

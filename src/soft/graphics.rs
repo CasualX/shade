@@ -1,5 +1,5 @@
 
-use ::graphics::IGraphics;
+use graphics::IGraphics;
 use super::Surface;
 use super::Canvas;
 

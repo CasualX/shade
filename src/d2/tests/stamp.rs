@@ -1,7 +1,7 @@
 
 use super::super::{IStamp, Stamp, Point2, Vec2, Rect, TexV};
 use super::MockShader;
-use ::{Primitive};
+use {Primitive};
 
 #[test]
 fn stamp_rect() {

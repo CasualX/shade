@@ -1,6 +1,6 @@
-use ::std::cmp;
+use std::cmp;
 
-use ::{Primitive, Shader, Index};
+use {Primitive, Shader, Index};
 use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2};
 
 //----------------------------------------------------------------

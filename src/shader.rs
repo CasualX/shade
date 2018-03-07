@@ -2,8 +2,8 @@
 Shader Objects.
 */
 
-use ::vertex::{IVertex, Index};
-use ::{Primitive};
+use vertex::{IVertex, Index};
+use {Primitive};
 
 #[macro_export]
 macro_rules! draw_primitive {

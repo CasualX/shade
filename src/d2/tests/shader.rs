@@ -1,5 +1,5 @@
 
-use ::{Primitive, Index, Shader, IVertex};
+use {Primitive, Index, Shader, IVertex};
 
 /// Mocked shader.
 #[derive(Debug, Default)]

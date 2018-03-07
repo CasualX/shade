@@ -1,5 +1,5 @@
 
-use ::cgmath::{Affine2, Vec4};
+use cgmath::{Affine2, Vec4};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Uniforms {

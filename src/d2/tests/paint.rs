@@ -1,7 +1,7 @@
 
 use super::super::{IPaint, Paint, Point2, Rect, Rad, ColorV};
 use super::MockShader;
-use ::{Primitive};
+use {Primitive};
 
 #[test]
 fn fill_rect() {

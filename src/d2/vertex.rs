@@ -1,5 +1,5 @@
 
-use ::vertex::IVertex;
+use vertex::IVertex;
 use super::{Point2, Color};
 
 pub trait ToVertex<V> {

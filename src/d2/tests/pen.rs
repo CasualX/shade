@@ -1,7 +1,7 @@
 
 use super::super::{IPen, Pen, Point2, Rect, Rad, ColorV};
 use super::MockShader;
-use ::{Primitive};
+use {Primitive};
 
 #[test]
 fn draw_line() {

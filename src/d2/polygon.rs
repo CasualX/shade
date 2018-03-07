@@ -2,7 +2,9 @@
 Polygon functions.
 */
 
-use ::{Index};
+use std::slice;
+
+use {Index};
 use super::{Point2, Rect};
 
 /// Returns an iterator over the edges of the polygon.
@@ -298,7 +300,7 @@ pub fn convex_hull(pts: &[Point2]) -> Vec<Index> {
 	};
 	// TODO: Unstable sort when available
 	sorted.sort_by(|&a, &b| {
-		use ::std::cmp::Ordering;
+		use std::cmp::Ordering;
 		let a = pts[a as usize];
 		let b = pts[b as usize];
 		let order = if a.x == b.x { a.y < b.y } else { a.x < b.x };
@@ -339,8 +341,6 @@ pub fn triangulate(pts: &[Point2]) -> Vec<(Index, Index, Index)> {
 }
 
 //----------------------------------------------------------------
-
-use ::std::slice;
 
 pub struct Edges<'a> {
 	iter: slice::Iter<'a, Point2>,

@@ -1,5 +1,5 @@
 
-use ::{Shader, Primitive};
+use {Shader, Primitive};
 use super::{Point2, Vec2, Rect, ToVertex, TexV};
 
 //----------------------------------------------------------------
