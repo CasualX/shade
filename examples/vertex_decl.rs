@@ -1,7 +1,7 @@
 extern crate shade;
 
 use shade::d2::ColorV;
-use shade::{ICanvas, Shader};
+use shade::*;
 
 mod vb {
 	use shade::{VertexBuffer};
@@ -27,12 +27,24 @@ mod vb {
 	}
 }
 
-// struct MyShader;
-// impl Shader for MyShader {
-// }
+struct MyShader<'a> {
+	canvas: &'a mut Canvas::<vb::VertexBuffers>,
+}
+impl<'a> Shader for MyShader<'a> {
+	type Vertex = ColorV;
+	type Context = ();
+	fn uid() -> u32 { 123 }
+	fn context(&self) -> () { }
+	fn set_context(&mut self, _ctx: &()) {}
+
+	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]) {
+		self.canvas.draw_primitive::<Self>(prim, nverts, nprims)
+	}
+}
 
 fn main() {
-	let mut canvas = shade::Canvas::<vb::VertexBuffers>::default();
+	let mut canvas = Canvas::<vb::VertexBuffers>::default();
+	let mut shader = MyShader { canvas: &mut canvas };
 
-	// let (verts, indices) = canvas.draw_primitive::<ColorV>(shade::Primitive::Lines, 4, 4);
+	let (verts, indices) = shader.draw_primitive(Primitive::Lines, 4, 4);
 }
