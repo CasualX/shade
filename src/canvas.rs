@@ -1,9 +1,5 @@
 
-use super::{Primitive, Index, IVertex, Shader};
-
-pub trait VertexBuffer<V> {
-	fn alloc(&mut self, n: usize) -> &mut [V];
-}
+use super::{Primitive, Index, IVertex, VertexBuffer, Shader};
 
 pub trait ICanvas {
 	type VertexBuffers;
@@ -84,7 +80,7 @@ impl<VB> ICanvas for Canvas<VB> {
 		}
 		self.istart = self.istart.checked_add(nindices as Index).expect("indices overflow");
 		// Allocate vertices
-		let verts = self.verts.alloc(nverts);
+		let verts = self.verts.allocate(nverts);
 		(verts, indices)
 	}
 }
