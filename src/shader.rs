@@ -2,8 +2,7 @@
 Shader Objects.
 */
 
-use vertex::{IVertex, Index};
-use {Primitive};
+use {Primitive, IVertex, Index, UniformData};
 
 #[macro_export]
 macro_rules! draw_primitive {
@@ -37,12 +36,12 @@ macro_rules! draw_primitive {
 
 pub trait Shader {
 	type Vertex: IVertex;
-	type Context;
+	type Uniform: UniformData;
 
 	fn uid() -> u32;
 
-	fn context(&self) -> Self::Context;
-	fn set_context(&mut self, ctx: &Self::Context);
+	fn uniforms(&self) -> Self::Uniform;
+	fn set_uniforms(&mut self, ctx: &Self::Uniform);
 
 	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]);
 }

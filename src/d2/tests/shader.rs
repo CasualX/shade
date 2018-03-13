@@ -13,10 +13,10 @@ pub struct MockShader<V> {
 
 impl<V: IVertex> Shader for MockShader<V> {
 	type Vertex = V;
-	type Context = ();
+	type Uniform = ();
 	fn uid() -> u32 { 0 }
-	fn context(&self) -> () {}
-	fn set_context(&mut self, ctx: &()) {}
+	fn uniforms(&self) -> () {}
+	fn set_uniforms(&mut self, ctx: &()) {}
 	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]) {
 		self.prim = prim;
 		self.nprims = nprims;

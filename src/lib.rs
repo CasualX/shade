@@ -7,12 +7,14 @@ mod canvas;
 mod shader;
 mod vertex;
 mod types;
+mod uniform;
 
 pub use self::graphics::{IGraphics};
 pub use self::canvas::{Canvas, ICanvas};
 pub use self::shader::{Shader};
 pub use self::vertex::{IVertex, PlaceV, Index, VertexBuffer};
 pub use self::types::{Primitive, Blend, Visualize, Stencil};
+pub use self::uniform::{UniformData, UniformBuffer};
 
 pub mod soft;
 pub mod d2;

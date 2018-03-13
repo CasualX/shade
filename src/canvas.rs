@@ -1,10 +1,10 @@
 
-use super::{Primitive, Index, IVertex, VertexBuffer, Shader};
+use super::{Primitive, Index, IVertex, VertexBuffer, Shader, UniformData, UniformBuffer};
 
 pub trait ICanvas {
-	type VertexBuffers;
+	type Buffers;
 	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
-		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::VertexBuffers: VertexBuffer<S::Vertex>;
+		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::Buffers: VertexBuffer<S::Vertex>;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -17,16 +17,24 @@ pub struct Batch {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Canvas<VB> {
-	verts: VB,
+pub struct Canvas<T> {
+	buffers: T,
 	indices: Vec<Index>,
 	batches: Vec<Batch>,
 	istart: Index,
 }
-impl<VB> ICanvas for Canvas<VB> {
-	type VertexBuffers = VB;
-	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
-		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::VertexBuffers: VertexBuffer<S::Vertex>
+impl<T> Canvas<T> {
+	pub fn context<U>(&mut self) -> U where U: UniformData, T: UniformBuffer<U> {
+		unimplemented!()
+	}
+	pub fn set_context<U>(&mut self, _ctx: &U) where U: UniformData, T: UniformBuffer<U> {
+		unimplemented!()
+	}
+	pub fn pop_context<U>(&mut self) where U: UniformData, T: UniformBuffer<U> {
+		unimplemented!()
+	}
+	pub fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [Index])
+		where S: Shader, T: VertexBuffer<S::Vertex>
 	{
 		let shader_uid = S::uid();
 		let new_batch = {
@@ -80,7 +88,16 @@ impl<VB> ICanvas for Canvas<VB> {
 		}
 		self.istart = self.istart.checked_add(nindices as Index).expect("indices overflow");
 		// Allocate vertices
-		let verts = self.verts.allocate(nverts);
+		let verts = self.buffers.allocate(nverts);
 		(verts, indices)
+	}
+}
+
+impl<T> ICanvas for Canvas<T> {
+	type Buffers = T;
+	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
+		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::Buffers: VertexBuffer<S::Vertex>
+	{
+		Self::draw_primitive::<S>(self, prim, nverts, nprims)
 	}
 }

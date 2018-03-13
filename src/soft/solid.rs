@@ -13,14 +13,14 @@ impl<'a, CV: ICanvas> From<&'a mut CV> for Solid<'a, CV> {
 	}
 }
 
-impl<'a, CV: ICanvas> Shader for Solid<'a, CV> where CV::VertexBuffers: VertexBuffer<ColorV> {
+impl<'a, CV: ICanvas> Shader for Solid<'a, CV> where CV::Buffers: VertexBuffer<ColorV> {
 	type Vertex = ColorV;
-	type Context = ();
+	type Uniform = ();
 
 	fn uid() -> u32 { 0x116e33ac }
 
-	fn context(&self) -> Self::Context { () }
-	fn set_context(&mut self, ctx: &Self::Context) {}
+	fn uniforms(&self) -> () { () }
+	fn set_uniforms(&mut self, _ctx: &()) {}
 
 	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [ColorV], &mut [Index])
 	{
