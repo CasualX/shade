@@ -2,6 +2,33 @@
 Some 2D implementations.
 */
 
+macro_rules! draw_primitive {
+	(@count) => { 0 };
+	(@count $e:expr $(, $tail:expr)*) => { 1 + draw_primitive!(@count $($tail),*) };
+
+	($canvas:expr; $prim:expr; $($index:expr),*; $($vert:expr),*,) => {
+		draw_primitive!($canvas; $prim; $($index),*; $($vert),*);
+	};
+	($canvas:expr; $prim:expr; $($index:expr),*; $($vert:expr),*) => {
+		const N_VERTS: usize = draw_primitive!(@count $($vert),*);
+		const N_INDICES: usize = draw_primitive!(@count $($index),*);
+		assert_eq!(0, N_INDICES % $prim as u8 as usize);
+		let (_vp, _ip) = $canvas.draw_primitive::<S>($prim, N_VERTS, N_INDICES / $prim as u8 as usize);
+		debug_assert_eq!(_vp.len(), N_VERTS);
+		debug_assert_eq!(_ip.len(), N_INDICES);
+		let _i = -1isize;
+		$(
+			let _i = _i + 1;
+			unsafe { *_ip.get_unchecked_mut(_i as usize) += $index; }
+		)*
+		let _v = -1isize;
+		$(
+			let _v = _v + 1;
+			unsafe { *_vp.get_unchecked_mut(_v as usize) = $vert; }
+		)*
+	};
+}
+
 mod pen;
 mod paint;
 mod stamp;
@@ -9,7 +36,7 @@ mod vertex;
 mod curve;
 pub mod polygon;
 
-pub use self::pen::{DrawPath, IPen, Pen};
+pub use self::pen::{IPen, Pen};
 pub use self::paint::{IPaint, Paint};
 pub use self::stamp::{IStamp, Stamp};
 pub use self::vertex::{TexV, ColorV, TextV, ToVertex};

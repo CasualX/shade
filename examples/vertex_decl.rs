@@ -4,21 +4,21 @@ use shade::d2::ColorV;
 use shade::*;
 
 mod vb {
-	use shade::{VertexBuffer};
+	use shade::{Allocate};
 	use shade::d2::{ColorV, TexV};
 	#[derive(Clone, Default)]
 	pub struct Buffers {
 		colorv: Vec<ColorV>,
 		texv: Vec<TexV>,
 	}
-	impl VertexBuffer<ColorV> for Buffers {
+	impl Allocate<ColorV> for Buffers {
 		fn allocate(&mut self, n: usize) -> &mut [ColorV] {
 			let start = self.colorv.len();
 			self.colorv.resize(start + n, ColorV::default());
 			&mut self.colorv[start..]
 		}
 	}
-	impl VertexBuffer<TexV> for Buffers {
+	impl Allocate<TexV> for Buffers {
 		fn allocate(&mut self, n: usize) -> &mut [TexV] {
 			let start = self.texv.len();
 			self.texv.resize(start + n, TexV::default());
@@ -27,24 +27,17 @@ mod vb {
 	}
 }
 
-struct MyShader<'a> {
-	canvas: &'a mut Canvas<vb::Buffers>,
+#[derive(Copy, Clone, Debug, Default)]
+struct MyShader;
+impl TUniform for MyShader {
+	fn uid() -> u32 { 12345445 }
 }
-impl<'a> Shader for MyShader<'a> {
+impl TShader for MyShader {
 	type Vertex = ColorV;
 	type Uniform = ();
-	fn uid() -> u32 { 123 }
-	fn uniforms(&self) -> () { }
-	fn set_uniforms(&mut self, _ctx: &()) {}
-
-	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]) {
-		self.canvas.draw_primitive::<Self>(prim, nverts, nprims)
-	}
 }
 
 fn main() {
-	let mut canvas = Canvas::<vb::Buffers>::default();
-	let mut shader = MyShader { canvas: &mut canvas };
-
-	let (verts, indices) = shader.draw_primitive(Primitive::Lines, 4, 4);
+	let mut cv = Canvas::<vb::Buffers>::default();
+	let (verts, indices) = cv.draw_primitive::<MyShader>(Primitive::Lines, 4, 4);
 }

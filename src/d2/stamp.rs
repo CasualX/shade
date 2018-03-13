@@ -1,14 +1,15 @@
 
-use {Shader, Primitive};
+use {Allocate, ICanvas, TShader, Primitive};
 use super::{Point2, Vec2, Rect, ToVertex, TexV};
 
 //----------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Stamp {
+pub struct Stamp<S> {
 	pub uv: Rect,
+	pub shader: S,
 }
-impl ToVertex<TexV> for Stamp {
+impl<S> ToVertex<TexV> for Stamp<S> {
 	fn to_vertex(&self, pt: Point2, index: usize) -> TexV {
 		let uv = match index {
 			0 => self.uv.top_left(),
@@ -23,13 +24,16 @@ impl ToVertex<TexV> for Stamp {
 
 //----------------------------------------------------------------
 
-pub trait IStamp {
-	fn stamp_rect(&mut self, stamp: &Stamp, rc: &Rect);
-	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point2, x: &Vec2, y: &Vec2);
+pub trait IStamp<S> {
+	fn stamp_rect(&mut self, stamp: &Stamp<S>, rc: &Rect);
+	fn stamp_quad(&mut self, stamp: &Stamp<S>, origin: &Point2, x: &Vec2, y: &Vec2);
 }
 
-impl<S: Shader> IStamp for S where Stamp: ToVertex<S::Vertex> {
-	fn stamp_rect(&mut self, stamp: &Stamp, rc: &Rect) {
+impl<S: TShader, C: ICanvas> IStamp<S> for C
+	where C::Buffers: Allocate<S::Vertex>,
+	      Stamp<S>: ToVertex<S::Vertex>,
+{
+	fn stamp_rect(&mut self, stamp: &Stamp<S>, rc: &Rect) {
 		draw_primitive!(
 			self;
 			Primitive::Triangles;
@@ -40,7 +44,7 @@ impl<S: Shader> IStamp for S where Stamp: ToVertex<S::Vertex> {
 			stamp.to_vertex(rc.bottom_left(), 3),
 		);
 	}
-	fn stamp_quad(&mut self, stamp: &Stamp, origin: &Point2, x: &Vec2, y: &Vec2) {
+	fn stamp_quad(&mut self, stamp: &Stamp<S>, origin: &Point2, x: &Vec2, y: &Vec2) {
 		draw_primitive!(
 			self;
 			Primitive::Triangles;

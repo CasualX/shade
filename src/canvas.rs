@@ -1,10 +1,10 @@
 
-use super::{Primitive, Index, IVertex, VertexBuffer, Shader, UniformData, UniformBuffer};
+use super::{Primitive, Index, TVertex, Allocate, TShader, TUniform};
 
 pub trait ICanvas {
 	type Buffers;
 	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
-		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::Buffers: VertexBuffer<S::Vertex>;
+		-> (&mut [S::Vertex], &mut [Index]) where S: TShader, Self::Buffers: Allocate<S::Vertex>;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -24,17 +24,17 @@ pub struct Canvas<T> {
 	istart: Index,
 }
 impl<T> Canvas<T> {
-	pub fn context<U>(&mut self) -> U where U: UniformData, T: UniformBuffer<U> {
+	pub fn context<U>(&mut self) -> U where U: TUniform, T: Allocate<U> {
 		unimplemented!()
 	}
-	pub fn set_context<U>(&mut self, _ctx: &U) where U: UniformData, T: UniformBuffer<U> {
+	pub fn set_context<U>(&mut self, _ctx: &U) where U: TUniform, T: Allocate<U> {
 		unimplemented!()
 	}
-	pub fn pop_context<U>(&mut self) where U: UniformData, T: UniformBuffer<U> {
+	pub fn pop_context<U>(&mut self) where U: TUniform, T: Allocate<U> {
 		unimplemented!()
 	}
 	pub fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [Index])
-		where S: Shader, T: VertexBuffer<S::Vertex>
+		where S: TShader, T: Allocate<S::Vertex>
 	{
 		let shader_uid = S::uid();
 		let new_batch = {
@@ -96,7 +96,7 @@ impl<T> Canvas<T> {
 impl<T> ICanvas for Canvas<T> {
 	type Buffers = T;
 	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
-		-> (&mut [S::Vertex], &mut [Index]) where S: Shader, Self::Buffers: VertexBuffer<S::Vertex>
+		-> (&mut [S::Vertex], &mut [Index]) where S: TShader, Self::Buffers: Allocate<S::Vertex>
 	{
 		Self::draw_primitive::<S>(self, prim, nverts, nprims)
 	}

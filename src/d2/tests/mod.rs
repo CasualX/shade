@@ -1,6 +1,6 @@
 
-mod shader;
-pub use self::shader::MockShader;
+mod mock;
+pub use self::mock::MockCanvas;
 
 mod pen;
 mod paint;

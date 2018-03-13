@@ -1,5 +1,5 @@
 
-use vertex::IVertex;
+use vertex::TVertex;
 use super::{Point2, Color};
 
 pub trait ToVertex<V> {
@@ -13,7 +13,7 @@ pub struct TexV {
 	pub pt: Point2,
 	pub uv: Point2,
 }
-impl IVertex for TexV {
+impl TVertex for TexV {
 	fn uid() -> u32 { 0x7c88545a }
 }
 
@@ -25,7 +25,7 @@ pub struct ColorV {
 	pub fg: Color,
 	pub bg: Color,
 }
-impl IVertex for ColorV {
+impl TVertex for ColorV {
 	fn uid() -> u32 { 0xa1c184ae }
 }
 
@@ -38,6 +38,6 @@ pub struct TextV {
 	pub fg: Color,
 	pub bg: Color,
 }
-impl IVertex for TextV {
+impl TVertex for TextV {
 	fn uid() -> u32 { 0x0d92e32e }
 }

@@ -1,9 +1,9 @@
 
-use {Primitive, Index, Shader, IVertex};
+use {ICanvas, Allocate, Primitive, Index, TShader, TVertex};
 
-/// Mocked shader.
+/// Mocked canvas.
 #[derive(Debug, Default)]
-pub struct MockShader<V> {
+pub struct MockCanvas<V> {
 	pub prim: Primitive,
 	pub istart: Index,
 	pub nprims: usize,
@@ -11,13 +11,11 @@ pub struct MockShader<V> {
 	pub indices: Vec<Index>,
 }
 
-impl<V: IVertex> Shader for MockShader<V> {
-	type Vertex = V;
-	type Uniform = ();
-	fn uid() -> u32 { 0 }
-	fn uniforms(&self) -> () {}
-	fn set_uniforms(&mut self, ctx: &()) {}
-	fn draw_primitive(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [Self::Vertex], &mut [Index]) {
+impl<V: TVertex> ICanvas for MockCanvas<V> {
+	type Buffers = Vec<V>;
+	fn draw_primitive<S: TShader>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [Index])
+		where Self::Buffers: Allocate<S::Vertex>
+	{
 		self.prim = prim;
 		self.nprims = nprims;
 		// Allocate indices
@@ -35,14 +33,7 @@ impl<V: IVertex> Shader for MockShader<V> {
 			&mut self.indices[..]
 		};
 		// Allocate vertices
-		if self.verts.capacity() < nverts {
-			let reserve = nverts - self.verts.capacity();
-			self.verts.reserve(reserve);
-		}
-		let verts = unsafe {
-			self.verts.set_len(nverts);
-			&mut self.verts[..]
-		};
+		let verts = self.verts.allocate(nverts);
 		(verts, indices)
 	}
 }
