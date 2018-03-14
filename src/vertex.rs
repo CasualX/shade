@@ -4,7 +4,7 @@ Vertex and Index types.
 
 /// Marker trait for vertex types.
 pub trait TVertex: Copy + 'static {
-	fn uid() -> u32;
+	fn vertex_uid() -> u32;
 }
 
 /// Index type for indexed drawing.

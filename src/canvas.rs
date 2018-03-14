@@ -36,7 +36,7 @@ impl<T> Canvas<T> {
 	pub fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [Index])
 		where S: TShader, T: Allocate<S::Vertex>
 	{
-		let shader_uid = S::uid();
+		let shader_uid = S::shader_uid();
 		let new_batch = {
 			if let Some(last_batch) = self.batches.last_mut() {
 				// If the last batch has not been specialized, claim it
@@ -60,7 +60,7 @@ impl<T> Canvas<T> {
 		};
 		if new_batch {
 			self.batches.push(Batch {
-				vertex_uid: S::Vertex::uid(),
+				vertex_uid: S::Vertex::vertex_uid(),
 				shader_uid: shader_uid,
 				prim: prim,
 				nverts: 0,

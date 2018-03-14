@@ -6,11 +6,12 @@ use {Primitive, TShader, TUniform};
 #[derive(Copy, Clone, Debug, Default)]
 struct StampShader;
 impl TUniform for StampShader {
-	fn uid() -> u32 { 1826731 }
+	fn uniform_uid() -> u32 { 1826731 }
 }
 impl TShader for StampShader {
 	type Vertex = TexV;
 	type Uniform = ();
+	fn shader_uid() -> u32 { 6218828 }
 }
 
 #[test]

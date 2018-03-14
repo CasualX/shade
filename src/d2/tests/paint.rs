@@ -6,11 +6,12 @@ use {Primitive, TShader, TUniform};
 #[derive(Copy, Clone, Debug, Default)]
 struct PaintShader;
 impl TUniform for PaintShader {
-	fn uid() -> u32 { 1826731 }
+	fn uniform_uid() -> u32 { 1826731 }
 }
 impl TShader for PaintShader {
 	type Vertex = ColorV;
 	type Uniform = ();
+	fn shader_uid() -> u32 { 827721 }
 }
 
 #[test]

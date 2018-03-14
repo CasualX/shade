@@ -14,7 +14,7 @@ pub struct TexV {
 	pub uv: Point2,
 }
 impl TVertex for TexV {
-	fn uid() -> u32 { 0x7c88545a }
+	fn vertex_uid() -> u32 { 0x7c88545a }
 }
 
 //----------------------------------------------------------------
@@ -26,7 +26,7 @@ pub struct ColorV {
 	pub bg: Color,
 }
 impl TVertex for ColorV {
-	fn uid() -> u32 { 0xa1c184ae }
+	fn vertex_uid() -> u32 { 0xa1c184ae }
 }
 
 //----------------------------------------------------------------
@@ -39,5 +39,5 @@ pub struct TextV {
 	pub bg: Color,
 }
 impl TVertex for TextV {
-	fn uid() -> u32 { 0x0d92e32e }
+	fn vertex_uid() -> u32 { 0x0d92e32e }
 }

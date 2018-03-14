@@ -30,11 +30,12 @@ mod vb {
 #[derive(Copy, Clone, Debug, Default)]
 struct MyShader;
 impl TUniform for MyShader {
-	fn uid() -> u32 { 12345445 }
+	fn uniform_uid() -> u32 { 12345445 }
 }
 impl TShader for MyShader {
 	type Vertex = ColorV;
 	type Uniform = ();
+	fn shader_uid() -> u32 { 520192 }
 }
 
 fn main() {
