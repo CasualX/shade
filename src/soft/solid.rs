@@ -1,10 +1,9 @@
 
 use {TShader, TUniform};
 use d2::ColorV;
-use super::Uniforms;
 
 #[derive(Copy, Clone, Debug)]
-pub struct Solid {}
+pub struct Solid;
 
 impl TUniform for Solid {
 	fn uniform_uid() -> u32 { 0x116e33ac }

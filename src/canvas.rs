@@ -9,19 +9,19 @@ pub trait ICanvas {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Batch {
-	shader_uid: u32,
-	vertex_uid: u32,
-	prim: Primitive,
-	nverts: Index,
-	nprims: Index,
+	pub shader_uid: u32,
+	pub vertex_uid: u32,
+	pub prim: Primitive,
+	pub nverts: Index,
+	pub nprims: Index,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Canvas<T> {
-	buffers: T,
-	indices: Vec<Index>,
-	batches: Vec<Batch>,
-	istart: Index,
+	pub buffers: T,
+	pub indices: Vec<Index>,
+	pub batches: Vec<Batch>,
+	pub istart: Index,
 }
 impl<T> Canvas<T> {
 	pub fn context<U>(&mut self) -> U where U: TUniform, T: Allocate<U> {

@@ -34,6 +34,7 @@ mod paint;
 mod stamp;
 mod vertex;
 mod curve;
+mod uniform;
 pub mod polygon;
 
 pub use self::pen::{IPen, Pen};
@@ -41,6 +42,7 @@ pub use self::paint::{IPaint, Paint};
 pub use self::stamp::{IStamp, Stamp};
 pub use self::vertex::{TexV, ColorV, TextV, ToVertex};
 pub use self::curve::{bezier2, bezier3};
+pub use self::uniform::{Uniform};
 
 pub type Point2 = ::cgmath::Point2<f32>;
 pub type Vec2 = ::cgmath::Vec2<f32>;

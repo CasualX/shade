@@ -1,6 +1,6 @@
 extern crate shade;
 
-use shade::d2::ColorV;
+use shade::d2::*;
 use shade::*;
 
 mod vb {
@@ -8,8 +8,8 @@ mod vb {
 	use shade::d2::{ColorV, TexV};
 	#[derive(Clone, Default)]
 	pub struct Buffers {
-		colorv: Vec<ColorV>,
-		texv: Vec<TexV>,
+		pub colorv: Vec<ColorV>,
+		pub texv: Vec<TexV>,
 	}
 	impl Allocate<ColorV> for Buffers {
 		unsafe fn allocate(&mut self, n: usize) -> &mut [ColorV] {
@@ -23,6 +23,8 @@ mod vb {
 	}
 }
 
+type Canvas = shade::Canvas<vb::Buffers>;
+
 #[derive(Copy, Clone, Debug, Default)]
 struct MyShader;
 impl TUniform for MyShader {
@@ -35,6 +37,28 @@ impl TShader for MyShader {
 }
 
 fn main() {
-	let mut cv = Canvas::<vb::Buffers>::default();
-	let (verts, indices) = cv.draw_primitive::<MyShader>(Primitive::Lines, 4, 4);
+	let mut cv = Canvas::default();
+	let paint = Paint {
+		color1: Color::new(0.5, 0.5, 0.5, 1.0),
+		shader: MyShader,
+		..Paint::default()
+	};
+	let rc = Rect::new(Point2::new(1.0, 2.0), Point2::new(10.0, 20.0));
+	cv.fill_rect(&paint, &rc);
+	render(&cv);
+}
+
+fn render(cv: &Canvas) {
+	for (index, batch) in cv.batches.iter().enumerate() {
+		if batch.prim == Primitive::Triangles && batch.shader_uid == MyShader::shader_uid() && batch.vertex_uid == ColorV::vertex_uid() {
+			render_triangles_myshader_colorv(
+				&cv.buffers.colorv[..batch.nverts as usize],
+				&cv.indices[..(batch.nprims * 3) as usize],
+			);
+		}
+	}
+}
+
+fn render_triangles_myshader_colorv(vertices: &[ColorV], indices: &[Index]) {
+	unimplemented!()
 }
