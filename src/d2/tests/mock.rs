@@ -33,7 +33,7 @@ impl<V: TVertex> ICanvas for MockCanvas<V> {
 			&mut self.indices[..]
 		};
 		// Allocate vertices
-		let verts = self.verts.allocate(nverts);
+		let verts = unsafe { self.verts.allocate(nverts) };
 		(verts, indices)
 	}
 }

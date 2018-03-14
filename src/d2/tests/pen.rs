@@ -68,7 +68,7 @@ fn draw_poly_line() {
 
 	assert_eq!(cv.prim, Primitive::Lines);
 	assert_eq!(cv.nprims, 3);
-	assert_eq!(cv.verts.len(), 3);
+	assert_eq!(cv.verts.len(), 6);
 	assert_eq!(cv.indices, &[5, 6, 6, 7, 7, 5]);
 }
 

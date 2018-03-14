@@ -12,17 +12,13 @@ mod vb {
 		texv: Vec<TexV>,
 	}
 	impl Allocate<ColorV> for Buffers {
-		fn allocate(&mut self, n: usize) -> &mut [ColorV] {
-			let start = self.colorv.len();
-			self.colorv.resize(start + n, ColorV::default());
-			&mut self.colorv[start..]
+		unsafe fn allocate(&mut self, n: usize) -> &mut [ColorV] {
+			self.colorv.allocate(n)
 		}
 	}
 	impl Allocate<TexV> for Buffers {
-		fn allocate(&mut self, n: usize) -> &mut [TexV] {
-			let start = self.texv.len();
-			self.texv.resize(start + n, TexV::default());
-			&mut self.texv[start..]
+		unsafe fn allocate(&mut self, n: usize) -> &mut [TexV] {
+			self.texv.allocate(n)
 		}
 	}
 }

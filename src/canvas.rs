@@ -88,7 +88,7 @@ impl<T> Canvas<T> {
 		}
 		self.istart = self.istart.checked_add(nindices as Index).expect("indices overflow");
 		// Allocate vertices
-		let verts = self.buffers.allocate(nverts);
+		let verts = unsafe { self.buffers.allocate(nverts) };
 		(verts, indices)
 	}
 }
