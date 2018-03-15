@@ -1,3 +1,4 @@
+use std::slice;
 
 use super::{Primitive, Index, TVertex, Allocate, TShader, TUniform};
 
@@ -33,6 +34,7 @@ impl<T> Canvas<T> {
 	pub fn pop_context<U>(&mut self) where U: TUniform, T: Allocate<U> {
 		unimplemented!()
 	}
+	#[inline(never)]
 	pub fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [Index])
 		where S: TShader, T: Allocate<S::Vertex>
 	{
@@ -95,6 +97,7 @@ impl<T> Canvas<T> {
 
 impl<T> ICanvas for Canvas<T> {
 	type Buffers = T;
+	#[inline]
 	fn draw_primitive<S>(&mut self, prim: Primitive, nverts: usize, nprims: usize)
 		-> (&mut [S::Vertex], &mut [Index]) where S: TShader, Self::Buffers: Allocate<S::Vertex>
 	{

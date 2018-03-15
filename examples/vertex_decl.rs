@@ -44,7 +44,9 @@ fn main() {
 		..Paint::default()
 	};
 	let rc = Rect::new(Point2::new(1.0, 2.0), Point2::new(10.0, 20.0));
-	cv.fill_rect(&paint, &rc);
+	cv.fill_ellipse(&paint, &rc);
+	cv.fill_ellipse(&paint, &rc);
+	cv.fill_ellipse(&paint, &rc);
 	render(&cv);
 }
 

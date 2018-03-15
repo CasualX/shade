@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, slice};
 
 use {Allocate, ICanvas, Primitive, TShader, Index};
 use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2};
@@ -115,12 +115,12 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 		}
 		// n vertices, n - 2 primitives, (n - 2) * 3 indices
 		let n = pts.len() - 2;
-		let (vp, ip) = self.draw_primitive::<S>(Primitive::Triangles, pts.len(), n);
+		let (vp, ip) = draw_primitive::<C, S>(self, pts.len(), n);
 		// Add indices
 		for i in 0..n {
-			ip[i * 3] += i as Index;
-			ip[i * 3 + 1] += (i + 1) as Index;
-			ip[i * 3 + 2] += (n + 1 - i) as Index;
+			ip[i].0 += i as Index;
+			ip[i].1 += (i + 1) as Index;
+			ip[i].2 += (n + 1 - i) as Index;
 		}
 		// Add vertices
 		for v in 0..pts.len() {
@@ -128,7 +128,7 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 		}
 	}
 	fn fill_polygon(&mut self, paint: &Paint<S>, pts: &[Point2], triangles: &[(Index, Index, Index)]) {
-		let (vp, ip) = self.draw_primitive::<S>(Primitive::Triangles, pts.len(), triangles.len());
+		let (vp, ip) = draw_primitive::<C, S>(self, pts.len(), triangles.len());
 		// Add indices
 		for i in 0..triangles.len() {
 			// Must be indices into the points slice
@@ -136,9 +136,9 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 			let _ = pts[p1 as usize];
 			let _ = pts[p2 as usize];
 			let _ = pts[p3 as usize];
-			ip[i * 3] += p1;
-			ip[i * 3 + 1] += p2;
-			ip[i * 3 + 2] += p3;
+			ip[i].0 += p1;
+			ip[i].1 += p2;
+			ip[i].2 += p3;
 		}
 		// Add vertices
 		for v in 0..pts.len() {
@@ -160,15 +160,15 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 	fn fill_ellipse(&mut self, paint: &Paint<S>, rc: &Rect) {
 		// n + 1 vertices, n primitives, n * 3 indices
 		let n = cmp::max(3, paint.segments) as usize;
-		let (vp, ip) = self.draw_primitive::<S>(Primitive::Triangles, n + 1, n);
+		let (vp, ip) = draw_primitive::<C, S>(self, n + 1, n);
 
 		// Add indices
 		for i in 0..n - 1 {
-			ip[i * 3 + 1] += (i + 1) as Index;
-			ip[i * 3 + 2] += (i + 2) as Index;
+			ip[i].1 += (i + 1) as Index;
+			ip[i].2 += (i + 2) as Index;
 		}
-		ip[n * 3 - 2] += n as Index;
-		ip[n * 3 - 1] += 1;
+		ip[n - 1].1 += n as Index;
+		ip[n - 1].2 += 1;
 
 		// Precompute trigs
 		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
@@ -194,12 +194,12 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(paint.segments, 2) as usize;
-		let (vp, ip) = self.draw_primitive::<S>(Primitive::Triangles, n + 2, n);
+		let (vp, ip) = draw_primitive::<C, S>(self, n + 2, n);
 
 		// Add indices
 		for i in 0..n {
-			ip[i * 3 + 1] += (i + 1) as Index;
-			ip[i * 3 + 2] += (i + 2) as Index;
+			ip[i].1 += (i + 1) as Index;
+			ip[i].2 += (i + 2) as Index;
 		}
 
 		// Precompute trigs
@@ -270,12 +270,12 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 	fn fill_bezier2(&mut self, paint: &Paint<S>, pivot: &Point2, pts: &[Point2; 3]) {
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(paint.segments, 2) as usize;
-		let (vp, ip) = self.draw_primitive::<S>(Primitive::Lines, n + 2, n);
+		let (vp, ip) = draw_primitive::<C, S>(self, n + 2, n);
 
 		// Add indices
 		for i in 0..n {
-			ip[i * 3 + 1] += (i + 1) as Index;
-			ip[i * 3 + 2] += (i + 2) as Index;
+			ip[i].1 += (i + 1) as Index;
+			ip[i].2 += (i + 2) as Index;
 		}
 
 		// Add vertices
@@ -285,4 +285,16 @@ impl<S: TShader, C: ICanvas> IPaint<S> for C
 			vp[v] = paint.to_vertex(pt, v);
 		}
 	}
+}
+
+// Help the compiler eliminate bounds checks
+#[inline(always)]
+fn draw_primitive<C: ICanvas, S: TShader>(cv: &mut C, nverts: usize, nprims: usize) -> (&mut [S::Vertex], &mut [(Index, Index, Index)])
+	where C::Buffers: Allocate<S::Vertex>
+{
+	let (vp, ip) = cv.draw_primitive::<S>(Primitive::Triangles, nverts, nprims);
+	let verts = &mut vp[..nverts];
+	let indices = &mut ip[..nprims * 3];
+	let indices = unsafe { slice::from_raw_parts_mut(indices.as_mut_ptr() as _, nprims) };
+	(verts, indices)
 }
