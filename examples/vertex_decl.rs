@@ -2,28 +2,7 @@ extern crate shade;
 
 use shade::d2::*;
 use shade::*;
-
-mod vb {
-	use shade::{Allocate};
-	use shade::d2::{ColorV, TexV};
-	#[derive(Clone, Default)]
-	pub struct Buffers {
-		pub colorv: Vec<ColorV>,
-		pub texv: Vec<TexV>,
-	}
-	impl Allocate<ColorV> for Buffers {
-		unsafe fn allocate(&mut self, n: usize) -> &mut [ColorV] {
-			self.colorv.allocate(n)
-		}
-	}
-	impl Allocate<TexV> for Buffers {
-		unsafe fn allocate(&mut self, n: usize) -> &mut [TexV] {
-			self.texv.allocate(n)
-		}
-	}
-}
-
-type Canvas = shade::Canvas<vb::Buffers>;
+use shade::d2::Canvas;
 
 #[derive(Copy, Clone, Debug, Default)]
 struct MyShader;
