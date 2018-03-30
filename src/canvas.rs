@@ -1,4 +1,3 @@
-use std::slice;
 
 use super::{Primitive, Index, TVertex, Allocate, TShader, TUniform};
 
