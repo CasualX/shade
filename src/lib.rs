@@ -1,6 +1,3 @@
-pub extern crate cvmath;
-use cvmath::prelude as cgmath;
-
 mod graphics;
 mod canvas;
 mod shader;
@@ -17,5 +14,9 @@ pub use self::types::{Primitive, Blend, Visualize, Stencil};
 pub use self::traits::{Allocate};
 pub use self::uniform::{TUniform};
 
+#[cfg(feature = "soft")]
 pub mod soft;
+#[cfg(feature = "debug")]
+pub mod debug;
+#[cfg(feature = "d2")]
 pub mod d2;
