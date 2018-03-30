@@ -5,9 +5,9 @@ use super::{Point2, Vec2, Rect, ToVertex, TexV};
 //----------------------------------------------------------------
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Stamp<S> {
+pub struct Stamp<Shader> {
 	pub uv: Rect,
-	pub shader: S,
+	pub shader: Shader,
 }
 impl<S> ToVertex<TexV> for Stamp<S> {
 	fn to_vertex(&self, pt: Point2, index: usize) -> TexV {

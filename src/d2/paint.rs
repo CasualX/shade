@@ -7,11 +7,11 @@ use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2};
 
 /// Paint bucket.
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Paint<S> {
+pub struct Paint<Shader> {
 	pub color1: Color,
 	pub color2: Color,
 	pub segments: u32,
-	pub shader: S,
+	pub shader: Shader,
 }
 impl<S: Default> Default for Paint<S> {
 	fn default() -> Paint<S> {

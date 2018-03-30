@@ -8,10 +8,10 @@ use super::{Point2, Rect, Rad, Color, ToVertex, ColorV, TexV, bezier2, bezier3};
 
 /// Line drawing pencil.
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Pen<S> {
+pub struct Pen<Shader> {
 	pub color: Color,
 	pub segments: u32,
-	pub shader: S,
+	pub shader: Shader,
 }
 impl<S: Default> Default for Pen<S> {
 	fn default() -> Pen<S> {
