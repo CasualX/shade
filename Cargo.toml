@@ -1,0 +1,18 @@
+[package]
+name = "shade"
+version = "0.0.1"
+edition = "2021"
+
+[features]
+default = ["gl", "png"]
+
+[dependencies]
+dataview = "1.0"
+cvmath = { git = "https://github.com/CasualX/cvmath", features = ["dataview"] }
+gl = { version = "0.6", optional = true }
+png = { version = "0.17", optional = true }
+
+[dev-dependencies]
+glutin = "0.26"
+winit = "0.24"
+stl = "0.2"
