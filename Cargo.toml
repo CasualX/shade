@@ -1,0 +1,30 @@
+[package]
+name = "shade"
+version = "0.0.2"
+edition = "2021"
+
+authors = ["Casper <CasualX@users.noreply.github.com>"]
+description = "Another graphics library"
+documentation = "https://docs.rs/shade"
+repository = "https://github.com/CasualX/shade"
+readme = "readme.md"
+license = "MIT"
+keywords = ["gfx", "shader", "opengl", "2d"]
+categories = ["rendering", "graphics", "game-development", "gui"]
+
+[features]
+default = ["gl", "png", "msdfgen"]
+msdfgen = ["serde"]
+
+[dependencies]
+dataview = "1.0"
+cvmath = { version = "0.0.1", features = ["dataview"] }
+gl = { version = "0.14", optional = true }
+png = { version = "0.17", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = "1.0"
+glutin = "0.26"
+winit = "0.24"
+stl = "0.2"
