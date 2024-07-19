@@ -212,7 +212,7 @@ fn main() {
 		};
 		let transform = projection * view;
 
-		let mut cv = shade::d2::Canvas::<MyVertex3, MyUniform3>::new();
+		let mut cv = shade::d2::CommandBuffer::<MyVertex3, MyUniform3>::new();
 		cv.shader = shader;
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.viewport = cvmath::Rect::c(0, 0, size.width as i32, size.height as i32);
@@ -251,7 +251,7 @@ const GRASS: Sprite = Sprite { left: 0.0 * 34.0 + 1.0, up: 1.0 * 34.0 + 1.0, rig
 const DROP: Sprite = Sprite { left: 1.0 * 34.0 + 1.0, up: 1.0 * 34.0 + 1.0, right: 1.0 * 34.0 + 32.0, down: 1.0 * 34.0 + 32.0 };
 const BEAR: Sprite = Sprite { left: 3.0, up: 68.0, right: 49.0, down: 152.0 };
 
-fn floor_tile(cv: &mut shade::d2::Canvas<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
+fn floor_tile(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
 	let mut cv = cv.begin(shade::PrimType::Triangles, 4, 2);
 	cv.add_indices_quad();
 	cv.add_vertex(MyVertex3 {
@@ -276,7 +276,7 @@ fn floor_tile(cv: &mut shade::d2::Canvas<MyVertex3, MyUniform3>, x: i32, y: i32,
 	});
 }
 
-fn floor_thing(cv: &mut shade::d2::Canvas<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
+fn floor_thing(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
 	let mut cv = cv.begin(shade::PrimType::Triangles, 4, 2);
 	let yoffs = -7.0;
 	let zoffs1 = 12.0;

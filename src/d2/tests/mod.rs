@@ -3,7 +3,7 @@ use super::*;
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct MockVertex {
-	position: Point2<f32>,
+	pos: Point2<f32>,
 }
 
 unsafe impl TVertex for MockVertex {
@@ -21,10 +21,9 @@ unsafe impl TVertex for MockVertex {
 }
 
 impl ToVertex<MockVertex> for () {
+	#[inline]
 	fn to_vertex(&self, pos: Point2<f32>, _index: usize) -> MockVertex {
-		MockVertex {
-			position: pos,
-		}
+		MockVertex { pos }
 	}
 }
 

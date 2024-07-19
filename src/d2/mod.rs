@@ -6,16 +6,18 @@ use std::cmp;
 use super::*;
 use cvmath::*;
 
-mod canvas;
+mod cmdbuf;
 mod paint;
 mod pen;
 mod stamp;
 mod curve;
+mod scribe;
 
-pub use self::canvas::{Canvas, PrimBuilder};
+pub use self::cmdbuf::{CommandBuffer, PrimBuilder};
 pub use self::paint::Paint;
 pub use self::pen::Pen;
 pub use self::stamp::Stamp;
+pub use self::scribe::*;
 
 /// Generate vertex data from a template.
 pub trait ToVertex<V> {

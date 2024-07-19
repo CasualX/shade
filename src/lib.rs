@@ -30,3 +30,6 @@ pub mod gl;
 
 #[cfg(feature = "png")]
 pub mod png;
+
+#[cfg(feature = "msdfgen")]
+pub mod msdfgen;

@@ -7,6 +7,9 @@ use std::{mem, ops};
 /// Re-exported OpenGL bindings.
 pub use gl as capi;
 
+pub const MTSDF_FS: &str = include_str!("shaders/mtsdf.fs.glsl");
+pub const MTSDF_VS: &str = include_str!("shaders/mtsdf.vs.glsl");
+
 use crate::{Handle, Resource, ResourceMap};
 
 struct GlVertexBuffer {
@@ -252,7 +255,7 @@ fn gl_uniforms(ub: &GlUniformBuffer, shader: &GlShader, uniform_index: u32, text
 			}
 		}
 		else {
-			panic!("Uniform not found: {}", uattr.name);
+			// panic!("Uniform not found: {}", uattr.name);
 		}
 	}
 }
@@ -734,6 +737,10 @@ impl crate::IGraphics for GlGraphics {
 			width: surface.width,
 			height: surface.height,
 		});
+	}
+
+	fn surface_set_info(&mut self, id: crate::Surface, info: &crate::SurfaceInfo) -> Result<(), crate::GfxError> {
+		Err(crate::GfxError::InternalError)
 	}
 
 	fn surface_get_texture(&mut self, id: crate::Surface) -> Result<crate::Texture2D, crate::GfxError> {

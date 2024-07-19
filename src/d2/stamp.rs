@@ -1,5 +1,6 @@
 use super::*;
 
+/// Stamp prints sprites.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Stamp<T> {
 	/// Vertex template for the bottom left vertex.
@@ -12,28 +13,30 @@ pub struct Stamp<T> {
 	pub bottom_right: T,
 }
 
-impl<V: TVertex, U: TUniform> Canvas<V, U> {
+impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 	#[inline(never)]
 	pub fn stamp_rect<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, rc: &Rect<f32>) {
-		let mut cv = self.begin(PrimType::Triangles, 4, 2);
-		cv.add_indices_quad();
-		cv.add_vertices(&[
+		let vertices = [
 			stamp.bottom_left.to_vertex(rc.bottom_left(), 0),
 			stamp.top_left.to_vertex(rc.top_left(), 1),
 			stamp.top_right.to_vertex(rc.top_right(), 2),
 			stamp.bottom_right.to_vertex(rc.bottom_right(), 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Triangles, 4, 2);
+		cv.add_indices_quad();
+		cv.add_vertices(&vertices);
 	}
 
 	#[inline(never)]
 	pub fn stamp_quad<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, pos: &Transform2<f32>) {
-		let mut cv = self.begin(PrimType::Triangles, 4, 2);
-		cv.add_indices_quad();
-		cv.add_vertices(&[
+		let vertices = [
 			stamp.bottom_left.to_vertex(pos.t(), 0),
 			stamp.top_left.to_vertex(pos.t() + pos.y(), 1),
 			stamp.top_right.to_vertex(pos.t() + pos.x() + pos.y(), 2),
 			stamp.bottom_right.to_vertex(pos.t() + pos.x(), 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Triangles, 4, 2);
+		cv.add_indices_quad();
+		cv.add_vertices(&vertices);
 	}
 }

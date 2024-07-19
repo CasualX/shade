@@ -1,40 +1,32 @@
 use super::*;
 
 
-/// Paint bucket.
+/// Paint bucket fills shapes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Paint<T> {
 	/// Vertex template.
 	pub template: T,
-	/// Number of segments to use for arcs.
-	pub segments: u32,
 }
 
-impl<V: TVertex, U: TUniform> Canvas<V, U> {
+impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 	/// Fills a rectangle.
 	#[inline(never)]
 	pub fn fill_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>) {
-		let mut cv = self.begin(PrimType::Triangles, 4, 2);
-		cv.add_indices_quad();
-		cv.add_vertices(&[
+		let vertices = [
 			paint.template.to_vertex(rc.bottom_left(), 0),
 			paint.template.to_vertex(rc.top_left(), 1),
 			paint.template.to_vertex(rc.top_right(), 2),
 			paint.template.to_vertex(rc.bottom_right(), 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Triangles, 4, 2);
+		cv.add_indices_quad();
+		cv.add_vertices(&vertices);
 	}
 
 	/// Fills a rectangle with an outline.
 	#[inline(never)]
 	pub fn fill_edge_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, thickness: f32) {
-		let mut cv = self.begin(PrimType::Triangles, 8, 8);
-		cv.add_indices(&[
-			0, 5, 4, 0, 1, 5,
-			1, 6, 5, 1, 2, 6,
-			2, 7, 6, 2, 3, 7,
-			3, 4, 7, 3, 0, 4,
-		]);
-		cv.add_vertices(&[
+		let vertices = [
 			paint.template.to_vertex(rc.top_left(), 1),
 			paint.template.to_vertex(rc.top_right(), 2),
 			paint.template.to_vertex(rc.bottom_right(), 3),
@@ -43,12 +35,20 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 			paint.template.to_vertex(rc.top_right() + (-thickness, thickness), 6),
 			paint.template.to_vertex(rc.bottom_right() + (-thickness, -thickness), 7),
 			paint.template.to_vertex(rc.bottom_left() + (thickness, -thickness), 4)
+		];
+		let mut cv = self.begin(PrimType::Triangles, 8, 8);
+		cv.add_indices(&[
+			0, 5, 4, 0, 1, 5,
+			1, 6, 5, 1, 2, 6,
+			2, 7, 6, 2, 3, 7,
+			3, 4, 7, 3, 0, 4,
 		]);
+		cv.add_vertices(&vertices);
 	}
 
 	/// Fills a rounded rectangle.
 	#[inline(never)]
-	pub fn fill_round_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, sx: f32, sy: f32) {
+	pub fn fill_round_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, sx: f32, sy: f32, _segments: i32) {
 		// Fixup parameters
 		let sx = if sx + sx > rc.width() { rc.width() * 0.5 } else { sx };
 		let sy = if sy + sy > rc.height() { rc.height() * 0.5 } else { sy };
@@ -104,21 +104,22 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 	/// Fills an arbitrary quad.
 	#[inline(never)]
 	pub fn fill_quad<T: ToVertex<V>>(&mut self, paint: &Paint<T>, bottom_left: &Point2<f32>, top_left: &Point2<f32>, top_right: &Point2<f32>, bottom_right: &Point2<f32>) {
-		let mut cv = self.begin(PrimType::Triangles, 4, 2);
-		cv.add_indices_quad();
-		cv.add_vertices(&[
+		let vertices = [
 			paint.template.to_vertex(*bottom_left, 0),
 			paint.template.to_vertex(*top_left, 1),
 			paint.template.to_vertex(*top_right, 2),
 			paint.template.to_vertex(*bottom_right, 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Triangles, 4, 2);
+		cv.add_indices_quad();
+		cv.add_vertices(&vertices);
 	}
 
 	/// Fills an ellipse.
 	#[inline(never)]
-	pub fn fill_ellipse<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>) {
+	pub fn fill_ellipse<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, segments: i32) {
 		// n + 1 vertices, n primitives, n * 3 indices
-		let n = cmp::max(3, paint.segments) as usize;
+		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 1, n);
 
 		// Precompute trigs
@@ -148,9 +149,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 
 	/// Fills a pie slice.
 	#[inline(never)]
-	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, start: Rad<f32>, sweep: Rad<f32>) {
+	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
 		// n + 2 vertices, n primitives, n * 3 indices
-		let n = cmp::max(paint.segments, 2) as usize;
+		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 2, n);
 
 		// Add indices
@@ -182,9 +183,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 
 	/// Fills a ring.
 	#[inline(never)]
-	pub fn fill_ring<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, thickness: f32) {
+	pub fn fill_ring<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Rect<f32>, thickness: f32, segments: i32) {
 		// n * 2 vertices, n * 2 primitives, n * 6 indices
-		let n = cmp::max(3, paint.segments) as usize;
+		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n * 2, n * 2);
 
 		// Add indices
@@ -220,9 +221,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 		}
 	}
 
-	pub fn fill_bezier2<T: ToVertex<V>>(&mut self, paint: &Paint<T>, pivot: &Point2<f32>, pts: &[Point2<f32>; 3]) {
+	pub fn fill_bezier2<T: ToVertex<V>>(&mut self, paint: &Paint<T>, pivot: &Point2<f32>, pts: &[Point2<f32>; 3], segments: i32) {
 		// n + 2 vertices, n primitives, n * 3 indices
-		let n = cmp::max(paint.segments, 2) as usize;
+		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 2, n);
 
 		// Add indices

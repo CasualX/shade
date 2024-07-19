@@ -1,24 +1,23 @@
 use super::*;
 
+/// Pencil draws lines.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pen<T> {
 	/// Vertex template.
 	pub template: T,
-	/// Number of segments to use for arcs.
-	pub segments: u32,
 }
 
-/// Draw lines.
-impl<V: TVertex, U: TUniform> Canvas<V, U> {
+impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 	/// Draws a line from `a` to `b`.
 	#[inline(never)]
 	pub fn draw_line<T: ToVertex<V>>(&mut self, pen: &Pen<T>, a: Point2<f32>, b: Point2<f32>) {
-		let mut cv = self.begin(PrimType::Lines, 2, 1);
-		cv.add_index2(0, 1);
-		cv.add_vertices(&[
+		let vertices = [
 			pen.template.to_vertex(a, 0),
 			pen.template.to_vertex(b, 1),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Lines, 2, 1);
+		cv.add_index2(0, 1);
+		cv.add_vertices(&vertices);
 	}
 
 	/// Draws lines.
@@ -36,19 +35,20 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 	/// Draws a rectangle with lines.
 	#[inline(never)]
 	pub fn draw_line_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>) {
-		let mut cv = self.begin(PrimType::Lines, 4, 4);
-		cv.add_indices(&[0, 1, 1, 2, 2, 3, 3, 0]);
-		cv.add_vertices(&[
+		let vertices = [
 			pen.template.to_vertex(rc.bottom_left(), 0),
 			pen.template.to_vertex(rc.top_left(), 1),
 			pen.template.to_vertex(rc.top_right(), 2),
 			pen.template.to_vertex(rc.bottom_right(), 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Lines, 4, 4);
+		cv.add_indices(&[0, 1, 1, 2, 2, 3, 3, 0]);
+		cv.add_vertices(&vertices);
 	}
 
 	/// Draws a rounded rectangle with lines.
 	#[inline(never)]
-	pub fn draw_round_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>, sx: f32, sy: f32) {
+	pub fn draw_round_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>, sx: f32, sy: f32, _segments: i32) {
 		// Fixup parameters
 		let sx = if sx + sx > rc.width() { rc.width() * 0.5 } else { sx };
 		let sy = if sy + sy > rc.height() { rc.height() * 0.5 } else { sy };
@@ -67,17 +67,18 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 
 	/// Draws an arrow.
 	pub fn draw_arrow<T: ToVertex<V>>(&mut self, pen: &Pen<T>, start: Point2<f32>, end: Point2<f32>, head: f32) {
-		let mut cv = self.begin(PrimType::Lines, 4, 3);
-		cv.add_indices(&[0, 1, 2, 1, 3, 1]);
 		let pth = (end - start).resize(head);
 		let pta = (end - pth) + pth.ccw() * 0.5;
 		let ptb = (end - pth) + pth.cw() * 0.5;
-		cv.add_vertices(&[
+		let vertices = [
 			pen.template.to_vertex(start, 0),
 			pen.template.to_vertex(end, 1),
 			pen.template.to_vertex(pta, 2),
 			pen.template.to_vertex(ptb, 3),
-		]);
+		];
+		let mut cv = self.begin(PrimType::Lines, 4, 3);
+		cv.add_indices(&[0, 1, 2, 1, 3, 1]);
+		cv.add_vertices(&vertices);
 	}
 
 	/// Draws connected lines.
@@ -106,9 +107,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 
 	/// Draws an ellipse.
 	#[inline(never)]
-	pub fn draw_ellipse<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>) {
+	pub fn draw_ellipse<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>, segments: i32) {
 		// n vertices, n primitives, n * 2 indices
-		let n = cmp::max(3, pen.segments) as usize;
+		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Lines, n, n);
 
 		// Add indices
@@ -136,13 +137,13 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 
 	/// Draws an arc.
 	#[inline(never)]
-	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>, start: Rad<f32>, sweep: Rad<f32>) {
+	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Rect<f32>, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
 		if sweep <= -Rad::turn() || sweep >= Rad::turn() {
-			return self.draw_ellipse(pen, rc);
+			return self.draw_ellipse(pen, rc, segments);
 		}
 
 		// n + 1 vertices, n primitives, n * 2 indices
-		let n = cmp::max(pen.segments, 2) as usize;
+		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Lines, n + 1, n);
 
 		// Add indices
@@ -171,9 +172,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 	}
 
 	#[inline(never)]
-	pub fn draw_bezier2<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>; 3]) {
+	pub fn draw_bezier2<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>; 3], segments: i32) {
 		// n + 1 vertices, n primitives, n * 2 indices
-		let n = cmp::max(pen.segments, 2) as usize;
+		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Lines, n + 1, n);
 
 		// Add indices
@@ -189,9 +190,9 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 	}
 
 	#[inline(never)]
-	pub fn draw_bezier3<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>; 4]) {
+	pub fn draw_bezier3<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>; 4], segments: i32) {
 		// n + 1 vertices, n primitives, n * 2 indices
-		let n = cmp::max(pen.segments, 2) as usize;
+		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Lines, n + 1, n);
 
 		// Add indices
@@ -207,7 +208,7 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 	}
 
 	#[inline(never)]
-	pub fn draw_cspline<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>], tension: f32) {
+	pub fn draw_cspline<T: ToVertex<V>>(&mut self, pen: &Pen<T>, pts: &[Point2<f32>], tension: f32, segments: i32) {
 		// Degenerate cspline
 		if pts.len() < 2 {
 			return;
@@ -233,7 +234,7 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 				pts[i + 1] - v * (1.0 / 3.0),
 				pts[i + 1],
 			];
-			self.draw_bezier3(pen, &curve);
+			self.draw_bezier3(pen, &curve, segments);
 			u = v;
 		}
 	}

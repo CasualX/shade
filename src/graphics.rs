@@ -175,6 +175,8 @@ pub trait IGraphics {
 	fn surface_find(&mut self, name: &str) -> Result<Surface, GfxError>;
 	/// Get the info of a surface.
 	fn surface_get_info(&mut self, id: Surface) -> Result<SurfaceInfo, GfxError>;
+	/// Set the info of a surface.
+	fn surface_set_info(&mut self, id: Surface, info: &SurfaceInfo) -> Result<(), GfxError>;
 	/// Get the texture of a surface.
 	fn surface_get_texture(&mut self, id: Surface) -> Result<Texture2D, GfxError>;
 	/// Release the resources of a surface.

@@ -14,7 +14,8 @@ pub(super) struct Command {
 	uniform_index: u32,
 }
 
-pub struct Canvas<V: TVertex, U: TUniform> {
+/// Command buffer.
+pub struct CommandBuffer<V: TVertex, U: TUniform> {
 	pub(super) vertices: Vec<V>,
 	pub(super) indices: Vec<u32>,
 	pub(super) uniforms: Vec<U>,
@@ -28,17 +29,17 @@ pub struct Canvas<V: TVertex, U: TUniform> {
 	pub cull_mode: Option<CullMode>,
 }
 
-impl<V: TVertex, U: TUniform> Canvas<V, U> {
-	/// Creates a new canvas command buffer.
+impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
+	/// Creates a new command buffer.
 	pub fn new() -> Self {
-		Canvas {
+		CommandBuffer {
 			vertices: Vec::new(),
 			indices: Vec::new(),
 			uniforms: Vec::new(),
 			commands: Vec::new(),
 
 			blend_mode: BlendMode::Solid,
-			shader: Shader::default(),
+			shader: Shader::INVALID,
 			viewport: Rect::ZERO,
 			scissor_test: None,
 			depth_test: None,
@@ -53,7 +54,7 @@ impl<V: TVertex, U: TUniform> Canvas<V, U> {
 		self.uniforms.clear();
 		self.commands.clear();
 		self.blend_mode = BlendMode::Solid;
-		self.shader = Shader::default();
+		self.shader = Shader::INVALID;
 		self.viewport = Rect::ZERO;
 		self.scissor_test = None;
 		self.depth_test = None;
