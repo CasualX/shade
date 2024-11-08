@@ -104,28 +104,7 @@ use super::*;
 use cvmath::Vec2;
 
 impl d2::IFont for Font {
-	fn text_width(&self, scribe: &d2::Scribe, cursor: &mut Vec2<f32>, text: &str) -> f32 {
-		let font = self;
-		let mut width = 0.0;
-		for c in text.chars() {
-			if c == '\n' {
-				width = f32::max(width, cursor.x - scribe.x_pos);
-				cursor.x = scribe.x_pos;
-				cursor.y += scribe.line_height;
-				continue;
-			}
-
-			let Some(glyph) = font.glyphs.get(&(c as u32)) else { continue };
-
-			let advance = glyph.advance * scribe.font_size + scribe.letter_spacing;
-			cursor.x += advance;
-		}
-		width = f32::max(width, cursor.x - scribe.x_pos);
-		return width;
-	}
-
-	fn write_span(&self, cv: &mut d2::TextBuffer, scribe_: &d2::Scribe, cursor: &mut Vec2<f32>, text: &str) {
-		let mut scribe = scribe_.clone();
+	fn write_span(&self, mut cv: Option<&mut d2::TextBuffer>, scribe: &mut d2::Scribe, cursor: &mut Vec2<f32>, text: &str) {
 		let font = self;
 		let mut chars = text.chars();
 		while let Some(chr) = chars.next() {
@@ -138,12 +117,13 @@ impl d2::IFont for Font {
 			// Process escape sequences
 			if chr == '\x1b' {
 				if chars.next() == Some('[') {
-					let cmd = chars.as_str();
-					d2::escape::process(cmd, scribe_, &mut scribe, Some(cv));
-					while let Some(chr) = chars.next() {
-						if chr == ']' {
-							break;
-						}
+					if let Some((sequence, tail)) = chars.as_str().split_once("]") {
+						d2::escape::process(sequence, scribe, match cv.as_mut() { Some(cv) => Some(*cv), None => None });
+						chars = tail.chars();
+					}
+					else {
+						// No terminal bracket found
+						break;
 					}
 				}
 				continue;
@@ -155,49 +135,51 @@ impl d2::IFont for Font {
 			let advance = glyph.advance * scribe.font_size * scribe.font_width_scale + scribe.letter_spacing;
 			cursor.x += advance;
 
-			let Some(plane_bounds) = &glyph.plane_bounds else { continue };
-			let Some(atlas_bounds) = &glyph.atlas_bounds else { continue };
+			if let Some(cv) = &mut cv {
+				let Some(plane_bounds) = &glyph.plane_bounds else { continue };
+				let Some(atlas_bounds) = &glyph.atlas_bounds else { continue };
 
-			let aleft = atlas_bounds.left;
-			let aright = atlas_bounds.right;
-			let atop = font.atlas.height as f32 - atlas_bounds.top;
-			let abottom = font.atlas.height as f32 - atlas_bounds.bottom;
+				let aleft = atlas_bounds.left;
+				let aright = atlas_bounds.right;
+				let atop = font.atlas.height as f32 - atlas_bounds.top;
+				let abottom = font.atlas.height as f32 - atlas_bounds.bottom;
 
-			let pleft = plane_bounds.left * scribe.font_size * scribe.font_width_scale;
-			let pright = plane_bounds.right * scribe.font_size * scribe.font_width_scale;
-			let ptop = (1.0 - plane_bounds.top) * scribe.font_size;
-			let pbottom = (1.0 - plane_bounds.bottom) * scribe.font_size;
+				let pleft = plane_bounds.left * scribe.font_size * scribe.font_width_scale;
+				let pright = plane_bounds.right * scribe.font_size * scribe.font_width_scale;
+				let ptop = (1.0 - plane_bounds.top) * scribe.font_size;
+				let pbottom = (1.0 - plane_bounds.bottom) * scribe.font_size;
 
-			let vertices = [
-				d2::TextVertex {
-					pos: pos + Vec2(pleft, pbottom),
-					uv: Vec2(aleft, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-					color: scribe.color,
-					outline: scribe.outline,
-				},
-				d2::TextVertex {
-					pos: pos + Vec2(pleft + scribe.top_skew, ptop),
-					uv: Vec2(aleft, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-					color: scribe.color,
-					outline: scribe.outline,
-				},
-				d2::TextVertex {
-					pos: pos + Vec2(pright + scribe.top_skew, ptop),
-					uv: Vec2(aright, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-					color: scribe.color,
-					outline: scribe.outline,
-				},
-				d2::TextVertex {
-					pos: pos + Vec2(pright, pbottom),
-					uv: Vec2(aright, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-					color: scribe.color,
-					outline: scribe.outline,
-				},
-			];
+				let vertices = [
+					d2::TextVertex {
+						pos: pos + Vec2(pleft, pbottom),
+						uv: Vec2(aleft, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
+						color: scribe.color,
+						outline: scribe.outline,
+					},
+					d2::TextVertex {
+						pos: pos + Vec2(pleft + scribe.top_skew, ptop),
+						uv: Vec2(aleft, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
+						color: scribe.color,
+						outline: scribe.outline,
+					},
+					d2::TextVertex {
+						pos: pos + Vec2(pright + scribe.top_skew, ptop),
+						uv: Vec2(aright, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
+						color: scribe.color,
+						outline: scribe.outline,
+					},
+					d2::TextVertex {
+						pos: pos + Vec2(pright, pbottom),
+						uv: Vec2(aright, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
+						color: scribe.color,
+						outline: scribe.outline,
+					},
+				];
 
-			let mut p = cv.begin(PrimType::Triangles, 4, 2);
-			p.add_indices_quad();
-			p.add_vertices(&vertices);
+				let mut p = cv.begin(PrimType::Triangles, 4, 2);
+				p.add_indices_quad();
+				p.add_vertices(&vertices);
+			}
 		}
 	}
 }

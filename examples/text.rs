@@ -81,17 +81,19 @@ fn main() {
 				};
 				scribe.set_baseline_relative(0.5);
 
-				cv.text_write(&font, &scribe, &mut pos, "Hello, ");
-				scribe.font_size = 96.0;
-				scribe.font_width_scale = 1.5;
-				scribe.top_skew = 0.0;
-				cv.text_write(&font, &scribe, &mut pos, "world!");
+				cv.text_write(&font, &mut scribe, &mut pos, "Hello, \x1b[font_size=96.0]\x1b[font_width_scale=1.5]\x1b[top_skew=0.0]world!");
 
 				scribe.font_size = 32.0;
 				scribe.line_height = 32.0;
 				scribe.font_width_scale = 1.0;
 				scribe.color = cvmath::Vec4(255, 255, 0, 255);
 				cv.text_box(&font, &scribe, &cvmath::Rect::c(0.0, 0.0, size.width as f32, size.height as f32), shade::d2::BoxAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
+
+				scribe.top_skew = 8.0;
+				let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";
+				let rainbow_width = scribe.text_width(&mut {cvmath::Vec2::ZERO}, &font.font, rainbow);
+				let mut pos = cvmath::Vec2f((size.width as f32 - rainbow_width) * 0.5, size.height as f32 - scribe.font_size);
+				cv.text_write(&font, &mut scribe, &mut pos, rainbow);
 
 				cv.draw(&mut g, shade::Surface::BACK_BUFFER).unwrap();
 

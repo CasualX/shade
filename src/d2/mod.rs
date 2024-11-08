@@ -2,7 +2,7 @@
 2D graphics.
 */
 
-use std::cmp;
+use std::{cmp, fmt};
 use super::*;
 use cvmath::*;
 

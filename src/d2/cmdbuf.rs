@@ -15,7 +15,7 @@ pub(super) struct Command {
 }
 
 /// Command buffer.
-pub struct CommandBuffer<V: TVertex, U: TUniform> {
+pub struct CommandBuffer<V, U> {
 	pub(super) vertices: Vec<V>,
 	pub(super) indices: Vec<u32>,
 	pub(super) uniforms: Vec<U>,

@@ -65,6 +65,7 @@ pub enum BlendMode {
 	Multiply,
 }
 
+/// Depth test.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum DepthTest {
 	/// Never pass.
@@ -85,6 +86,7 @@ pub enum DepthTest {
 	Always,
 }
 
+/// Cull mode.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum CullMode {
 	/// Cull counter-clockwise faces.
@@ -96,7 +98,10 @@ pub enum CullMode {
 /// Buffer usage.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum BufferUsage {
+	/// Buffer is static and used frequently.
 	Static,
+	/// Buffer is dynamic and used frequently.
 	Dynamic,
+	/// Buffer is streamed and used infrequently.
 	Stream,
 }
