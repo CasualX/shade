@@ -119,4 +119,62 @@ impl TextBuffer {
 			y += scribe.line_height;
 		}
 	}
+
+	/// Writes a formatted string.
+	pub fn text_fmt(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, cursor: &mut Vec2<f32>, args: fmt::Arguments) {
+		self.shader = font.shader;
+
+		let mut writer = FmtWriter(move |text: &str| {
+			font.font.write_span(self, scribe, cursor, text);
+			Ok(())
+		});
+
+		let _ = fmt::write(&mut writer, args);
+	}
+
+	/// Writes a series of formatted strings using the box model.
+	///
+	/// The text will be aligned within the rect according to the alignment.
+	pub fn text_fmt_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &cvmath::Rect<f32>, align: BoxAlign, lines: &[fmt::Arguments]) {
+		self.shader = font.shader;
+
+		let height = lines.len() as isize as i32 as f32 * scribe.line_height;
+
+		let mut y = match align {
+			BoxAlign::TopLeft | BoxAlign::TopCenter | BoxAlign::TopRight => rect.mins.y,
+			BoxAlign::MiddleLeft | BoxAlign::MiddleCenter | BoxAlign::MiddleRight => rect.mins.y + (rect.height() - height) * 0.5,
+			BoxAlign::BottomLeft | BoxAlign::BottomCenter | BoxAlign::BottomRight => rect.maxs.y - height,
+		};
+
+		for args in lines {
+			let text_width = move |&args| {
+				let mut width = 0.0;
+				let mut width_calc = FmtWriter(|text: &str| {
+					width += scribe.text_width(&mut {Vec2::ZERO}, &font.font, text);
+					Ok(())
+				});
+				let _ = fmt::write(&mut width_calc, args);
+				width
+			};
+
+			let x = match align {
+				BoxAlign::TopLeft | BoxAlign::MiddleLeft | BoxAlign::BottomLeft => rect.mins.x,
+				BoxAlign::TopCenter | BoxAlign::MiddleCenter | BoxAlign::BottomCenter => rect.mins.x + (rect.width() - text_width(args)) * 0.5,
+				BoxAlign::TopRight | BoxAlign::MiddleRight | BoxAlign::BottomRight => rect.maxs.x - text_width(args),
+			};
+
+
+			self.text_fmt(font, scribe, &mut Vec2(x, y), *args);
+			y += scribe.line_height;
+		}
+	}
+}
+
+#[repr(transparent)]
+struct FmtWriter<F>(F);
+
+impl<F: FnMut(&str) -> fmt::Result> fmt::Write for FmtWriter<F> {
+	fn write_str(&mut self, s: &str) -> fmt::Result {
+		self.0(s)
+	}
 }
