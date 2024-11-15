@@ -12,6 +12,7 @@ mod pen;
 mod stamp;
 mod curve;
 mod scribe;
+pub mod layout;
 
 pub use self::cmdbuf::{CommandBuffer, PrimBuilder};
 pub use self::paint::Paint;
