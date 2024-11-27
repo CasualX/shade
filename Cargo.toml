@@ -9,7 +9,7 @@ msdfgen = ["serde"]
 
 [dependencies]
 dataview = "1.0"
-cvmath = { git = "https://github.com/CasualX/cvmath", features = ["dataview"] }
+cvmath = { version = "0.0.1", features = ["dataview"] }
 gl = { version = "0.6", optional = true }
 png = { version = "0.17", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }

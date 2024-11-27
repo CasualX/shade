@@ -1,5 +1,8 @@
 use std::{mem, ops};
 
+/// Re-export of compatible `cvmath` crate.
+pub use cvmath;
+
 #[macro_use]
 mod handle;
 
