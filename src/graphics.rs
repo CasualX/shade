@@ -169,6 +169,17 @@ pub trait IGraphics {
 	/// Release the resources of a 2D texture.
 	fn texture2d_delete(&mut self, id: Texture2D, free_handle: bool) -> Result<(), GfxError>;
 
+	/// Create a 2D texture array.
+	fn texture2darray_create(&mut self, name: Option<&str>, info: &Texture2DArrayInfo) -> Result<Texture2DArray, GfxError>;
+	/// Find a 2D texture array by name.
+	fn texture2darray_find(&mut self, name: &str) -> Result<Texture2DArray, GfxError>;
+	/// Set the data of a 2D texture array.
+	fn texture2darray_set_data(&mut self, id: Texture2DArray, index: usize, data: &[u8]) -> Result<(), GfxError>;
+	/// Get the info of a 2D texture array.
+	fn texture2darray_get_info(&mut self, id: Texture2DArray) -> Result<Texture2DArrayInfo, GfxError>;
+	/// Get the depth of a 2D texture array.
+	fn texture2darray_delete(&mut self, id: Texture2DArray, free_handle: bool) -> Result<(), GfxError>;
+
 	/// Create a surface.
 	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Result<Surface, GfxError>;
 	/// Find a surface by name.

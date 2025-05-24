@@ -22,7 +22,7 @@ fn main() {
 		let font: shade::msdfgen::Font = serde_json::from_str(include_str!("font/font.json")).unwrap();
 
 		// Load the texture
-		let texture = shade::png::load(&mut g, Some("font"), "examples/font/font.png", &shade::png::TextureProps {
+		let texture = shade::image::png::load(&mut g, Some("font"), "examples/font/font.png", &shade::image::TextureProps {
 			filter_min: shade::TextureFilter::Linear,
 			filter_mag: shade::TextureFilter::Linear,
 			wrap_u: shade::TextureWrap::ClampEdge,

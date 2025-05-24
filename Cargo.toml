@@ -13,7 +13,7 @@ keywords = ["gfx", "shader", "opengl", "2d"]
 categories = ["rendering", "graphics", "game-development", "gui"]
 
 [features]
-default = ["gl", "png", "msdfgen"]
+default = ["gl", "png", "gif", "msdfgen"]
 msdfgen = ["serde"]
 
 [dependencies]
@@ -21,6 +21,7 @@ dataview = "1.0"
 cvmath = { version = "0.0.1", features = ["dataview"] }
 gl = { version = "0.14", optional = true }
 png = { version = "0.17", optional = true }
+gif = { version = "0.13", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 [dev-dependencies]

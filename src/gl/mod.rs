@@ -13,6 +13,19 @@ pub const MTSDF_VS: &str = include_str!("shaders/mtsdf.vs.glsl");
 use crate::resources::{Resource, ResourceMap};
 use crate::handle::Handle;
 
+#[cfg(debug_assertions)]
+macro_rules! gl_check {
+	($e:expr) => {
+		check(|| unsafe { $e })
+	};
+}
+#[cfg(not(debug_assertions))]
+macro_rules! gl_check {
+	($e:expr) => {
+		unsafe { $e }
+	};
+}
+
 struct GlVertexBuffer {
 	buffer: gl::types::GLuint,
 	vao: gl::types::GLuint,
@@ -86,6 +99,15 @@ impl Resource for GlTexture2D {
 	type Handle = crate::Texture2D;
 }
 
+struct GlTexture2DArray {
+	texture: gl::types::GLuint,
+	info: crate::Texture2DArrayInfo,
+}
+
+impl Resource for GlTexture2DArray {
+	type Handle = crate::Texture2DArray;
+}
+
 #[allow(dead_code)]
 struct GlSurface {
 	texture: crate::Texture2D,
@@ -144,18 +166,18 @@ fn gl_blend(blend_mode: crate::BlendMode) {
 			equation: gl::FUNC_ADD,
 		},
 	};
-	check(|| unsafe { gl::Enable(gl::BLEND) });
-	check(|| unsafe { gl::BlendFunc(p.sfactor, p.dfactor) });
-	check(|| unsafe { gl::BlendEquation(p.equation) });
+	gl_check!(gl::Enable(gl::BLEND));
+	gl_check!(gl::BlendFunc(p.sfactor, p.dfactor));
+	gl_check!(gl::BlendEquation(p.equation));
 }
 
 fn gl_scissor(scissor: &Option<cvmath::Rect<i32>>) {
 	if let Some(scissor) = scissor {
-		check(|| unsafe { gl::Enable(gl::SCISSOR_TEST) });
-		check(|| unsafe { gl::Scissor(scissor.mins.x, scissor.mins.y, scissor.width(), scissor.height()) });
+		gl_check!(gl::Enable(gl::SCISSOR_TEST));
+		gl_check!(gl::Scissor(scissor.mins.x, scissor.mins.y, scissor.width(), scissor.height()));
 	}
 	else {
-		check(|| unsafe { gl::Disable(gl::SCISSOR_TEST) });
+		gl_check!(gl::Disable(gl::SCISSOR_TEST));
 	}
 }
 
@@ -180,11 +202,11 @@ fn gl_depth_test(depth_test: Option<crate::DepthTest>) {
 			crate::DepthTest::GreaterEqual => gl::GEQUAL,
 			crate::DepthTest::Always => gl::ALWAYS,
 		};
-		unsafe { check(|| gl::Enable(gl::DEPTH_TEST)) };
-		unsafe { check(|| gl::DepthFunc(func)) };
+		gl_check!(gl::Enable(gl::DEPTH_TEST));
+		gl_check!(gl::DepthFunc(func));
 	}
 	else {
-		unsafe { check(|| gl::Disable(gl::DEPTH_TEST)) };
+		gl_check!(gl::Disable(gl::DEPTH_TEST));
 	}
 }
 
@@ -194,11 +216,11 @@ fn gl_cull_face(cull_mode: Option<crate::CullMode>) {
 			crate::CullMode::CCW => gl::FRONT,
 			crate::CullMode::CW => gl::BACK,
 		};
-		unsafe { check(|| gl::Enable(gl::CULL_FACE)) };
-		unsafe { check(|| gl::CullFace(mode)) };
+		gl_check!(gl::Enable(gl::CULL_FACE));
+		gl_check!(gl::CullFace(mode));
 	}
 	else {
-		unsafe { check(|| gl::Disable(gl::CULL_FACE)) };
+		gl_check!(gl::Disable(gl::CULL_FACE));
 	}
 }
 
@@ -211,7 +233,7 @@ fn gl_mat_order(order: crate::UniformMatOrder) -> gl::types::GLboolean {
 }
 
 fn gl_uniforms(ub: &GlUniformBuffer, shader: &GlShader, uniform_index: u32, textures: &ResourceMap<GlTexture2D>) {
-	check(|| unsafe { gl::UseProgram(shader.program) });
+	gl_check!(gl::UseProgram(shader.program));
 
 	let data_ptr = unsafe { ub.data.as_ptr().add(ub.layout.size as usize * uniform_index as usize) };
 	for uattr in ub.layout.attributes {
@@ -219,40 +241,40 @@ fn gl_uniforms(ub: &GlUniformBuffer, shader: &GlShader, uniform_index: u32, text
 		if let Some(location) = shader.uniform_location(uattr.name) {
 			// println!("Uniform: {} (index: {})", uattr.name, i);
 			match uattr.ty {
-				crate::UniformType::D1 => check(|| unsafe { gl::Uniform1dv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::D2 => check(|| unsafe { gl::Uniform2dv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::D3 => check(|| unsafe { gl::Uniform3dv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::D4 => check(|| unsafe { gl::Uniform4dv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::F1 => check(|| unsafe { gl::Uniform1fv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::F2 => check(|| unsafe { gl::Uniform2fv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::F3 => check(|| unsafe { gl::Uniform3fv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::F4 => check(|| unsafe { gl::Uniform4fv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::I1 => check(|| unsafe { gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::I2 => check(|| unsafe { gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::I3 => check(|| unsafe { gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::I4 => check(|| unsafe { gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::U1 => check(|| unsafe { gl::Uniform1uiv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::U2 => check(|| unsafe { gl::Uniform2uiv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::U3 => check(|| unsafe { gl::Uniform3uiv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::U4 => check(|| unsafe { gl::Uniform4uiv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::B1 => check(|| unsafe { gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::B2 => check(|| unsafe { gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::B3 => check(|| unsafe { gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::B4 => check(|| unsafe { gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _) }),
-				crate::UniformType::Mat2x2 { order } => check(|| unsafe { gl::UniformMatrix2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat2x3 { order } => check(|| unsafe { gl::UniformMatrix2x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat2x4 { order } => check(|| unsafe { gl::UniformMatrix2x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat3x2 { order } => check(|| unsafe { gl::UniformMatrix3x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat3x3 { order } => check(|| unsafe { gl::UniformMatrix3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat3x4 { order } => check(|| unsafe { gl::UniformMatrix3x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat4x2 { order } => check(|| unsafe { gl::UniformMatrix4x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat4x3 { order } => check(|| unsafe { gl::UniformMatrix4x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
-				crate::UniformType::Mat4x4 { order } => check(|| unsafe { gl::UniformMatrix4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _) }),
+				crate::UniformType::D1 => gl_check!(gl::Uniform1dv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::D2 => gl_check!(gl::Uniform2dv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::D3 => gl_check!(gl::Uniform3dv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::D4 => gl_check!(gl::Uniform4dv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::F1 => gl_check!(gl::Uniform1fv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::F2 => gl_check!(gl::Uniform2fv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::F3 => gl_check!(gl::Uniform3fv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::F4 => gl_check!(gl::Uniform4fv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::I1 => gl_check!(gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::I2 => gl_check!(gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::I3 => gl_check!(gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::I4 => gl_check!(gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::U1 => gl_check!(gl::Uniform1uiv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::U2 => gl_check!(gl::Uniform2uiv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::U3 => gl_check!(gl::Uniform3uiv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::U4 => gl_check!(gl::Uniform4uiv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::B1 => gl_check!(gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::B2 => gl_check!(gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::B3 => gl_check!(gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::B4 => gl_check!(gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _)),
+				crate::UniformType::Mat2x2 { order } => gl_check!(gl::UniformMatrix2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat2x3 { order } => gl_check!(gl::UniformMatrix2x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat2x4 { order } => gl_check!(gl::UniformMatrix2x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat3x2 { order } => gl_check!(gl::UniformMatrix3x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat3x3 { order } => gl_check!(gl::UniformMatrix3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat3x4 { order } => gl_check!(gl::UniformMatrix3x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat4x2 { order } => gl_check!(gl::UniformMatrix4x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat4x3 { order } => gl_check!(gl::UniformMatrix4x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+				crate::UniformType::Mat4x4 { order } => gl_check!(gl::UniformMatrix4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
 				crate::UniformType::Sampler2D(index) => {
 					let id = unsafe { *(data_ptr as *const crate::Texture2D) };
 					let texture = gl_texture_id(textures, id);
-					check(|| unsafe { gl::ActiveTexture(gl::TEXTURE0 + index as u32) });
-					check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, texture) });
+					gl_check!(gl::ActiveTexture(gl::TEXTURE0 + index as u32));
+					gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
 				}
 			}
 		}
@@ -282,7 +304,8 @@ pub struct GlGraphics {
 	indices: ResourceMap<GlIndexBuffer>,
 	uniforms: ResourceMap<GlUniformBuffer>,
 	shaders: ResourceMap<GlShader>,
-	textures: ResourceMap<GlTexture2D>,
+	textures2d: ResourceMap<GlTexture2D>,
+	textures2darray: ResourceMap<GlTexture2DArray>,
 	surfaces: ResourceMap<GlSurface>,
 	drawing: bool,
 }
@@ -294,7 +317,8 @@ impl GlGraphics {
 			indices: ResourceMap::new(),
 			uniforms: ResourceMap::new(),
 			shaders: ResourceMap::new(),
-			textures: ResourceMap::new(),
+			textures2d: ResourceMap::new(),
+			textures2darray: ResourceMap::new(),
 			surfaces: ResourceMap::new(),
 			drawing: false,
 		}
@@ -317,27 +341,27 @@ impl crate::IGraphics for GlGraphics {
 		}
 
 		if let Some(scissor) = args.scissor {
-			check(|| unsafe { gl::Enable(gl::SCISSOR_TEST) });
-			check(|| unsafe { gl::Scissor(scissor.mins.x, scissor.mins.y, scissor.width(), scissor.height()) });
+			gl_check!(gl::Enable(gl::SCISSOR_TEST));
+			gl_check!(gl::Scissor(scissor.mins.x, scissor.mins.y, scissor.width(), scissor.height()));
 		}
 		else {
-			check(|| unsafe { gl::Disable(gl::SCISSOR_TEST) });
+			gl_check!(gl::Disable(gl::SCISSOR_TEST));
 		}
 
 		let mut mask = 0;
 		if let Some(color) = args.color {
-			check(|| unsafe { gl::ClearColor(color.x, color.y, color.z, color.w) });
+			gl_check!(gl::ClearColor(color.x, color.y, color.z, color.w));
 			mask |= gl::COLOR_BUFFER_BIT;
 		}
 		if let Some(depth) = args.depth {
-			check(|| unsafe { gl::ClearDepth(depth as f64) });
+			gl_check!(gl::ClearDepth(depth as f64));
 			mask |= gl::DEPTH_BUFFER_BIT;
 		}
 		if let Some(stencil) = args.stencil{
-			check(|| unsafe { gl::ClearStencil(stencil as i32) });
+			gl_check!(gl::ClearStencil(stencil as i32));
 			mask |= gl::STENCIL_BUFFER_BIT;
 		}
-		check(|| unsafe { gl::Clear(mask) });
+		gl_check!(gl::Clear(mask));
 
 		Ok(())
 	}
@@ -363,21 +387,21 @@ impl crate::IGraphics for GlGraphics {
 		gl_depth_test(args.depth_test);
 		gl_cull_face(args.cull_mode);
 		gl_scissor(&args.scissor);
-		check(|| unsafe { gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()) });
+		gl_check!(gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()));
 
-		check(|| unsafe { gl::BindVertexArray(vb.vao) });
+		gl_check!(gl::BindVertexArray(vb.vao));
 
-		gl_uniforms(ub, shader, args.uniform_index, &self.textures);
+		gl_uniforms(ub, shader, args.uniform_index, &self.textures2d);
 
 		let mode = match args.prim_type {
 			crate::PrimType::Lines => gl::LINES,
 			crate::PrimType::Triangles => gl::TRIANGLES,
 		};
 		if args.instances >= 0 {
-			check(|| unsafe { gl::DrawArraysInstanced(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32, args.instances) });
+			gl_check!(gl::DrawArraysInstanced(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32, args.instances));
 		}
 		else {
-			check(|| unsafe { gl::DrawArrays(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32) });
+			gl_check!(gl::DrawArrays(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32));
 		}
 
 		Ok(())
@@ -405,12 +429,12 @@ impl crate::IGraphics for GlGraphics {
 		gl_depth_test(args.depth_test);
 		gl_cull_face(args.cull_mode);
 		gl_scissor(&args.scissor);
-		check(|| unsafe { gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()) });
+		gl_check!(gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()));
 
-		check(|| unsafe { gl::BindVertexArray(vb.vao) });
-		check(|| unsafe { gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer) });
+		gl_check!(gl::BindVertexArray(vb.vao));
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
 
-		gl_uniforms(ub, shader, args.uniform_index, &self.textures);
+		gl_uniforms(ub, shader, args.uniform_index, &self.textures2d);
 
 		let mode = match args.prim_type {
 			crate::PrimType::Lines => gl::LINES,
@@ -423,10 +447,10 @@ impl crate::IGraphics for GlGraphics {
 			_ => args.index_start,
 		};
 		if args.instances >= 0 {
-			check(|| unsafe { gl::DrawElementsInstanced(mode, count as i32, ib.ty, offset as *const _, args.instances) });
+			gl_check!(gl::DrawElementsInstanced(mode, count as i32, ib.ty, offset as *const _, args.instances));
 		}
 		else {
-			check(|| unsafe { gl::DrawElements(mode, count as i32, ib.ty, offset as *const _) });
+			gl_check!(gl::DrawElements(mode, count as i32, ib.ty, offset as *const _));
 		}
 
 		Ok(())
@@ -440,11 +464,11 @@ impl crate::IGraphics for GlGraphics {
 	fn vertex_buffer_create(&mut self, name: Option<&str>, _layout: &'static crate::VertexLayout, _count: usize) -> Result<crate::VertexBuffer, crate::GfxError> {
 		let mut buffer = 0;
 		let mut vao = 0;
-		check(|| unsafe { gl::GenBuffers(1, &mut buffer) });
-		check(|| unsafe { gl::GenVertexArrays(1, &mut vao) });
+		gl_check!(gl::GenBuffers(1, &mut buffer));
+		gl_check!(gl::GenVertexArrays(1, &mut vao));
 
-		check(|| unsafe { gl::BindVertexArray(vao) });
-		check(|| unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, buffer) });
+		gl_check!(gl::BindVertexArray(vao));
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buffer));
 
 		for (i, attr) in _layout.attributes.iter().enumerate() {
 			let (type_, normalized) = match attr.format {
@@ -461,12 +485,12 @@ impl crate::IGraphics for GlGraphics {
 				crate::VertexAttributeFormat::I16Norm => (gl::SHORT, true),
 				crate::VertexAttributeFormat::U16Norm => (gl::UNSIGNED_SHORT, true),
 			};
-			check(|| unsafe { gl::VertexAttribPointer(i as u32, attr.len as i32, type_, normalized as u8, _layout.size as i32, attr.offset as usize as *const _) });
-			check(|| unsafe { gl::EnableVertexAttribArray(i as u32) });
+			gl_check!(gl::VertexAttribPointer(i as u32, attr.len as i32, type_, normalized as u8, _layout.size as i32, attr.offset as usize as *const _));
+			gl_check!(gl::EnableVertexAttribArray(i as u32));
 		}
 
-		check(|| unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, 0) });
-		check(|| unsafe { gl::BindVertexArray(0) });
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
+		gl_check!(gl::BindVertexArray(0));
 
 		let id = self.vertices.insert(name, GlVertexBuffer { buffer, vao, _layout, _count });
 		return Ok(id);
@@ -485,23 +509,23 @@ impl crate::IGraphics for GlGraphics {
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
-		check(|| unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, vb.buffer) });
-		check(|| unsafe { gl::BufferData(gl::ARRAY_BUFFER, size, data.as_ptr() as *const _, gl_usage) });
-		check(|| unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, 0) });
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, vb.buffer));
+		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, size, data.as_ptr() as *const _, gl_usage));
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 		Ok(())
 	}
 
 	fn vertex_buffer_delete(&mut self, id: crate::VertexBuffer, free_handle: bool) -> Result<(), crate::GfxError> {
 		let Some(vb) = self.vertices.remove(id, free_handle) else { return Err(crate::GfxError::InvalidVertexBufferHandle) };
-		check(|| unsafe { gl::DeleteBuffers(1, &vb.buffer) });
+		gl_check!(gl::DeleteBuffers(1, &vb.buffer));
 		Ok(())
 	}
 
 	fn index_buffer_create(&mut self, name: Option<&str>, count: usize) -> Result<crate::IndexBuffer, crate::GfxError> {
 		let mut buffer = 0;
-		check(|| unsafe { gl::GenBuffers(1, &mut buffer) });
-		check(|| unsafe { gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffer) });
-		check(|| unsafe { gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0) });
+		gl_check!(gl::GenBuffers(1, &mut buffer));
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffer));
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 		let id = self.indices.insert(name, GlIndexBuffer { buffer, ty: gl::UNSIGNED_INT, _count: count });
 		return Ok(id);
 	}
@@ -519,15 +543,15 @@ impl crate::IGraphics for GlGraphics {
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
-		check(|| unsafe { gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer) });
-		check(|| unsafe { gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, data.as_ptr() as *const _, usage) });
-		check(|| unsafe { gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0) });
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
+		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, data.as_ptr() as *const _, usage));
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 		Ok(())
 	}
 
 	fn index_buffer_delete(&mut self, id: crate::IndexBuffer, free_handle: bool) -> Result<(), crate::GfxError> {
 		let Some(ib) = self.indices.remove(id, free_handle) else { return Err(crate::GfxError::InvalidIndexBufferHandle) };
-		check(|| unsafe { gl::DeleteBuffers(1, &ib.buffer) });
+		gl_check!(gl::DeleteBuffers(1, &ib.buffer));
 		Ok(())
 	}
 
@@ -552,7 +576,7 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn shader_create(&mut self, name: Option<&str>) -> Result<crate::Shader, crate::GfxError> {
-		let program = check(|| unsafe { gl::CreateProgram() });
+		let program = gl_check!(gl::CreateProgram());
 		let id = self.shaders.insert(name, GlShader { program, compile_log: String::new(), active_uniforms: Vec::new() });
 		return Ok(id);
 	}
@@ -569,58 +593,58 @@ impl crate::IGraphics for GlGraphics {
 
 		shader.active_uniforms.clear();
 
-		let vertex_shader = check(|| unsafe { gl::CreateShader(gl::VERTEX_SHADER) });
-		check(|| unsafe { gl::ShaderSource(vertex_shader, 1, &(vertex_source.as_ptr() as *const _), &(vertex_source.len() as gl::types::GLint)) });
-		check(|| unsafe { gl::CompileShader(vertex_shader) });
-		check(|| unsafe { gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut status) });
+		let vertex_shader = gl_check!(gl::CreateShader(gl::VERTEX_SHADER));
+		gl_check!(gl::ShaderSource(vertex_shader, 1, &(vertex_source.as_ptr() as *const _), &(vertex_source.len() as gl::types::GLint)));
+		gl_check!(gl::CompileShader(vertex_shader));
+		gl_check!(gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut status));
 		if status == 0 {
 			let mut log_len = 0;
-			check(|| unsafe { gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_len) });
+			gl_check!(gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 			let mut log = vec![0; log_len as usize];
-			check(|| unsafe { gl::GetShaderInfoLog(vertex_shader, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _) });
+			gl_check!(gl::GetShaderInfoLog(vertex_shader, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _));
 			shader.compile_log.push_str("# Vertex shader compile log:\n");
 			shader.compile_log.push_str(String::from_utf8_lossy(&log).as_ref());
 			success = false;
 		}
 
-		let fragment_shader = check(|| unsafe { gl::CreateShader(gl::FRAGMENT_SHADER) });
-		check(|| unsafe { gl::ShaderSource(fragment_shader, 1, &(fragment_source.as_ptr() as *const _), &(fragment_source.len() as gl::types::GLint)) });
-		check(|| unsafe { gl::CompileShader(fragment_shader) });
-		check(|| unsafe { gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut status) });
+		let fragment_shader = gl_check!(gl::CreateShader(gl::FRAGMENT_SHADER));
+		gl_check!(gl::ShaderSource(fragment_shader, 1, &(fragment_source.as_ptr() as *const _), &(fragment_source.len() as gl::types::GLint)));
+		gl_check!(gl::CompileShader(fragment_shader));
+		gl_check!(gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut status));
 		if status == 0 {
 			let mut log_len = 0;
-			check(|| unsafe { gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_len) });
+			gl_check!(gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 			let mut log = vec![0; log_len as usize];
-			check(|| unsafe { gl::GetShaderInfoLog(fragment_shader, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _) });
+			gl_check!(gl::GetShaderInfoLog(fragment_shader, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _));
 			shader.compile_log.push_str("# Fragment shader compile log:\n");
 			shader.compile_log.push_str(String::from_utf8_lossy(&log).as_ref());
 			success = false;
 		}
 
 		if success {
-			check(|| unsafe { gl::AttachShader(shader.program, vertex_shader) });
-			check(|| unsafe { gl::AttachShader(shader.program, fragment_shader) });
-			check(|| unsafe { gl::LinkProgram(shader.program) });
-			check(|| unsafe { gl::GetProgramiv(shader.program, gl::LINK_STATUS, &mut status) });
+			gl_check!(gl::AttachShader(shader.program, vertex_shader));
+			gl_check!(gl::AttachShader(shader.program, fragment_shader));
+			gl_check!(gl::LinkProgram(shader.program));
+			gl_check!(gl::GetProgramiv(shader.program, gl::LINK_STATUS, &mut status));
 			if status == 0 {
 				let mut log_len = 0;
-				check(|| unsafe { gl::GetProgramiv(shader.program, gl::INFO_LOG_LENGTH, &mut log_len) });
+				gl_check!(gl::GetProgramiv(shader.program, gl::INFO_LOG_LENGTH, &mut log_len));
 				let mut log = vec![0; log_len as usize];
-				check(|| unsafe { gl::GetProgramInfoLog(shader.program, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _) });
+				gl_check!(gl::GetProgramInfoLog(shader.program, log_len, std::ptr::null_mut(), log.as_mut_ptr() as *mut _));
 				shader.compile_log.push_str("# Program link log:\n");
 				shader.compile_log.push_str(String::from_utf8_lossy(&log).as_ref());
 				success = false;
 			}
 			else {
-				check(|| unsafe { gl::UseProgram(shader.program) });
+				gl_check!(gl::UseProgram(shader.program));
 				let mut count = 0;
-				check(|| unsafe { gl::GetProgramiv(shader.program, gl::ACTIVE_UNIFORMS, &mut count) });
+				gl_check!(gl::GetProgramiv(shader.program, gl::ACTIVE_UNIFORMS, &mut count));
 				for i in 0..count {
 					let mut name_len = 0;
 					let mut size = 0;
 					let mut ty = 0;
 					let mut name = [0; 64];
-					check(|| unsafe { gl::GetActiveUniform(shader.program, i as u32, 64, &mut name_len, &mut size, &mut ty, name.as_mut_ptr() as *mut _) });
+					gl_check!(gl::GetActiveUniform(shader.program, i as u32, 64, &mut name_len, &mut size, &mut ty, name.as_mut_ptr() as *mut _));
 					shader.active_uniforms.push(GlShaderActiveUniform {
 						location: i,
 						namelen: name_len as u8,
@@ -632,8 +656,8 @@ impl crate::IGraphics for GlGraphics {
 			}
 		}
 
-		check(|| unsafe { gl::DeleteShader(vertex_shader) });
-		check(|| unsafe { gl::DeleteShader(fragment_shader) });
+		gl_check!(gl::DeleteShader(vertex_shader));
+		gl_check!(gl::DeleteShader(fragment_shader));
 		return if success { Ok(()) } else { Err(crate::GfxError::ShaderCompileError) };
 	}
 
@@ -644,44 +668,88 @@ impl crate::IGraphics for GlGraphics {
 
 	fn shader_delete(&mut self, id: crate::Shader, free_handle: bool) -> Result<(), crate::GfxError> {
 		let Some(shader) = self.shaders.remove(id, free_handle) else { return Err(crate::GfxError::InvalidShaderHandle) };
-		check(|| unsafe { gl::DeleteProgram(shader.program) });
+		gl_check!(gl::DeleteProgram(shader.program));
 		Ok(())
 	}
 
 	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> Result<crate::Texture2D, crate::GfxError> {
 		let mut texture = 0;
-		check(|| unsafe { gl::GenTextures(1, &mut texture) });
-		// check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, texture) });
-		// check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) });
-		let id = self.textures.insert(name, GlTexture2D { texture, info: *info });
+		gl_check!(gl::GenTextures(1, &mut texture));
+		// gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
+		// gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
+		let id = self.textures2d.insert(name, GlTexture2D { texture, info: *info });
 		return Ok(id);
 	}
 
 	fn texture2d_find(&mut self, name: &str) -> Result<crate::Texture2D, crate::GfxError> {
-		let Some(id) = self.textures.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
+		let Some(id) = self.textures2d.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
 		return Ok(id);
 	}
 
 	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
-		check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, texture.texture) });
-		check(|| unsafe { gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, texture.info.width, texture.info.height, 0, gl::RGBA, gl::UNSIGNED_BYTE, data.as_ptr() as *const _) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl_texture_wrap(texture.info.wrap_u) as gl::types::GLint) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(texture.info.wrap_v) as gl::types::GLint) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(texture.info.filter_mag) as gl::types::GLint) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(texture.info.filter_min) as gl::types::GLint) });
-		check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) });
+		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
+		let format = match texture.info.format {
+			crate::TextureFormat::R8G8B8 => gl::RGB,
+			crate::TextureFormat::R8G8B8A8 => gl::RGBA,
+		};
+		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
+		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, format as i32, texture.info.width, texture.info.height, 0, format, gl::UNSIGNED_BYTE, data.as_ptr() as *const _));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl_texture_wrap(texture.info.wrap_u) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(texture.info.wrap_v) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(texture.info.filter_mag) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(texture.info.filter_min) as gl::types::GLint));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		Ok(())
 	}
 
 	fn texture2d_get_info(&mut self, id: crate::Texture2D) -> Result<crate::Texture2DInfo, crate::GfxError> {
-		let Some(texture) = self.textures.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
 		return Ok(texture.info);
 	}
 
 	fn texture2d_delete(&mut self, id: crate::Texture2D, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures.remove(id, free_handle) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
-		check(|| unsafe { gl::DeleteTextures(1, &texture.texture) });
+		let Some(texture) = self.textures2d.remove(id, free_handle) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		gl_check!(gl::DeleteTextures(1, &texture.texture));
+		Ok(())
+	}
+
+	fn texture2darray_create(&mut self, name: Option<&str>, info: &crate::Texture2DArrayInfo) -> Result<crate::Texture2DArray, crate::GfxError> {
+		let mut texture = 0;
+		gl_check!(gl::GenTextures(1, &mut texture));
+		// gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture));
+		// gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0));
+		let id = self.textures2darray.insert(name, GlTexture2DArray { texture, info: *info });
+		return Ok(id);
+	}
+	fn texture2darray_find(&mut self, name: &str) -> Result<crate::Texture2DArray, crate::GfxError> {
+		let Some(id) = self.textures2darray.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
+		return Ok(id);
+	}
+	fn texture2darray_set_data(&mut self, id: crate::Texture2DArray, index: usize, data: &[u8]) -> Result<(), crate::GfxError> {
+		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		if index >= texture.info.count as usize { return Err(crate::GfxError::IndexOutOfBounds) }
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture.texture));
+		let format = match texture.info.format {
+			crate::TextureFormat::R8G8B8 => gl::RGB,
+			crate::TextureFormat::R8G8B8A8 => gl::RGBA,
+		};
+		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
+		gl_check!(gl::TexImage3D(gl::TEXTURE_2D_ARRAY, 0, format as i32, texture.info.width, texture.info.height, index as i32, 0, format, gl::UNSIGNED_BYTE, data.as_ptr() as *const _));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl_texture_wrap(texture.info.wrap_u) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl_texture_wrap(texture.info.wrap_v) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAG_FILTER, gl_texture_filter(texture.info.filter_mag) as gl::types::GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl_texture_filter(texture.info.filter_min) as gl::types::GLint));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0));
+		Ok(())
+	}
+	fn texture2darray_get_info(&mut self, id: crate::Texture2DArray) -> Result<crate::Texture2DArrayInfo, crate::GfxError> {
+		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		return Ok(texture.info);
+	}
+	fn texture2darray_delete(&mut self, id: crate::Texture2DArray, free_handle: bool) -> Result<(), crate::GfxError> {
+		let Some(texture) = self.textures2darray.remove(id, free_handle) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		gl_check!(gl::DeleteTextures(1, &texture.texture));
 		Ok(())
 	}
 
@@ -691,29 +759,34 @@ impl crate::IGraphics for GlGraphics {
 		let mut frame_buf = 0;
 		let mut depth_buf = 0;
 		let mut tex_buf = 0;
-		check(|| unsafe { gl::GenFramebuffers(1, &mut frame_buf) });
-		check(|| unsafe { gl::GenRenderbuffers(1, &mut depth_buf) });
-		check(|| unsafe { gl::GenTextures(1, &mut tex_buf) });
+		gl_check!(gl::GenFramebuffers(1, &mut frame_buf));
+		gl_check!(gl::GenRenderbuffers(1, &mut depth_buf));
+		gl_check!(gl::GenTextures(1, &mut tex_buf));
 
-		check(|| unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, frame_buf) });
+		gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, frame_buf));
 
-		check(|| unsafe { gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buf) });
-		check(|| unsafe { gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT, info.width, info.height) });
-		check(|| unsafe { gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, depth_buf) });
+		gl_check!(gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buf));
+		gl_check!(gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT, info.width, info.height));
+		gl_check!(gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, depth_buf));
 
-		check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, tex_buf) });
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, tex_buf));
 
-		check(|| unsafe { gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, info.width, info.height, 0, gl::RGBA, gl::UNSIGNED_BYTE, std::ptr::null()) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32) });
-		check(|| unsafe { gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32) });
+		let format = match info.format {
+			crate::SurfaceFormat::R8G8B8 => gl::RGB,
+			crate::SurfaceFormat::R8G8B8A8 => gl::RGBA,
+		};
+		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
+		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, format as i32, info.width, info.height, 0, format, gl::UNSIGNED_BYTE, std::ptr::null()));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32));
 
-		check(|| unsafe { gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, tex_buf, 0) });
+		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, tex_buf, 0));
 
-		check(|| unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) });
-		check(|| unsafe { gl::BindRenderbuffer(gl::RENDERBUFFER, 0) });
-		check(|| unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, 0) });
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
+		gl_check!(gl::BindRenderbuffer(gl::RENDERBUFFER, 0));
+		gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
 
 		// let status = unsafe { gl::CheckFramebufferStatus(gl::FRAMEBUFFER) };
 		// if status != gl::FRAMEBUFFER_COMPLETE {
@@ -777,17 +850,20 @@ impl ops::DerefMut for GlGraphics {
 #[track_caller]
 fn check<T, F: FnOnce() -> T>(f: F) -> T {
 	let result = f();
-	{
-		let error = unsafe { gl::GetError() };
-		if error != gl::NO_ERROR {
-			panic!("OpenGL error: {}", error);
-		}
-	}
-	result
-}
 
-#[cfg(not(debug_assertions))]
-#[inline]
-fn check<T, F: FnOnce() -> T>(f: F) -> T {
-	f()
+	let mut nerrors = 0;
+	loop {
+		let error = unsafe { gl::GetError() };
+		if error == gl::NO_ERROR {
+			break;
+		}
+		nerrors += 1;
+		eprintln!("OpenGL error: {:#X}", error);
+	}
+
+	if nerrors > 0 {
+		panic!("OpenGL check failed with {} error(s)", nerrors);
+	}
+
+	result
 }

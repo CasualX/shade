@@ -144,7 +144,7 @@ fn main() {
 	let mut g = shade::gl::GlGraphics::new();
 
 	// Load the texture
-	let texture = shade::png::load(&mut g, Some("scene tiles"), "examples/textures/scene tiles.png", &shade::png::TextureProps {
+	let texture = shade::image::png::load(&mut g, Some("scene tiles"), "examples/textures/scene tiles.png", &shade::image::TextureProps {
 		filter_min: shade::TextureFilter::Nearest,
 		filter_mag: shade::TextureFilter::Nearest,
 		wrap_u: shade::TextureWrap::ClampEdge,

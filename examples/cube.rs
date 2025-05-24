@@ -180,7 +180,7 @@ fn main() {
 	let mut g = shade::gl::GlGraphics::new();
 
 	// Load the texture
-	let texture = shade::png::load(&mut g, Some("brick 24"), "examples/textures/brick 24 - 256x256.png", &shade::png::TextureProps {
+	let texture = shade::image::png::load(&mut g, Some("brick 24"), "examples/textures/brick 24 - 256x256.png", &shade::image::TextureProps {
 		filter_min: shade::TextureFilter::Linear,
 		filter_mag: shade::TextureFilter::Linear,
 		wrap_u: shade::TextureWrap::ClampEdge,
