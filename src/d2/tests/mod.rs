@@ -3,18 +3,18 @@ use super::*;
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct MockVertex {
-	pos: Point2<f32>,
+	pos: Point2f,
 }
 
 unsafe impl TVertex for MockVertex {
-	const VERTEX_LAYOUT: &'static VertexLayout = &VertexLayout {
-		size: std::mem::size_of::<MockVertex>() as u16,
-		alignment: std::mem::align_of::<MockVertex>() as u16,
+	const LAYOUT: &'static VertexLayout = &VertexLayout {
+		size: mem::size_of::<MockVertex>() as u16,
+		alignment: mem::align_of::<MockVertex>() as u16,
 		attributes: &[
 			VertexAttribute {
-				format: VertexAttributeFormat::F32,
-				len: 2,
-				offset: 0,
+				name: "position",
+				format: VertexAttributeFormat::F32v2,
+				offset: dataview::offset_of!(MockVertex.pos) as u16,
 			},
 		],
 	};
@@ -22,7 +22,7 @@ unsafe impl TVertex for MockVertex {
 
 impl ToVertex<MockVertex> for () {
 	#[inline]
-	fn to_vertex(&self, pos: Point2<f32>, _index: usize) -> MockVertex {
+	fn to_vertex(&self, pos: Point2f, _index: usize) -> MockVertex {
 		MockVertex { pos }
 	}
 }
@@ -32,10 +32,10 @@ impl ToVertex<MockVertex> for () {
 struct MockUniform {}
 
 unsafe impl TUniform for MockUniform {
-	const UNIFORM_LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: std::mem::size_of::<MockUniform>() as u16,
-		alignment: std::mem::align_of::<MockUniform>() as u16,
-		attributes: &[],
+	const LAYOUT: &'static UniformLayout = &UniformLayout {
+		size: mem::size_of::<MockUniform>() as u16,
+		alignment: mem::align_of::<MockUniform>() as u16,
+		fields: &[],
 	};
 }
 

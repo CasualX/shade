@@ -58,7 +58,7 @@ fn _load_textures(
 	let info = crate::Texture2DInfo {
 		width: width as i32,
 		height: height as i32,
-		format: crate::TextureFormat::R8G8B8A8,
+		format: crate::TextureFormat::RGBA8,
 		filter_min: props.filter_min,
 		filter_mag: props.filter_mag,
 		wrap_u: props.wrap_u,

@@ -2,8 +2,7 @@
 Utility to load PNG files to texture.
 */
 
-use std::fs;
-use std::path;
+use std::{fs, io, path};
 
 use super::{ImageSize, TextureProps};
 
@@ -26,27 +25,27 @@ impl From<png::DecodingError> for LoadError {
 	}
 }
 
-pub fn load(
+pub fn load_file(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
 	path: impl AsRef<path::Path>,
 	props: &TextureProps,
 	transform: Option<&mut dyn FnMut(&mut Vec<u8>, &mut ImageSize)>,
 ) -> Result<crate::Texture2D, LoadError> {
-	_load(g, name, path.as_ref(), props, transform)
+	let mut file = fs::File::open(path).map_err(png::DecodingError::IoError)?;
+	load(g, name, &mut file, props, transform)
 }
 
-fn _load(
+pub fn load(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
-	path: &path::Path,
+	data: &mut dyn io::Read,
 	props: &TextureProps,
 	transform: Option<&mut dyn FnMut(&mut Vec<u8>, &mut ImageSize)>,
 ) -> Result<crate::Texture2D, LoadError> {
 
 	// Read the PNG file
-	let file = fs::File::open(path).map_err(png::DecodingError::IoError)?;
-	let mut decoder = png::Decoder::new(file);
+	let mut decoder = png::Decoder::new(data);
 	decoder.set_transformations(png::Transformations::normalize_to_color8());
 	let mut reader = decoder.read_info()?;
 	let mut pixels = vec![0; reader.output_buffer_size()];
@@ -55,8 +54,9 @@ fn _load(
 	// Only support 8-bit Rgba images
 	assert_eq!(info.bit_depth, png::BitDepth::Eight);
 	let format = match info.color_type {
-		png::ColorType::Rgb => crate::TextureFormat::R8G8B8,
-		png::ColorType::Rgba => crate::TextureFormat::R8G8B8A8,
+		png::ColorType::Rgb => crate::TextureFormat::RGB8,
+		png::ColorType::Rgba => crate::TextureFormat::RGBA8,
+		png::ColorType::Grayscale => crate::TextureFormat::Grey8,
 		_ => unimplemented!("Unsupported PNG color type: {:?}", info.color_type),
 	};
 

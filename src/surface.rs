@@ -8,8 +8,8 @@ impl Surface {
 /// Surface format.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum SurfaceFormat {
-	R8G8B8A8,
-	R8G8B8,
+	RGBA8,
+	RGB8,
 }
 
 /// Surface information.

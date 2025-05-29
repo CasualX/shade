@@ -1,7 +1,7 @@
 use super::*;
 
 #[inline]
-pub fn bezier2(x: f32, p1: Point2<f32>, p2: Point2<f32>, p3: Point2<f32>) -> Point2<f32> {
+pub fn bezier2(x: f32, p1: Point2f, p2: Point2f, p3: Point2f) -> Point2f {
 	let s = x;
 	let t = 1.0 - s;
 	let term1 = p1 * (s * s);
@@ -11,7 +11,7 @@ pub fn bezier2(x: f32, p1: Point2<f32>, p2: Point2<f32>, p3: Point2<f32>) -> Poi
 }
 
 #[inline]
-pub fn bezier3(x: f32, p1: Point2<f32>, p2: Point2<f32>, p3: Point2<f32>, p4: Point2<f32>) -> Point2<f32> {
+pub fn bezier3(x: f32, p1: Point2f, p2: Point2f, p3: Point2f, p4: Point2f) -> Point2f {
 	let s = x;
 	let t = 1.0 - s;
 	let term1 = p1 * (s * s * s);

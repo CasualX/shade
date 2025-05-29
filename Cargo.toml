@@ -1,6 +1,17 @@
+[workspace]
+members = [
+	".",
+	"examples/webgl/triangle",
+	"examples/webgl/oldtree",
+	"examples/webgl/zeldawater",
+]
+
+[workspace.dependencies]
+cvmath = { version = "0.0.2", features = ["dataview"] }
+
 [package]
 name = "shade"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 
 authors = ["Casper <CasualX@users.noreply.github.com>"]
@@ -14,11 +25,12 @@ categories = ["rendering", "graphics", "game-development", "gui"]
 
 [features]
 default = ["gl", "png", "gif", "msdfgen"]
+webgl = []
 msdfgen = ["serde"]
 
 [dependencies]
 dataview = "1.0"
-cvmath = { version = "0.0.1", features = ["dataview"] }
+cvmath.workspace = true
 gl = { version = "0.14", optional = true }
 png = { version = "0.17", optional = true }
 gif = { version = "0.13", optional = true }
@@ -29,3 +41,4 @@ serde_json = "1.0"
 glutin = "0.26"
 winit = "0.24"
 stl = "0.2"
+obj = "0.10"

@@ -6,7 +6,7 @@ fn fill_rect() {
 	let paint = Paint {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	cbuf.fill_rect(&paint, &rc);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 4);
@@ -19,7 +19,7 @@ fn fill_edge_rect() {
 	let paint = Paint {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	let thickness = 10.0;
 	cbuf.fill_edge_rect(&paint, &rc, thickness);
 	assert_eq!(cbuf.commands.len(), 1);
@@ -89,7 +89,7 @@ fn fill_ellipse() {
 	let paint = Paint {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	cbuf.fill_ellipse(&paint, &rc, 32);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 33);
@@ -102,8 +102,8 @@ fn fill_pie() {
 	let paint = Paint {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
-	cbuf.fill_pie(&paint, &rc, cvmath::Rad(0.0), cvmath::Rad(90.0), 4);
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	cbuf.fill_pie(&paint, &rc, Rad(0.0), Rad(90.0), 4);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 6);
 	assert_eq!(cbuf.indices.len(), 4 * 3);
@@ -115,7 +115,7 @@ fn fill_ring() {
 	let paint = Paint {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	let thickness = 10.0;
 	cbuf.fill_ring(&paint, &rc, thickness, 32);
 	assert_eq!(cbuf.commands.len(), 1);

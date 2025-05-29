@@ -9,7 +9,7 @@ fn stamp_rect() {
 		top_right: (),
 		bottom_right: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	cbuf.stamp_rect(&stamp, &rc);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 4);

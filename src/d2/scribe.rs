@@ -3,13 +3,11 @@ use super::*;
 pub(crate) mod escape;
 mod font;
 mod resource;
-mod u;
 mod v;
 
 pub use self::font::IFont;
 pub use self::resource::FontResource;
-pub use self::u::TextUniform;
-pub use self::v::TextVertex;
+pub use self::v::*;
 
 pub type TextBuffer = CommandBuffer<TextVertex, TextUniform>;
 
@@ -80,7 +78,7 @@ impl Scribe {
 
 	/// Measures the width of a text string.
 	#[inline]
-	pub fn text_width(&self, cursor: &mut Vec2<f32>, font: &dyn IFont, text: &str) -> f32 {
+	pub fn text_width(&self, cursor: &mut Vec2f, font: &dyn IFont, text: &str) -> f32 {
 		let mut scribe_st = self.clone();
 		let mut width = 0.0;
 		let mut x_pos = cursor.x;
@@ -106,7 +104,7 @@ impl TextBuffer {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_write<T: fmt::Display>(&mut self, font: &FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2<f32>, text: T) {
+	pub fn text_write<T: fmt::Display>(&mut self, font: &FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
 		self.shader = font.shader;
 		text_write(self, font.as_dyn().font, scribe, cursor, &text);
 	}
@@ -117,7 +115,7 @@ impl TextBuffer {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &cvmath::Rect<f32>, align: BoxAlign, lines: &[&dyn fmt::Display]) {
+	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2<f32>, align: BoxAlign, lines: &[&dyn fmt::Display]) {
 		self.shader = font.shader;
 		text_lines(self, font.as_dyn().font, scribe, rect, align, lines);
 	}
@@ -128,7 +126,7 @@ impl TextBuffer {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &cvmath::Rect<f32>, align: BoxAlign, text: &str) {
+	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2<f32>, align: BoxAlign, text: &str) {
 		self.shader = font.shader;
 		text_box(self, font.as_dyn().font, scribe, rect, align, text);
 	}
@@ -143,7 +141,7 @@ impl<F: FnMut(&str) -> fmt::Result> fmt::Write for FormatFn<F> {
 	}
 }
 
-fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Vec2<f32>, text: &dyn fmt::Display) {
+fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Vec2f, text: &dyn fmt::Display) {
 	let mut writer = FormatFn(move |text: &str| {
 		font.write_span(Some(buf), scribe, cursor, text);
 		Ok(())
@@ -151,7 +149,7 @@ fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, curso
 	let _ = fmt::write(&mut writer, format_args!("{}", text));
 }
 
-fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &cvmath::Rect<f32>, align: BoxAlign, lines: &[&dyn fmt::Display]) {
+fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2<f32>, align: BoxAlign, lines: &[&dyn fmt::Display]) {
 	let height = lines.len() as isize as i32 as f32 * scribe.line_height;
 
 	let mut y = match align {
@@ -189,7 +187,7 @@ fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &cv
 	}
 }
 
-fn text_box(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &cvmath::Rect<f32>, align: BoxAlign, text: &str) {
+fn text_box(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2<f32>, align: BoxAlign, text: &str) {
 	let mut y = match align {
 		BoxAlign::TopLeft | BoxAlign::TopCenter | BoxAlign::TopRight => rect.mins.y,
 		BoxAlign::MiddleLeft | BoxAlign::MiddleCenter | BoxAlign::MiddleRight => rect.mins.y + (rect.height() - scribe.text_height(text)) * 0.5,
