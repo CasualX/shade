@@ -2,8 +2,9 @@
 /// Texture format.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum TextureFormat {
-	R8G8B8,
-	R8G8B8A8,
+	RGB8,
+	RGBA8,
+	Grey8,
 }
 
 /// Texture wrap mode.
@@ -24,7 +25,7 @@ pub enum TextureFilter {
 
 //----------------------------------------------------------------
 // Texture1D handle.
-
+/*
 define_handle!(Texture1D);
 
 /// Texture1D information.
@@ -41,7 +42,7 @@ pub struct Texture1DInfo {
 impl Default for Texture1DInfo {
 	fn default() -> Self {
 		Self {
-			format: TextureFormat::R8G8B8A8,
+			format: TextureFormat::RGBA8,
 			width: 0,
 			filter_min: TextureFilter::Linear,
 			filter_mag: TextureFilter::Linear,
@@ -49,7 +50,7 @@ impl Default for Texture1DInfo {
 			border_color: [0, 0, 0, 0],
 		}
 	}
-}
+}*/
 
 //----------------------------------------------------------------
 // Texture2D handle.
@@ -72,7 +73,7 @@ pub struct Texture2DInfo {
 impl Default for Texture2DInfo {
 	fn default() -> Self {
 		Self {
-			format: TextureFormat::R8G8B8A8,
+			format: TextureFormat::RGBA8,
 			width: 0,
 			height: 0,
 			filter_min: TextureFilter::Linear,
@@ -86,10 +87,10 @@ impl Default for Texture2DInfo {
 
 //-----------------------------------------------------------------
 // Texture2DArray handle.
-
+/*
 define_handle!(Texture2DArray);
 
-/// Texture2D array information.
+/// Texture2DArray information.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct Texture2DArrayInfo {
 	pub format: TextureFormat,
@@ -106,7 +107,7 @@ pub struct Texture2DArrayInfo {
 impl Default for Texture2DArrayInfo {
 	fn default() -> Self {
 		Self {
-			format: TextureFormat::R8G8B8A8,
+			format: TextureFormat::RGBA8,
 			width: 0,
 			height: 0,
 			count: 0,
@@ -117,14 +118,14 @@ impl Default for Texture2DArrayInfo {
 			border_color: [0, 0, 0, 0],
 		}
 	}
-}
+}*/
 
 //-------------------------------------------------------------------
 // TextureCube handle.
 
 define_handle!(TextureCube);
 
-/// Texture cube information.
+/// TextureCube information.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct TextureCubeInfo {
 	pub format: TextureFormat,
@@ -140,7 +141,7 @@ pub struct TextureCubeInfo {
 impl Default for TextureCubeInfo {
 	fn default() -> Self {
 		Self {
-			format: TextureFormat::R8G8B8A8,
+			format: TextureFormat::RGBA8,
 			width: 0,
 			height: 0,
 			filter_min: TextureFilter::Linear,

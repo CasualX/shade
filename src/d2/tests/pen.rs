@@ -36,7 +36,7 @@ fn draw_line_rect() {
 	let pen = Pen {
 		template: (),
 	};
-	let rc = Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
+	let rc = Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0));
 	cbuf.draw_line_rect(&pen, &rc);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 4);
@@ -70,7 +70,7 @@ fn draw_ellipse() {
 	let pen = Pen {
 		template: (),
 	};
-	cbuf.draw_ellipse(&pen, &Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0)), 128);
+	cbuf.draw_ellipse(&pen, &Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0)), 128);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 128);
 	assert_eq!(cbuf.indices.len(), 128 * 2);
@@ -82,7 +82,7 @@ fn draw_arc() {
 	let pen = Pen {
 		template: (),
 	};
-	cbuf.draw_arc(&pen, &Rect::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0)), cvmath::Rad(0.0), cvmath::Rad(1.0), 128);
+	cbuf.draw_arc(&pen, &Bounds2::new(Point2::new(0.0, 0.0), Point2::new(100.0, 100.0)), Rad(0.0), Rad(1.0), 128);
 	assert_eq!(cbuf.commands.len(), 1);
 	assert_eq!(cbuf.vertices.len(), 129);
 	assert_eq!(cbuf.indices.len(), 128 * 2);

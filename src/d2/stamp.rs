@@ -15,7 +15,7 @@ pub struct Stamp<T> {
 
 impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 	#[inline(never)]
-	pub fn stamp_rect<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, rc: &Rect<f32>) {
+	pub fn stamp_rect<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, rc: &Bounds2<f32>) {
 		let vertices = [
 			stamp.bottom_left.to_vertex(rc.bottom_left(), 0),
 			stamp.top_left.to_vertex(rc.top_left(), 1),
@@ -28,7 +28,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 	}
 
 	#[inline(never)]
-	pub fn stamp_quad<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, pos: &Transform2<f32>) {
+	pub fn stamp_quad<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, pos: &Transform2f) {
 		let vertices = [
 			stamp.bottom_left.to_vertex(pos.t(), 0),
 			stamp.top_left.to_vertex(pos.t() + pos.y(), 1),

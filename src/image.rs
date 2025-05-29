@@ -146,7 +146,7 @@ impl AnimatedImage {
 	fn _load(g: &mut crate::Graphics, name: Option<&str>, path: &path::Path, props: &TextureProps) -> Result<Self, LoadImageError> {
 		#[cfg(feature = "png")]
 		if path.extension().and_then(|s| s.to_str()) == Some("png") {
-			let tex = png::load(g, name, path, props, None)?;
+			let tex = png::load_file(g, name, path, props, None)?;
 			let info = g.texture2d_get_info(tex)?;
 			return Ok(AnimatedImage {
 				width: info.width,

@@ -1,12 +1,44 @@
-define_handle!(UniformBuffer);
-
 /// Defines a type containing uniform data.
 pub unsafe trait TUniform: Copy + Default + dataview::Pod {
-	const UNIFORM_LAYOUT: &'static UniformLayout;
+	const LAYOUT: &'static UniformLayout;
 }
 
+static DUMMY_UNIFORM_LAYOUT: UniformLayout = UniformLayout {
+	size: 0,
+	alignment: 1,
+	fields: &[],
+};
+
+/// Uniform reference.
+///
+/// This is a non-generic reference to uniform data.
+#[derive(Copy, Clone)]
+pub struct UniformRef<'a> {
+	pub(crate) data_ptr: *const u8,
+	pub(crate) layout: &'a UniformLayout,
+}
+impl<'a> Default for UniformRef<'a> {
+	#[inline]
+	fn default() -> Self {
+		UniformRef {
+			data_ptr: std::ptr::null(),
+			layout: &DUMMY_UNIFORM_LAYOUT,
+		}
+	}
+}
+impl<'a, T: TUniform> From<&'a T> for UniformRef<'a> {
+	#[inline]
+	fn from(data: &'a T) -> Self {
+		UniformRef {
+			data_ptr: data as *const T as *const u8,
+			layout: T::LAYOUT,
+		}
+	}
+}
+
+/// Matrix layout.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum UniformMatOrder {
+pub enum MatrixLayout {
 	ColumnMajor,
 	RowMajor,
 }
@@ -19,23 +51,23 @@ pub enum UniformType {
 	I1, I2, I3, I4,
 	U1, U2, U3, U4,
 	B1, B2, B3, B4,
-	Mat2x2 { order: UniformMatOrder }, Mat2x3 { order: UniformMatOrder }, Mat2x4 { order: UniformMatOrder },
-	Mat3x2 { order: UniformMatOrder }, Mat3x3 { order: UniformMatOrder }, Mat3x4 { order: UniformMatOrder },
-	Mat4x2 { order: UniformMatOrder }, Mat4x3 { order: UniformMatOrder }, Mat4x4 { order: UniformMatOrder },
-	Sampler2D(u8),
+	Mat2x2 { order: MatrixLayout }, Mat2x3 { order: MatrixLayout }, Mat2x4 { order: MatrixLayout },
+	Mat3x2 { order: MatrixLayout }, Mat3x3 { order: MatrixLayout }, Mat3x4 { order: MatrixLayout },
+	Mat4x2 { order: MatrixLayout }, Mat4x3 { order: MatrixLayout }, Mat4x4 { order: MatrixLayout },
+	Sampler2D,
 }
 
-/// Uniform attribute.
-pub struct UniformAttribute {
+/// Uniform field.
+pub struct UniformField {
 	pub name: &'static str,
 	pub ty: UniformType,
 	pub offset: u16,
 	pub len: u16,
 }
 
-/// Uniform memory layout.
+/// Uniform layout.
 pub struct UniformLayout {
 	pub size: u16,
 	pub alignment: u16,
-	pub attributes: &'static [UniformAttribute],
+	pub fields: &'static [UniformField],
 }

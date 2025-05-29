@@ -1,4 +1,34 @@
-// use super::*;
+define_handle!(VertexBuffer);
+define_handle!(IndexBuffer);
+
+/// Index type for index buffers.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum IndexType { U8, U16, U32 }
+
+impl IndexType {
+	pub const fn size(self) -> usize {
+		match self {
+			IndexType::U8 => 1,
+			IndexType::U16 => 2,
+			IndexType::U32 => 4,
+		}
+	}
+}
+
+/// Trait for index types.
+pub trait TIndex: Copy + dataview::Pod {
+	const TYPE: IndexType;
+}
+
+impl TIndex for u8 {
+	const TYPE: IndexType = IndexType::U8;
+}
+impl TIndex for u16 {
+	const TYPE: IndexType = IndexType::U16;
+}
+impl TIndex for u32 {
+	const TYPE: IndexType = IndexType::U32;
+}
 
 /// Primitive type.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

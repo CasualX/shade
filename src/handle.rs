@@ -11,7 +11,7 @@ pub trait Handle: Copy + Clone + Default + fmt::Debug + Eq + PartialEq + hash::H
 
 macro_rules! define_handle {
 	($name:ident) => {
-		#[doc = concat!("`", stringify!($name), "` identifier.")]
+		#[doc = concat!(stringify!($name), " handle.")]
 		#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 		#[repr(transparent)]
 		pub struct $name(u32);

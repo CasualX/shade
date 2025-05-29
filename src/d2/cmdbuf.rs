@@ -5,7 +5,7 @@ use super::*;
 pub(super) struct Command {
 	prim_type: PrimType,
 	blend_mode: BlendMode,
-	scissor_test: Option<cvmath::Rect<i32>>,
+	scissor_test: Option<Bounds2<i32>>,
 	shader: Shader,
 	vertex_start: u32,
 	vertex_end: u32,
@@ -17,14 +17,14 @@ pub(super) struct Command {
 /// Command buffer.
 pub struct CommandBuffer<V, U> {
 	pub(super) vertices: Vec<V>,
-	pub(super) indices: Vec<u32>,
+	pub(super) indices: Vec<u16>,
 	pub(super) uniforms: Vec<U>,
 	pub(super) commands: Vec<Command>,
 
 	pub blend_mode: BlendMode,
 	pub shader: Shader,
-	pub viewport: Rect<i32>,
-	pub scissor_test: Option<cvmath::Rect<i32>>,
+	pub viewport: Bounds2<i32>,
+	pub scissor_test: Option<Bounds2<i32>>,
 	pub depth_test: Option<DepthTest>,
 	pub cull_mode: Option<CullMode>,
 }
@@ -40,7 +40,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 
 			blend_mode: BlendMode::Solid,
 			shader: Shader::INVALID,
-			viewport: Rect::ZERO,
+			viewport: Bounds2::ZERO,
 			scissor_test: None,
 			depth_test: None,
 			cull_mode: None,
@@ -55,7 +55,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 		self.commands.clear();
 		self.blend_mode = BlendMode::Solid;
 		self.shader = Shader::INVALID;
-		self.viewport = Rect::ZERO;
+		self.viewport = Bounds2::ZERO;
 		self.scissor_test = None;
 		self.depth_test = None;
 		self.cull_mode = None;
@@ -63,11 +63,11 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 
 	/// Draws the command buffer.
 	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
-		let vb = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let ib = g.index_buffer(None, &self.indices, BufferUsage::Static)?;
-		let ub = g.uniform_buffer(None, &self.uniforms)?;
+		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
+		let indices = g.index_buffer(None, &self.indices, BufferUsage::Static)?;
 
 		for cmd in &self.commands {
+			let uniforms = &[UniformRef::from(&self.uniforms[cmd.uniform_index as usize])];
 			g.draw_indexed(&DrawIndexedArgs {
 				surface,
 				viewport: self.viewport,
@@ -75,23 +75,25 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 				blend_mode: cmd.blend_mode,
 				depth_test: self.depth_test,
 				cull_mode: self.cull_mode,
+				mask: DrawMask::COLOR | DrawMask::DEPTH,
 				prim_type: cmd.prim_type,
 				shader: cmd.shader,
-				vertices: vb,
-				indices: ib,
-				uniforms: ub,
+				vertices: &[DrawVertexBuffer {
+					buffer: vertices,
+					divisor: VertexDivisor::PerVertex,
+				}],
+				indices,
+				uniforms,
 				vertex_start: cmd.vertex_start,
 				vertex_end: cmd.vertex_end,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
-				uniform_index: cmd.uniform_index,
 				instances: -1,
 			})?;
 		}
 
-		g.uniform_buffer_delete(ub, true)?;
-		g.index_buffer_delete(ib, true)?;
-		g.vertex_buffer_delete(vb, true)?;
+		g.index_buffer_free(indices, FreeMode::Delete)?;
+		g.vertex_buffer_free(vertices, FreeMode::Delete)?;
 		Ok(())
 	}
 
@@ -160,7 +162,8 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 
 		// Reserve space for new data.
 		self.vertices.resize_with(vertex_start + nverts, V::default);
-		self.indices.resize(index_start + nindices, vertex_start as u32);
+		debug_assert!(self.vertices.len() <= u16::MAX as usize, "too many vertices in command buffer");
+		self.indices.resize(index_start + nindices, vertex_start as u16);
 
 		PrimBuilder {
 			vertices: &mut self.vertices[vertex_start..],
@@ -174,7 +177,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 /// Builder for adding vertices and indices to a command buffer.
 pub struct PrimBuilder<'a, V: TVertex> {
 	vertices: &'a mut [V],
-	indices: &'a mut [u32],
+	indices: &'a mut [u16],
 	#[cfg(debug_assertions)]
 	nvertices: usize,
 }
@@ -186,11 +189,11 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		#[cfg(debug_assertions)]
 		{
 			assert!(self.indices.len() >= 1, "too many indices");
-			assert!((vertex as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex, self.nvertices);
+			assert!((vertex as usize) < self.nvertices && vertex < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex, self.nvertices);
 		}
 
 		let (head, tail) = mem::replace(&mut self.indices, &mut []).split_at_mut(1);
-		head[0] += vertex;
+		head[0] += vertex as u16;
 		self.indices = tail;
 	}
 
@@ -200,13 +203,13 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		#[cfg(debug_assertions)]
 		{
 			assert!(self.indices.len() >= 2, "too many indices");
-			assert!((vertex1 as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex1, self.nvertices);
-			assert!((vertex2 as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex2, self.nvertices);
+			assert!((vertex1 as usize) < self.nvertices && vertex1 < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex1, self.nvertices);
+			assert!((vertex2 as usize) < self.nvertices && vertex2 < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex2, self.nvertices);
 		}
 
 		let (head, tail) = mem::replace(&mut self.indices, &mut []).split_at_mut(2);
-		head[0] += vertex1;
-		head[1] += vertex2;
+		head[0] += vertex1 as u16;
+		head[1] += vertex2 as u16;
 		self.indices = tail;
 	}
 
@@ -216,15 +219,15 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		#[cfg(debug_assertions)]
 		{
 			assert!(self.indices.len() >= 3, "too many indices");
-			assert!((vertex1 as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex1, self.nvertices);
-			assert!((vertex2 as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex2, self.nvertices);
-			assert!((vertex3 as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", vertex3, self.nvertices);
+			assert!((vertex1 as usize) < self.nvertices && vertex1 < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex1, self.nvertices);
+			assert!((vertex2 as usize) < self.nvertices && vertex2 < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex2, self.nvertices);
+			assert!((vertex3 as usize) < self.nvertices && vertex3 < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", vertex3, self.nvertices);
 		}
 
 		let (head, tail) = mem::replace(&mut self.indices, &mut []).split_at_mut(3);
-		head[0] += vertex1;
-		head[1] += vertex2;
-		head[2] += vertex3;
+		head[0] += vertex1 as u16;
+		head[1] += vertex2 as u16;
+		head[2] += vertex3 as u16;
 		self.indices = tail;
 	}
 
@@ -235,13 +238,13 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		{
 			assert!(self.indices.len() >= indices.len(), "too many indices");
 			for &index in indices {
-				assert!((index as usize) < self.nvertices, "vertex index ({}) out of bounds ({} vertices)", index, self.nvertices);
+				assert!((index as usize) < self.nvertices && index < u16::MAX as u32, "vertex index ({}) out of bounds ({} vertices)", index, self.nvertices);
 			}
 		}
 
 		let (head, tail) = mem::replace(&mut self.indices, &mut []).split_at_mut(indices.len());
 		for i in 0..indices.len() {
-			head[i] += indices[i];
+			head[i] += indices[i] as u16;
 		}
 		self.indices = tail;
 	}

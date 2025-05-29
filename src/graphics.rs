@@ -6,43 +6,83 @@ pub struct ClearArgs {
 	/// Surface to clear.
 	pub surface: Surface,
 	/// Scissor rectangle.
-	pub scissor: Option<cvmath::Rect<i32>>,
+	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Color to clear with.
-	pub color: Option<cvmath::Vec4<f32>>,
+	pub color: Option<cvmath::Vec4f>,
 	/// Depth to clear with.
 	pub depth: Option<f32>,
 	/// Stencil to clear with.
-	pub stencil: Option<u32>,
+	pub stencil: Option<u8>,
+}
+
+/// Draw mask.
+pub struct DrawMask {
+	pub red: bool,
+	pub green: bool,
+	pub blue: bool,
+	pub alpha: bool,
+	pub depth: bool,
+	pub stencil: u8,
+}
+impl DrawMask {
+	pub const ALL: Self = Self { red: true, green: true, blue: true, alpha: true, depth: true, stencil: u8::MAX };
+	pub const COLOR: Self = Self { red: true, green: true, blue: true, alpha: true, depth: false, stencil: 0 };
+	pub const DEPTH: Self = Self { red: false, green: false, blue: false, alpha: false, depth: true, stencil: 0 };
+	pub const STENCIL: Self = Self { red: false, green: false, blue: false, alpha: false, depth: false, stencil: u8::MAX };
+	pub const NONE: Self = Self { red: false, green: false, blue: false, alpha: false, depth: false, stencil: 0 };
+}
+impl ops::BitOr<DrawMask> for DrawMask {
+	type Output = Self;
+
+	#[inline]
+	fn bitor(self, rhs: Self) -> Self::Output {
+		Self {
+			red: self.red || rhs.red,
+			green: self.green || rhs.green,
+			blue: self.blue || rhs.blue,
+			alpha: self.alpha || rhs.alpha,
+			depth: self.depth || rhs.depth,
+			stencil: self.stencil | rhs.stencil,
+		}
+	}
+}
+
+/// Arguments for drawing a vertex buffer and metadata.
+pub struct DrawVertexBuffer {
+	/// Vertex buffer.
+	pub buffer: VertexBuffer,
+	/// Divisor for instanced rendering.
+	pub divisor: VertexDivisor,
 }
 
 /// Arguments for [draw](IGraphics::draw).
-pub struct DrawArgs {
+pub struct DrawArgs<'a> {
 	/// Surface to draw on.
 	pub surface: Surface,
 	/// Viewport rectangle.
-	pub viewport: cvmath::Rect<i32>,
+	pub viewport: cvmath::Bounds2<i32>,
 	/// Scissor rectangle.
-	pub scissor: Option<cvmath::Rect<i32>>,
+	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Blend mode.
 	pub blend_mode: BlendMode,
 	/// Depth test.
 	pub depth_test: Option<DepthTest>,
 	/// Triangle culling mode.
 	pub cull_mode: Option<CullMode>,
+	/// Draw mask.
+	pub mask: DrawMask,
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
 	pub shader: Shader,
-	/// Vertex buffer.
-	pub vertices: VertexBuffer,
+	/// Vertex buffers.
+	pub vertices: &'a [DrawVertexBuffer],
 	/// Uniforms.
-	pub uniforms: UniformBuffer,
+	pub uniforms: &'a [UniformRef<'a>],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
 	pub vertex_end: u32,
-	/// Index of the uniform to use.
-	pub uniform_index: u32,
 	/// Number of instances to draw.
 	///
 	/// If this is less than zero, instanced drawing is disabled.
@@ -50,29 +90,31 @@ pub struct DrawArgs {
 }
 
 /// Arguments for [draw_indexed](IGraphics::draw_indexed).
-pub struct DrawIndexedArgs {
+pub struct DrawIndexedArgs<'a> {
 	/// Surface to draw on.
 	pub surface: Surface,
 	/// Viewport rectangle.
-	pub viewport: cvmath::Rect<i32>,
+	pub viewport: cvmath::Bounds2<i32>,
 	/// Scissor rectangle.
-	pub scissor: Option<cvmath::Rect<i32>>,
+	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Blend mode.
 	pub blend_mode: BlendMode,
 	/// Depth test.
 	pub depth_test: Option<DepthTest>,
 	/// Triangle culling mode.
 	pub cull_mode: Option<CullMode>,
+	/// Draw mask.
+	pub mask: DrawMask,
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
 	pub shader: Shader,
 	/// Vertices.
-	pub vertices: VertexBuffer,
+	pub vertices: &'a [DrawVertexBuffer],
 	/// Indices.
 	pub indices: IndexBuffer,
 	/// Uniforms.
-	pub uniforms: UniformBuffer,
+	pub uniforms: &'a [UniformRef<'a>],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
@@ -81,8 +123,6 @@ pub struct DrawIndexedArgs {
 	pub index_start: u32,
 	/// Index of one past the last index.
 	pub index_end: u32,
-	/// Index of the uniform to use.
-	pub uniform_index: u32,
 	/// Number of instances to draw.
 	///
 	/// If this is less than zero, instanced drawing is disabled.
@@ -92,17 +132,21 @@ pub struct DrawIndexedArgs {
 /// Graphics error.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum GfxError {
-	InvalidVertexBufferHandle,
-	InvalidIndexBufferHandle,
-	InvalidUniformBufferHandle,
-	InvalidShaderHandle,
-	InvalidTexture2DHandle,
-	InvalidSurfaceHandle,
+	InvalidHandle,
 	IndexOutOfBounds,
 	InvalidDrawCallTime,
 	ShaderCompileError,
 	NameNotFound,
 	InternalError,
+}
+
+/// Free mode.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FreeMode {
+	/// Delete the resource immediately.
+	Delete,
+	/// Release the resource, but keep the handle valid for future use.
+	Release,
 }
 
 /// Graphics interface.
@@ -120,43 +164,30 @@ pub trait IGraphics {
 	/// End drawing.
 	fn end(&mut self) -> Result<(), GfxError>;
 
-	/// Create a vertex buffer.
-	fn vertex_buffer_create(&mut self, name: Option<&str>, layout: &'static VertexLayout, count: usize) -> Result<VertexBuffer, GfxError>;
+	/// Create a buffer.
+	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> Result<VertexBuffer, GfxError>;
 	/// Find a vertex buffer by name.
 	fn vertex_buffer_find(&mut self, name: &str) -> Result<VertexBuffer, GfxError>;
 	/// Set the data of a vertex buffer.
-	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8], usage: BufferUsage) -> Result<(), GfxError>;
+	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8]) -> Result<(), GfxError>;
 	/// Release the resources of a vertex buffer.
-	fn vertex_buffer_delete(&mut self, id: VertexBuffer, free_handle: bool) -> Result<(), GfxError>;
+	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode) -> Result<(), GfxError>;
 
-	/// Create an index buffer.
-	fn index_buffer_create(&mut self, name: Option<&str>, count: usize) -> Result<IndexBuffer, GfxError>;
-	/// Find an index buffer by name.
+	/// Create a buffer.
+	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> Result<IndexBuffer, GfxError>;
+	/// Find a vertex buffer by name.
 	fn index_buffer_find(&mut self, name: &str) -> Result<IndexBuffer, GfxError>;
-	/// Set the data of an index buffer.
-	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u32], usage: BufferUsage) -> Result<(), GfxError>;
-	/// Release the resources of an index buffer.
-	fn index_buffer_delete(&mut self, id: IndexBuffer, free_handle: bool) -> Result<(), GfxError>;
+	/// Set the data of a vertex buffer.
+	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u8]) -> Result<(), GfxError>;
+	/// Release the resources of a vertex buffer.
+	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode) -> Result<(), GfxError>;
 
-	/// Create a uniform buffer.
-	fn uniform_buffer_create(&mut self, name: Option<&str>, layout: &'static UniformLayout, count: usize) -> Result<UniformBuffer, GfxError>;
-	/// Find a uniform buffer by name.
-	fn uniform_buffer_find(&mut self, name: &str) -> Result<UniformBuffer, GfxError>;
-	/// Set the data of a uniform buffer.
-	fn uniform_buffer_set_data(&mut self, id: UniformBuffer, data: &[u8]) -> Result<(), GfxError>;
-	/// Release the resources of a uniform buffer.
-	fn uniform_buffer_delete(&mut self, id: UniformBuffer, free_handle: bool) -> Result<(), GfxError>;
-
-	/// Create a shader.
-	fn shader_create(&mut self, name: Option<&str>) -> Result<Shader, GfxError>;
+	/// Create and compile a shader.
+	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<Shader, GfxError>;
 	/// Find a shader by name.
 	fn shader_find(&mut self, name: &str) -> Result<Shader, GfxError>;
-	/// Compile a shader.
-	fn shader_compile(&mut self, id: Shader, vertex_source: &str, fragment_source: &str) -> Result<(), GfxError>;
-	/// Get the compile log of a shader.
-	fn shader_compile_log(&mut self, id: Shader) -> Result<String, GfxError>;
 	/// Release the resources of a shader.
-	fn shader_delete(&mut self, id: Shader, free_handle: bool) -> Result<(), GfxError>;
+	fn shader_free(&mut self, id: Shader) -> Result<(), GfxError>;
 
 	/// Create a 2D texture.
 	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Result<Texture2D, GfxError>;
@@ -167,18 +198,7 @@ pub trait IGraphics {
 	/// Get the info of a 2D texture.
 	fn texture2d_get_info(&mut self, id: Texture2D) -> Result<Texture2DInfo, GfxError>;
 	/// Release the resources of a 2D texture.
-	fn texture2d_delete(&mut self, id: Texture2D, free_handle: bool) -> Result<(), GfxError>;
-
-	/// Create a 2D texture array.
-	fn texture2darray_create(&mut self, name: Option<&str>, info: &Texture2DArrayInfo) -> Result<Texture2DArray, GfxError>;
-	/// Find a 2D texture array by name.
-	fn texture2darray_find(&mut self, name: &str) -> Result<Texture2DArray, GfxError>;
-	/// Set the data of a 2D texture array.
-	fn texture2darray_set_data(&mut self, id: Texture2DArray, index: usize, data: &[u8]) -> Result<(), GfxError>;
-	/// Get the info of a 2D texture array.
-	fn texture2darray_get_info(&mut self, id: Texture2DArray) -> Result<Texture2DArrayInfo, GfxError>;
-	/// Get the depth of a 2D texture array.
-	fn texture2darray_delete(&mut self, id: Texture2DArray, free_handle: bool) -> Result<(), GfxError>;
+	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode) -> Result<(), GfxError>;
 
 	/// Create a surface.
 	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Result<Surface, GfxError>;
@@ -191,7 +211,7 @@ pub trait IGraphics {
 	/// Get the texture of a surface.
 	fn surface_get_texture(&mut self, id: Surface) -> Result<Texture2D, GfxError>;
 	/// Release the resources of a surface.
-	fn surface_delete(&mut self, id: Surface, free_handle: bool) -> Result<(), GfxError>;
+	fn surface_free(&mut self, id: Surface, mode: FreeMode) -> Result<(), GfxError>;
 }
 
 /// Graphics interface.
@@ -227,45 +247,36 @@ impl ops::DerefMut for Graphics {
 impl Graphics {
 	/// Create and assign data to a vertex buffer.
 	#[inline]
-	pub fn vertex_buffer<V: TVertex>(&mut self, name: Option<&str>, data: &[V], usage: BufferUsage) -> Result<VertexBuffer, GfxError> {
-		let id = self.vertex_buffer_create::<V>(name, data.len())?;
-		self.vertex_buffer_set_data(id, data, usage)?;
+	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> Result<VertexBuffer, GfxError> {
+		let this = &mut **self;
+		let id = this.vertex_buffer_create(name, mem::size_of_val(data), T::LAYOUT, usage)?;
+		if let Err(err) = this.vertex_buffer_set_data(id, dataview::bytes(data)) {
+			// If setting data fails, delete the buffer and return the error.
+			let _ = this.vertex_buffer_free(id, FreeMode::Delete);
+			return Err(err);
+		}
 		Ok(id)
-	}
-	/// Create a vertex buffer.
-	#[inline]
-	pub fn vertex_buffer_create<V: TVertex>(&mut self, name: Option<&str>, count: usize) -> Result<VertexBuffer, GfxError> {
-		self.inner.vertex_buffer_create(name, V::VERTEX_LAYOUT, count)
 	}
 	/// Set the data of a vertex buffer.
 	#[inline]
-	pub fn vertex_buffer_set_data<V: TVertex>(&mut self, id: VertexBuffer, data: &[V], usage: BufferUsage) -> Result<(), GfxError> {
-		self.inner.vertex_buffer_set_data(id, dataview::bytes(data), usage)
+	pub fn buffer_set_data<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) -> Result<(), GfxError> {
+		self.inner.vertex_buffer_set_data(id, dataview::bytes(data))
 	}
-
 	/// Create and assign data to an index buffer.
 	#[inline]
-	pub fn index_buffer(&mut self, name: Option<&str>, data: &[u32], usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
-		let id = self.index_buffer_create(name, data.len())?;
-		self.index_buffer_set_data(id, data, usage)?;
+	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
+		let this = &mut **self;
+		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage)?;
+		if let Err(err) = this.index_buffer_set_data(id, dataview::bytes(data)) {
+			// If setting data fails, delete the buffer and return the error.
+			let _ = this.index_buffer_free(id, FreeMode::Delete);
+			return Err(err);
+		}
 		Ok(id)
 	}
-
-	/// Create and assign data to an index buffer.
+	/// Set the data of an index buffer.
 	#[inline]
-	pub fn uniform_buffer<U: TUniform>(&mut self, name: Option<&str>, data: &[U]) -> Result<UniformBuffer, GfxError> {
-		let id = self.uniform_buffer_create::<U>(name, data.len())?;
-		self.uniform_buffer_set_data(id, data)?;
-		Ok(id)
-	}
-	/// Create a uniform buffer.
-	#[inline]
-	pub fn uniform_buffer_create<U: TUniform>(&mut self, name: Option<&str>, count: usize) -> Result<UniformBuffer, GfxError> {
-		self.inner.uniform_buffer_create(name, U::UNIFORM_LAYOUT, count)
-	}
-	/// Set the data of a uniform buffer.
-	#[inline]
-	pub fn uniform_buffer_set_data<U: TUniform>(&mut self, id: UniformBuffer, data: &[U]) -> Result<(), GfxError> {
-		self.inner.uniform_buffer_set_data(id, dataview::bytes(data))
+	pub fn index_buffer_set_data<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) -> Result<(), GfxError> {
+		self.inner.index_buffer_set_data(id, dataview::bytes(data))
 	}
 }

@@ -1,0 +1,12 @@
+[package]
+name = "zeldawater"
+version = "0.0.2"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dataview = "1.0"
+cvmath.workspace = true
+shade = { path = "../../..", features = ["webgl"] }

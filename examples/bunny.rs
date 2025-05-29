@@ -6,25 +6,17 @@ use std::{thread::sleep, time::Duration};
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct MyVertex3 {
-	position: cvmath::Vec3<f32>,
-	normal: cvmath::Vec3<f32>,
+	position: cvmath::Vec3f,
+	normal: cvmath::Vec3f,
 }
 
 unsafe impl shade::TVertex for MyVertex3 {
-	const VERTEX_LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
+	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
 		size: std::mem::size_of::<MyVertex3>() as u16,
 		alignment: std::mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 3,
-				offset: dataview::offset_of!(MyVertex3.position) as u16,
-			},
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 3,
-				offset: dataview::offset_of!(MyVertex3.normal) as u16,
-			},
+			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("aNormal", dataview::offset_of!(MyVertex3.normal)),
 		],
 	};
 }
@@ -64,7 +56,7 @@ void main()
 #[derive(Copy, Clone, dataview::Pod)]
 #[repr(C)]
 struct MyUniform3 {
-	transform: cvmath::Mat4<f32>,
+	transform: cvmath::Mat4f,
 }
 
 impl Default for MyUniform3 {
@@ -76,13 +68,13 @@ impl Default for MyUniform3 {
 }
 
 unsafe impl shade::TUniform for MyUniform3 {
-	const UNIFORM_LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
+	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
 		size: std::mem::size_of::<MyUniform3>() as u16,
 		alignment: std::mem::align_of::<MyUniform3>() as u16,
-		attributes: &[
-			shade::UniformAttribute {
+		fields: &[
+			shade::UniformField {
 				name: "transform",
-				ty: shade::UniformType::Mat4x4 { order: shade::UniformMatOrder::RowMajor },
+				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(MyUniform3.transform) as u16,
 				len: 1,
 			},
@@ -156,17 +148,8 @@ fn main() {
 
 	println!("Bunny bounding box: {:?}", cvmath::Bounds(mins, maxs));
 
-	// Create the uniform buffer
-	// The uniform buffer is updated every frame
-	let ub = g.uniform_buffer(None, &[
-		MyUniform3::default(),
-	]).unwrap();
-
 	// Create the shader
-	let shader = g.shader_create(None).unwrap();
-	if let Err(_) = g.shader_compile(shader, VERTEX_SHADER, FRAGMENT_SHADER) {
-		panic!("Failed to compile shader: {}", g.shader_compile_log(shader).unwrap());
-	}
+	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
 
 	// Model matrix to rotate the bunny
 	let mut model = cvmath::Mat4::rotate(cvmath::Deg(-90.0), cvmath::Vec3::X) * cvmath::Mat4::translate(-(mins + maxs) * 0.5);
@@ -219,25 +202,26 @@ fn main() {
 		let transform = projection * view * model;
 
 		// Update the uniform buffer with the new transformation matrix
-		g.uniform_buffer_set_data(ub, &[
-			MyUniform3 { transform },
-		]).unwrap();
+		let uniforms = MyUniform3 { transform };
 
 		// Draw the bunny
 		g.draw(&shade::DrawArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Rect::c(0, 0, size.width as i32, size.height as i32),
+			viewport: cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
 			cull_mode: None,
+			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
 			prim_type: shade::PrimType::Triangles,
 			shader,
-			vertices: vb,
-			uniforms: ub,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: vb,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			uniforms: &[shade::UniformRef::from(&uniforms)],
 			vertex_start: 0,
 			vertex_end: vb_len,
-			uniform_index: 0,
 			instances: -1,
 		}).unwrap();
 
