@@ -11,28 +11,28 @@ pub struct TextVertex {
 }
 
 unsafe impl TVertex for TextVertex {
-	const VERTEX_LAYOUT: &'static crate::VertexLayout = &crate::VertexLayout {
+	const LAYOUT: &'static crate::VertexLayout = &crate::VertexLayout {
 		size: std::mem::size_of::<TextVertex>() as u16,
 		alignment: std::mem::align_of::<TextVertex>() as u16,
 		attributes: &[
 			VertexAttribute {
-				format: VertexAttributeFormat::F32,
-				len: 2,
+				name: "a_pos",
+				format: VertexAttributeFormat::F32v2,
 				offset: dataview::offset_of!(TextVertex.pos) as u16,
 			},
 			VertexAttribute {
-				format: VertexAttributeFormat::F32,
-				len: 2,
+				name: "a_texcoord",
+				format: VertexAttributeFormat::F32v2,
 				offset: dataview::offset_of!(TextVertex.uv) as u16,
 			},
 			VertexAttribute {
-				format: VertexAttributeFormat::U8Norm,
-				len: 4,
+				name: "a_color",
+				format: VertexAttributeFormat::U8Normv4,
 				offset: dataview::offset_of!(TextVertex.color) as u16,
 			},
 			VertexAttribute {
-				format: VertexAttributeFormat::U8Norm,
-				len: 4,
+				name: "a_outline",
+				format: VertexAttributeFormat::U8Normv4,
 				offset: dataview::offset_of!(TextVertex.outline) as u16,
 			},
 		],

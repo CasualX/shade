@@ -10,43 +10,21 @@ struct TriangleVertex {
 }
 
 unsafe impl shade::TVertex for TriangleVertex {
-	const VERTEX_LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
+	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
 		size: std::mem::size_of::<TriangleVertex>() as u16,
 		alignment: std::mem::align_of::<TriangleVertex>() as u16,
 		attributes: &[
 			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 2,
+				name: "aPos",
+				format: shade::VertexAttributeFormat::F32v2,
 				offset: dataview::offset_of!(TriangleVertex.position) as u16,
 			},
 			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::U8Norm,
-				len: 4,
+				name: "aColor",
+				format: shade::VertexAttributeFormat::U8Normv4,
 				offset: dataview::offset_of!(TriangleVertex.color) as u16,
 			},
 		],
-	};
-}
-
-//----------------------------------------------------------------
-// The triangle's uniforms and shaders
-// Here the shader has no uniforms, so we use an empty struct
-
-#[derive(Copy, Clone, dataview::Pod)]
-#[repr(C)]
-struct TriangleUniforms {}
-
-impl Default for TriangleUniforms {
-	fn default() -> Self {
-		TriangleUniforms {}
-	}
-}
-
-unsafe impl shade::TUniform for TriangleUniforms {
-	const UNIFORM_LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: std::mem::size_of::<TriangleUniforms>() as u16,
-		alignment: std::mem::align_of::<TriangleUniforms>() as u16,
-		attributes: &[],
 	};
 }
 
@@ -97,16 +75,11 @@ fn main() {
 	let mut g = shade::gl::GlGraphics::new();
 
 	// Create the triangle vertex buffer
-	let vb = g.vertex_buffer(None, &[
+	let vb = g.buffer(None, &[
 		TriangleVertex { position: cvmath::Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
 		TriangleVertex { position: cvmath::Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
 		TriangleVertex { position: cvmath::Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
 	], shade::BufferUsage::Static).unwrap();
-
-	// Create the triangle uniform buffer
-	let ub = g.uniform_buffer(None, &[
-		TriangleUniforms::default(),
-	]).unwrap();
 
 	// Create the triangle shader
 	let shader = g.shader_create(None).unwrap();
@@ -145,11 +118,14 @@ fn main() {
 					cull_mode: None,
 					prim_type: shade::PrimType::Triangles,
 					shader,
-					vertices: vb,
-					uniforms: ub,
+					vertices: &[shade::DrawVertexBuffer {
+						buffer: vb,
+						divisor: shade::VertexDivisor::PerVertex,
+						layout: <TriangleVertex as shade::TVertex>::LAYOUT,
+					}],
+					uniforms: shade::UniformRef::default(),
 					vertex_start: 0,
 					vertex_end: 3,
-					uniform_index: 0,
 					instances: -1,
 				}).unwrap();
 

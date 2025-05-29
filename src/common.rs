@@ -1,4 +1,27 @@
-// use super::*;
+define_handle!(Buffer);
+
+/// Buffer type.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum BufferType {
+	/// Vertex buffer.
+	Vertex,
+	/// Index buffer.
+	Index,
+}
+
+/// Index type for index buffers.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum IndexType { U8, U16, U32 }
+
+impl IndexType {
+	pub const fn size(self) -> usize {
+		match self {
+			IndexType::U8 => 1,
+			IndexType::U16 => 2,
+			IndexType::U32 => 4,
+		}
+	}
+}
 
 /// Primitive type.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

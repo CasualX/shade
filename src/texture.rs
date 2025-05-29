@@ -89,7 +89,7 @@ impl Default for Texture2DInfo {
 
 define_handle!(Texture2DArray);
 
-/// Texture2D array information.
+/// Texture2DArray information.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct Texture2DArrayInfo {
 	pub format: TextureFormat,
@@ -124,7 +124,7 @@ impl Default for Texture2DArrayInfo {
 
 define_handle!(TextureCube);
 
-/// Texture cube information.
+/// TextureCube information.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct TextureCubeInfo {
 	pub format: TextureFormat,

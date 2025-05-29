@@ -63,11 +63,11 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 
 	/// Draws the command buffer.
 	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
-		let vb = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let ib = g.index_buffer(None, &self.indices, BufferUsage::Static)?;
-		let ub = g.uniform_buffer(None, &self.uniforms)?;
+		let vertices = g.buffer(None, &self.vertices, BufferUsage::Static)?;
+		let indices = g.buffer(None, &self.indices, BufferUsage::Static)?;
 
 		for cmd in &self.commands {
+			let uniforms = UniformRef::from(&self.uniforms[cmd.uniform_index as usize]);
 			g.draw_indexed(&DrawIndexedArgs {
 				surface,
 				viewport: self.viewport,
@@ -77,21 +77,24 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 				cull_mode: self.cull_mode,
 				prim_type: cmd.prim_type,
 				shader: cmd.shader,
-				vertices: vb,
-				indices: ib,
-				uniforms: ub,
+				vertices: &[DrawVertexBuffer {
+					buffer: vertices,
+					divisor: VertexDivisor::PerVertex,
+					layout: V::LAYOUT,
+				}],
+				indices,
+				index_type: IndexType::U32,
+				uniforms,
 				vertex_start: cmd.vertex_start,
 				vertex_end: cmd.vertex_end,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
-				uniform_index: cmd.uniform_index,
 				instances: -1,
 			})?;
 		}
 
-		g.uniform_buffer_delete(ub, true)?;
-		g.index_buffer_delete(ib, true)?;
-		g.vertex_buffer_delete(vb, true)?;
+		g.buffer_delete(indices, true)?;
+		g.buffer_delete(vertices, true)?;
 		Ok(())
 	}
 

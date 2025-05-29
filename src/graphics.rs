@@ -15,8 +15,18 @@ pub struct ClearArgs {
 	pub stencil: Option<u32>,
 }
 
+/// Arguments for drawing a vertex buffer and metadata.
+pub struct DrawVertexBuffer {
+	/// Vertex buffer.
+	pub buffer: Buffer,
+	/// Divisor for instanced rendering.
+	pub divisor: VertexDivisor,
+	/// Reference to the vertex layout that describes the structure of the vertex data.
+	pub layout: &'static VertexLayout,
+}
+
 /// Arguments for [draw](IGraphics::draw).
-pub struct DrawArgs {
+pub struct DrawArgs<'a> {
 	/// Surface to draw on.
 	pub surface: Surface,
 	/// Viewport rectangle.
@@ -33,16 +43,14 @@ pub struct DrawArgs {
 	pub prim_type: PrimType,
 	/// Shader used.
 	pub shader: Shader,
-	/// Vertex buffer.
-	pub vertices: VertexBuffer,
+	/// Vertex buffers.
+	pub vertices: &'a [DrawVertexBuffer],
 	/// Uniforms.
-	pub uniforms: UniformBuffer,
+	pub uniforms: UniformRef<'a>,
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
 	pub vertex_end: u32,
-	/// Index of the uniform to use.
-	pub uniform_index: u32,
 	/// Number of instances to draw.
 	///
 	/// If this is less than zero, instanced drawing is disabled.
@@ -50,7 +58,7 @@ pub struct DrawArgs {
 }
 
 /// Arguments for [draw_indexed](IGraphics::draw_indexed).
-pub struct DrawIndexedArgs {
+pub struct DrawIndexedArgs<'a> {
 	/// Surface to draw on.
 	pub surface: Surface,
 	/// Viewport rectangle.
@@ -68,11 +76,13 @@ pub struct DrawIndexedArgs {
 	/// Shader used.
 	pub shader: Shader,
 	/// Vertices.
-	pub vertices: VertexBuffer,
+	pub vertices: &'a [DrawVertexBuffer],
 	/// Indices.
-	pub indices: IndexBuffer,
+	pub indices: Buffer,
+	/// Index type.
+	pub index_type: IndexType,
 	/// Uniforms.
-	pub uniforms: UniformBuffer,
+	pub uniforms: UniformRef<'a>,
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
@@ -81,8 +91,6 @@ pub struct DrawIndexedArgs {
 	pub index_start: u32,
 	/// Index of one past the last index.
 	pub index_end: u32,
-	/// Index of the uniform to use.
-	pub uniform_index: u32,
 	/// Number of instances to draw.
 	///
 	/// If this is less than zero, instanced drawing is disabled.
@@ -92,12 +100,7 @@ pub struct DrawIndexedArgs {
 /// Graphics error.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum GfxError {
-	InvalidVertexBufferHandle,
-	InvalidIndexBufferHandle,
-	InvalidUniformBufferHandle,
-	InvalidShaderHandle,
-	InvalidTexture2DHandle,
-	InvalidSurfaceHandle,
+	InvalidHandle,
 	IndexOutOfBounds,
 	InvalidDrawCallTime,
 	ShaderCompileError,
@@ -120,32 +123,14 @@ pub trait IGraphics {
 	/// End drawing.
 	fn end(&mut self) -> Result<(), GfxError>;
 
-	/// Create a vertex buffer.
-	fn vertex_buffer_create(&mut self, name: Option<&str>, layout: &'static VertexLayout, count: usize) -> Result<VertexBuffer, GfxError>;
+	/// Create a buffer.
+	fn buffer_create(&mut self, name: Option<&str>, size: usize, usage: BufferUsage) -> Result<Buffer, GfxError>;
 	/// Find a vertex buffer by name.
-	fn vertex_buffer_find(&mut self, name: &str) -> Result<VertexBuffer, GfxError>;
+	fn buffer_find(&mut self, name: &str) -> Result<Buffer, GfxError>;
 	/// Set the data of a vertex buffer.
-	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8], usage: BufferUsage) -> Result<(), GfxError>;
+	fn buffer_set_data(&mut self, id: Buffer, data: &[u8]) -> Result<(), GfxError>;
 	/// Release the resources of a vertex buffer.
-	fn vertex_buffer_delete(&mut self, id: VertexBuffer, free_handle: bool) -> Result<(), GfxError>;
-
-	/// Create an index buffer.
-	fn index_buffer_create(&mut self, name: Option<&str>, count: usize) -> Result<IndexBuffer, GfxError>;
-	/// Find an index buffer by name.
-	fn index_buffer_find(&mut self, name: &str) -> Result<IndexBuffer, GfxError>;
-	/// Set the data of an index buffer.
-	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u32], usage: BufferUsage) -> Result<(), GfxError>;
-	/// Release the resources of an index buffer.
-	fn index_buffer_delete(&mut self, id: IndexBuffer, free_handle: bool) -> Result<(), GfxError>;
-
-	/// Create a uniform buffer.
-	fn uniform_buffer_create(&mut self, name: Option<&str>, layout: &'static UniformLayout, count: usize) -> Result<UniformBuffer, GfxError>;
-	/// Find a uniform buffer by name.
-	fn uniform_buffer_find(&mut self, name: &str) -> Result<UniformBuffer, GfxError>;
-	/// Set the data of a uniform buffer.
-	fn uniform_buffer_set_data(&mut self, id: UniformBuffer, data: &[u8]) -> Result<(), GfxError>;
-	/// Release the resources of a uniform buffer.
-	fn uniform_buffer_delete(&mut self, id: UniformBuffer, free_handle: bool) -> Result<(), GfxError>;
+	fn buffer_delete(&mut self, id: Buffer, free_handle: bool) -> Result<(), GfxError>;
 
 	/// Create a shader.
 	fn shader_create(&mut self, name: Option<&str>) -> Result<Shader, GfxError>;
@@ -225,47 +210,21 @@ impl ops::DerefMut for Graphics {
 }
 
 impl Graphics {
-	/// Create and assign data to a vertex buffer.
+	/// Create and assign data to a buffer.
 	#[inline]
-	pub fn vertex_buffer<V: TVertex>(&mut self, name: Option<&str>, data: &[V], usage: BufferUsage) -> Result<VertexBuffer, GfxError> {
-		let id = self.vertex_buffer_create::<V>(name, data.len())?;
-		self.vertex_buffer_set_data(id, data, usage)?;
+	pub fn buffer<T: dataview::Pod>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> Result<Buffer, GfxError> {
+		let this = &mut **self;
+		let id = this.buffer_create(name, mem::size_of_val(data), usage)?;
+		if let Err(err) = this.buffer_set_data(id, dataview::bytes(data)) {
+			// If setting data fails, delete the buffer and return the error.
+			let _ = this.buffer_delete(id, true);
+			return Err(err);
+		}
 		Ok(id)
 	}
-	/// Create a vertex buffer.
+	/// Set the data of a buffer.
 	#[inline]
-	pub fn vertex_buffer_create<V: TVertex>(&mut self, name: Option<&str>, count: usize) -> Result<VertexBuffer, GfxError> {
-		self.inner.vertex_buffer_create(name, V::VERTEX_LAYOUT, count)
-	}
-	/// Set the data of a vertex buffer.
-	#[inline]
-	pub fn vertex_buffer_set_data<V: TVertex>(&mut self, id: VertexBuffer, data: &[V], usage: BufferUsage) -> Result<(), GfxError> {
-		self.inner.vertex_buffer_set_data(id, dataview::bytes(data), usage)
-	}
-
-	/// Create and assign data to an index buffer.
-	#[inline]
-	pub fn index_buffer(&mut self, name: Option<&str>, data: &[u32], usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
-		let id = self.index_buffer_create(name, data.len())?;
-		self.index_buffer_set_data(id, data, usage)?;
-		Ok(id)
-	}
-
-	/// Create and assign data to an index buffer.
-	#[inline]
-	pub fn uniform_buffer<U: TUniform>(&mut self, name: Option<&str>, data: &[U]) -> Result<UniformBuffer, GfxError> {
-		let id = self.uniform_buffer_create::<U>(name, data.len())?;
-		self.uniform_buffer_set_data(id, data)?;
-		Ok(id)
-	}
-	/// Create a uniform buffer.
-	#[inline]
-	pub fn uniform_buffer_create<U: TUniform>(&mut self, name: Option<&str>, count: usize) -> Result<UniformBuffer, GfxError> {
-		self.inner.uniform_buffer_create(name, U::UNIFORM_LAYOUT, count)
-	}
-	/// Set the data of a uniform buffer.
-	#[inline]
-	pub fn uniform_buffer_set_data<U: TUniform>(&mut self, id: UniformBuffer, data: &[U]) -> Result<(), GfxError> {
-		self.inner.uniform_buffer_set_data(id, dataview::bytes(data))
+	pub fn buffer_set_data<T: dataview::Pod>(&mut self, id: Buffer, data: &[T]) -> Result<(), GfxError> {
+		self.inner.buffer_set_data(id, dataview::bytes(data))
 	}
 }

@@ -8,29 +8,17 @@ use std::{thread, time};
 struct MyVertex3 {
 	position: cvmath::Vec3<f32>,
 	tex_coord: cvmath::Vec2<f32>,
-	color: [u8; 4],
+	color: [shade::Norm<u8>; 4],
 }
 
 unsafe impl shade::TVertex for MyVertex3 {
-	const VERTEX_LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
+	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
 		size: std::mem::size_of::<MyVertex3>() as u16,
 		alignment: std::mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 3,
-				offset: dataview::offset_of!(MyVertex3.position) as u16,
-			},
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 2,
-				offset: dataview::offset_of!(MyVertex3.tex_coord) as u16,
-			},
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::U8Norm,
-				len: 4,
-				offset: dataview::offset_of!(MyVertex3.color) as u16,
-			},
+			shade::VertexAttribute::with::<cvmath::Vec3<f32>>("aPos", dataview::offset_of!(MyVertex3.position)),
+			shade::VertexAttribute::with::<cvmath::Vec2<f32>>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
+			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("aColor", dataview::offset_of!(MyVertex3.color)),
 		],
 	};
 }
@@ -46,9 +34,9 @@ in vec4 VertexColor;
 in vec2 TexCoord;
 
 uniform sampler2D tex;
-uniform vec2 texSize;
 
 void main() {
+	ivec2 texSize = textureSize(tex, 0);
 	vec4 color = texture(tex, TexCoord / texSize) * VertexColor;
 	if (color.a < 0.5) {
 		discard;
@@ -82,7 +70,6 @@ void main()
 struct MyUniform3 {
 	transform: cvmath::Mat4<f32>,
 	texture: shade::Texture2D,
-	texture_size: [f32; 2],
 }
 
 impl Default for MyUniform3 {
@@ -90,19 +77,18 @@ impl Default for MyUniform3 {
 		MyUniform3 {
 			transform: cvmath::Mat4::IDENTITY,
 			texture: shade::Texture2D::INVALID,
-			texture_size: [1.0, 1.0],
 		}
 	}
 }
 
 unsafe impl shade::TUniform for MyUniform3 {
-	const UNIFORM_LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
+	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
 		size: std::mem::size_of::<MyUniform3>() as u16,
 		alignment: std::mem::align_of::<MyUniform3>() as u16,
 		attributes: &[
 			shade::UniformAttribute {
 				name: "transform",
-				ty: shade::UniformType::Mat4x4 { order: shade::UniformMatOrder::RowMajor },
+				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(MyUniform3.transform) as u16,
 				len: 1,
 			},
@@ -110,12 +96,6 @@ unsafe impl shade::TUniform for MyUniform3 {
 				name: "tex",
 				ty: shade::UniformType::Sampler2D(0),
 				offset: dataview::offset_of!(MyUniform3.texture) as u16,
-				len: 1,
-			},
-			shade::UniformAttribute {
-				name: "texSize",
-				ty: shade::UniformType::F2,
-				offset: dataview::offset_of!(MyUniform3.texture_size) as u16,
 				len: 1,
 			},
 		],
@@ -150,8 +130,6 @@ fn main() {
 		wrap_u: shade::TextureWrap::ClampEdge,
 		wrap_v: shade::TextureWrap::ClampEdge,
 	}, None).unwrap();
-	let tex_info = g.texture2d_get_info(texture).unwrap();
-	let texture_size = [tex_info.width as f32, tex_info.height as f32];
 
 	// Create the shader
 	let shader = g.shader_create(None).unwrap();
@@ -217,7 +195,7 @@ fn main() {
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.viewport = cvmath::Rect::c(0, 0, size.width as i32, size.height as i32);
 		cv.depth_test = Some(shade::DepthTest::Less);
-		cv.push_uniform(MyUniform3 { transform, texture, texture_size });
+		cv.push_uniform(MyUniform3 { transform, texture });
 		floor_tile(&mut cv, 0, 0, &GRASS);
 		floor_tile(&mut cv, 1, 0, &GRASS);
 		floor_tile(&mut cv, 2, 0, &GRASS);
@@ -257,22 +235,22 @@ fn floor_tile(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32, 
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0, 0.0, y as f32 * 32.0),
 		tex_coord: cvmath::Vec2(sprite.left, sprite.down),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
 		tex_coord: cvmath::Vec2(sprite.left, sprite.up),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3((x + 1) as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
 		tex_coord: cvmath::Vec2(sprite.right, sprite.up),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3((x + 1) as f32 * 32.0, 0.0, y as f32 * 32.0),
 		tex_coord: cvmath::Vec2(sprite.right, sprite.down),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 }
 
@@ -287,21 +265,21 @@ fn floor_thing(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32,
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
 		tex_coord: cvmath::Vec2(sprite.left, sprite.down),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0, height + yoffs, y as f32 * 32.0 + zoffs2),
 		tex_coord: cvmath::Vec2(sprite.left, sprite.up),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0 + width, height + yoffs, y as f32 * 32.0 + zoffs2),
 		tex_coord: cvmath::Vec2(sprite.right, sprite.up),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
 		position: cvmath::Vec3(x as f32 * 32.0 + width, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
 		tex_coord: cvmath::Vec2(sprite.right, sprite.down),
-		color: [255, 255, 255, 255],
+		color: shade::norm!([255, 255, 255, 255]),
 	});
 }

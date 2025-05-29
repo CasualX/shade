@@ -14,7 +14,7 @@ pub trait Resource {
 pub struct ResourceMap<T: Resource> {
 	map: HashMap<<T::Handle as Handle>::Raw, T>,
 	names: HashMap<String, <T::Handle as Handle>::Raw>,
-	next_id: T::Handle,
+	next: T::Handle,
 }
 
 impl<T: Resource> ResourceMap<T> {
@@ -23,14 +23,14 @@ impl<T: Resource> ResourceMap<T> {
 		ResourceMap {
 			map: HashMap::new(),
 			names: HashMap::new(),
-			next_id: <T::Handle as Default>::default(),
+			next: <T::Handle as Default>::default(),
 		}
 	}
 
 	/// Inserts a new resource into the map and creates a handle.
 	pub fn insert(&mut self, name: Option<&str>, resource: T) -> T::Handle {
-		self.next_id = self.next_id.next();
-		let raw = self.next_id.id();
+		self.next = self.next.next();
+		let raw = self.next.id();
 		let id = <T::Handle as Handle>::create(raw);
 		self.map.insert(raw, resource);
 		if let Some(name) = name {

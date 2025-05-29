@@ -30,13 +30,13 @@ impl Default for TextUniform {
 }
 
 unsafe impl TUniform for TextUniform {
-	const UNIFORM_LAYOUT: &'static UniformLayout = &UniformLayout {
+	const LAYOUT: &'static UniformLayout = &UniformLayout {
 		size: std::mem::size_of::<TextUniform>() as u16,
 		alignment: std::mem::align_of::<TextUniform>() as u16,
 		attributes: &[
 			UniformAttribute {
 				name: "u_transform",
-				ty: UniformType::Mat3x2 { order: UniformMatOrder::RowMajor },
+				ty: UniformType::Mat3x2 { order: MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(TextUniform.transform) as u16,
 				len: 1,
 			},

@@ -11,20 +11,12 @@ struct MyVertex3 {
 }
 
 unsafe impl shade::TVertex for MyVertex3 {
-	const VERTEX_LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
+	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
 		size: std::mem::size_of::<MyVertex3>() as u16,
 		alignment: std::mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 3,
-				offset: dataview::offset_of!(MyVertex3.position) as u16,
-			},
-			shade::VertexAttribute {
-				format: shade::VertexAttributeFormat::F32,
-				len: 3,
-				offset: dataview::offset_of!(MyVertex3.normal) as u16,
-			},
+			shade::VertexAttribute::with::<cvmath::Vec3<f32>>("aPos", dataview::offset_of!(MyVertex3.position)),
+			shade::VertexAttribute::with::<cvmath::Vec3<f32>>("aNormal", dataview::offset_of!(MyVertex3.normal)),
 		],
 	};
 }
@@ -76,13 +68,13 @@ impl Default for MyUniform3 {
 }
 
 unsafe impl shade::TUniform for MyUniform3 {
-	const UNIFORM_LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
+	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
 		size: std::mem::size_of::<MyUniform3>() as u16,
 		alignment: std::mem::align_of::<MyUniform3>() as u16,
 		attributes: &[
 			shade::UniformAttribute {
 				name: "transform",
-				ty: shade::UniformType::Mat4x4 { order: shade::UniformMatOrder::RowMajor },
+				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(MyUniform3.transform) as u16,
 				len: 1,
 			},
@@ -150,17 +142,11 @@ fn main() {
 		};
 
 		// Create the vertex and index buffers
-		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vb = g.buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
 		(vb, dbg!(vertices.len()) as u32)
 	};
 
 	println!("Bunny bounding box: {:?}", cvmath::Bounds(mins, maxs));
-
-	// Create the uniform buffer
-	// The uniform buffer is updated every frame
-	let ub = g.uniform_buffer(None, &[
-		MyUniform3::default(),
-	]).unwrap();
 
 	// Create the shader
 	let shader = g.shader_create(None).unwrap();
@@ -219,9 +205,7 @@ fn main() {
 		let transform = projection * view * model;
 
 		// Update the uniform buffer with the new transformation matrix
-		g.uniform_buffer_set_data(ub, &[
-			MyUniform3 { transform },
-		]).unwrap();
+		let uniforms = MyUniform3 { transform };
 
 		// Draw the bunny
 		g.draw(&shade::DrawArgs {
@@ -233,11 +217,14 @@ fn main() {
 			cull_mode: None,
 			prim_type: shade::PrimType::Triangles,
 			shader,
-			vertices: vb,
-			uniforms: ub,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: vb,
+				divisor: shade::VertexDivisor::PerVertex,
+				layout: <MyVertex3 as shade::TVertex>::LAYOUT,
+			}],
+			uniforms: shade::UniformRef::from(&uniforms),
 			vertex_start: 0,
 			vertex_end: vb_len,
-			uniform_index: 0,
 			instances: -1,
 		}).unwrap();
 

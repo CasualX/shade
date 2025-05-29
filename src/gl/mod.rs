@@ -26,34 +26,13 @@ macro_rules! gl_check {
 	};
 }
 
-struct GlVertexBuffer {
+struct GlBuffer {
 	buffer: gl::types::GLuint,
-	vao: gl::types::GLuint,
-	_layout: &'static crate::VertexLayout,
-	_count: usize,
+	_size: usize,
+	usage: crate::BufferUsage,
 }
-
-impl Resource for GlVertexBuffer {
-	type Handle = crate::VertexBuffer;
-}
-
-struct GlIndexBuffer {
-	buffer: gl::types::GLuint,
-	ty: gl::types::GLenum,
-	_count: usize,
-}
-
-impl Resource for GlIndexBuffer {
-	type Handle = crate::IndexBuffer;
-}
-
-struct GlUniformBuffer {
-	data: Vec<u8>,
-	layout: &'static crate::UniformLayout,
-}
-
-impl Resource for GlUniformBuffer {
-	type Handle = crate::UniformBuffer;
+impl Resource for GlBuffer {
+	type Handle = crate::Buffer;
 }
 
 struct GlShaderActiveUniform {
@@ -75,6 +54,9 @@ struct GlShader {
 
 	active_uniforms: Vec<GlShaderActiveUniform>,
 }
+impl Resource for GlShader {
+	type Handle = crate::Shader;
+}
 impl GlShader {
 	fn uniform_location(&self, name: &str) -> Option<gl::types::GLint> {
 		for au in &self.active_uniforms {
@@ -86,15 +68,10 @@ impl GlShader {
 	}
 }
 
-impl Resource for GlShader {
-	type Handle = crate::Shader;
-}
-
 struct GlTexture2D {
 	texture: gl::types::GLuint,
 	info: crate::Texture2DInfo,
 }
-
 impl Resource for GlTexture2D {
 	type Handle = crate::Texture2D;
 }
@@ -103,7 +80,6 @@ struct GlTexture2DArray {
 	texture: gl::types::GLuint,
 	info: crate::Texture2DArrayInfo,
 }
-
 impl Resource for GlTexture2DArray {
 	type Handle = crate::Texture2DArray;
 }
@@ -118,7 +94,6 @@ struct GlSurface {
 	width: i32,
 	height: i32,
 }
-
 impl Resource for GlSurface {
 	type Handle = crate::Surface;
 }
@@ -225,19 +200,18 @@ fn gl_cull_face(cull_mode: Option<crate::CullMode>) {
 }
 
 #[inline]
-fn gl_mat_order(order: crate::UniformMatOrder) -> gl::types::GLboolean {
+fn gl_mat_order(order: crate::MatrixLayout) -> gl::types::GLboolean {
 	match order {
-		crate::UniformMatOrder::ColumnMajor => gl::FALSE,
-		crate::UniformMatOrder::RowMajor => gl::TRUE,
+		crate::MatrixLayout::ColumnMajor => gl::FALSE,
+		crate::MatrixLayout::RowMajor => gl::TRUE,
 	}
 }
 
-fn gl_uniforms(ub: &GlUniformBuffer, shader: &GlShader, uniform_index: u32, textures: &ResourceMap<GlTexture2D>) {
+fn gl_uniforms(ub: &crate::UniformRef, shader: &GlShader, textures: &ResourceMap<GlTexture2D>) {
 	gl_check!(gl::UseProgram(shader.program));
 
-	let data_ptr = unsafe { ub.data.as_ptr().add(ub.layout.size as usize * uniform_index as usize) };
 	for uattr in ub.layout.attributes {
-		let data_ptr = unsafe { data_ptr.offset(uattr.offset as isize) };
+		let data_ptr = unsafe { ub.data_ptr.offset(uattr.offset as isize) };
 		if let Some(location) = shader.uniform_location(uattr.name) {
 			// println!("Uniform: {} (index: {})", uattr.name, i);
 			match uattr.ty {
@@ -284,6 +258,46 @@ fn gl_uniforms(ub: &GlUniformBuffer, shader: &GlShader, uniform_index: u32, text
 	}
 }
 
+fn gl_attributes(dynamic_vao: gl::types::GLuint, shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &ResourceMap<GlBuffer>) {
+	gl_check!(gl::BindVertexArray(dynamic_vao));
+
+	for dvb in data {
+		let Some(buf) = map.get(dvb.buffer) else { continue }; // Validated in draw calls
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buf.buffer));
+
+		let layout = dvb.layout;
+		for attr in layout.attributes {
+			let mut namebuf = [0u8; 64];
+			namebuf[..attr.name.len()].copy_from_slice(attr.name.as_bytes());
+			namebuf[attr.name.len()] = 0; // Null-terminate the string
+			let location: i32 = gl_check!(gl::GetAttribLocation(shader.program, namebuf.as_ptr() as *const _));
+			if location < 0 {
+				continue; // Attribute not found
+			}
+			let location = location as u32;
+			let size = attr.format.size() as gl::types::GLint;
+			let normalized = if attr.format.normalized() { gl::TRUE } else { gl::FALSE };
+			let type_ = match attr.format.ty() {
+				crate::VertexAttributeType::F32 => gl::FLOAT,
+				crate::VertexAttributeType::F64 => gl::FLOAT,
+				crate::VertexAttributeType::I32 => gl::INT,
+				crate::VertexAttributeType::U32 => gl::UNSIGNED_INT,
+				crate::VertexAttributeType::I16 => gl::SHORT,
+				crate::VertexAttributeType::U16 => gl::UNSIGNED_SHORT,
+				crate::VertexAttributeType::I8 => gl::BYTE,
+				crate::VertexAttributeType::U8 => gl::UNSIGNED_BYTE,
+			};
+			gl_check!(gl::VertexAttribPointer(location, size, type_, normalized, layout.size as i32, attr.offset as usize as *const _));
+			let divisor = match dvb.divisor {
+				crate::VertexDivisor::PerVertex => 0,
+				crate::VertexDivisor::PerInstance => 1,
+			};
+			gl_check!(gl::VertexAttribDivisor(location, divisor));
+			gl_check!(gl::EnableVertexAttribArray(location));
+		}
+	}
+}
+
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> gl::types::GLenum {
 	match wrap {
 		crate::TextureWrap::ClampEdge => gl::CLAMP_TO_EDGE,
@@ -300,26 +314,26 @@ fn gl_texture_filter(filter: crate::TextureFilter) -> gl::types::GLenum {
 }
 
 pub struct GlGraphics {
-	vertices: ResourceMap<GlVertexBuffer>,
-	indices: ResourceMap<GlIndexBuffer>,
-	uniforms: ResourceMap<GlUniformBuffer>,
+	buffers: ResourceMap<GlBuffer>,
 	shaders: ResourceMap<GlShader>,
 	textures2d: ResourceMap<GlTexture2D>,
 	textures2darray: ResourceMap<GlTexture2DArray>,
 	surfaces: ResourceMap<GlSurface>,
+	dynamic_vao: gl::types::GLuint,
 	drawing: bool,
 }
 
 impl GlGraphics {
 	pub fn new() -> Self {
+		let mut dynamic_vao = 0;
+		gl_check!(gl::GenVertexArrays(1, &mut dynamic_vao));
 		GlGraphics {
-			vertices: ResourceMap::new(),
-			indices: ResourceMap::new(),
-			uniforms: ResourceMap::new(),
+			buffers: ResourceMap::new(),
 			shaders: ResourceMap::new(),
 			textures2d: ResourceMap::new(),
 			textures2darray: ResourceMap::new(),
 			surfaces: ResourceMap::new(),
+			dynamic_vao,
 			drawing: false,
 		}
 	}
@@ -371,10 +385,10 @@ impl crate::IGraphics for GlGraphics {
 			return Err(crate::GfxError::InvalidDrawCallTime);
 		}
 
-		let this = &*self;
-		let Some(vb) = this.vertices.get(args.vertices) else { return Err(crate::GfxError::InvalidVertexBufferHandle) };
-		let Some(ub) = self.uniforms.get(args.uniforms) else { return Err(crate::GfxError::InvalidUniformBufferHandle) };
-		let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidShaderHandle) };
+		for data in args.vertices {
+			let Some(_) = self.buffers.get(data.buffer) else { return Err(crate::GfxError::InvalidHandle) };
+		}
+		let Some(shader) = self.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
 
 		if args.vertex_end < args.vertex_start {
 			return Err(crate::GfxError::IndexOutOfBounds);
@@ -389,9 +403,10 @@ impl crate::IGraphics for GlGraphics {
 		gl_scissor(&args.scissor);
 		gl_check!(gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()));
 
-		gl_check!(gl::BindVertexArray(vb.vao));
+		gl_check!(gl::UseProgram(shader.program));
 
-		gl_uniforms(ub, shader, args.uniform_index, &self.textures2d);
+		gl_attributes(self.dynamic_vao, shader, args.vertices, &self.buffers);
+		gl_uniforms(&args.uniforms, shader, &self.textures2d);
 
 		let mode = match args.prim_type {
 			crate::PrimType::Lines => gl::LINES,
@@ -412,11 +427,11 @@ impl crate::IGraphics for GlGraphics {
 			return Err(crate::GfxError::InvalidDrawCallTime);
 		}
 
-		let this = &*self;
-		let Some(vb) = this.vertices.get(args.vertices) else { return Err(crate::GfxError::InvalidVertexBufferHandle) };
-		let Some(ib) = this.indices.get(args.indices) else { return Err(crate::GfxError::InvalidIndexBufferHandle) };
-		let Some(ub) = self.uniforms.get(args.uniforms) else { return Err(crate::GfxError::InvalidUniformBufferHandle) };
-		let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidShaderHandle) };
+		for data in args.vertices {
+			let Some(_) = self.buffers.get(data.buffer) else { return Err(crate::GfxError::InvalidHandle) };
+		}
+		let Some(ib) = self.buffers.get(args.indices) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(shader) = self.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
 
 		if args.index_end < args.index_start || args.vertex_end < args.vertex_start {
 			return Err(crate::GfxError::IndexOutOfBounds);
@@ -431,26 +446,29 @@ impl crate::IGraphics for GlGraphics {
 		gl_scissor(&args.scissor);
 		gl_check!(gl::Viewport(args.viewport.mins.x, args.viewport.mins.y, args.viewport.width(), args.viewport.height()));
 
-		gl_check!(gl::BindVertexArray(vb.vao));
+		gl_check!(gl::UseProgram(shader.program));
+
+		gl_attributes(self.dynamic_vao, shader, args.vertices, &self.buffers);
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
 
-		gl_uniforms(ub, shader, args.uniform_index, &self.textures2d);
+		gl_uniforms(&args.uniforms, shader, &self.textures2d);
 
 		let mode = match args.prim_type {
 			crate::PrimType::Lines => gl::LINES,
 			crate::PrimType::Triangles => gl::TRIANGLES,
 		};
 		let count = args.index_end - args.index_start;
-		let offset = match ib.ty {
-			gl::UNSIGNED_INT => args.index_start * 4,
-			gl::UNSIGNED_SHORT => args.index_start * 2,
-			_ => args.index_start,
+		let type_ = match args.index_type {
+			crate::IndexType::U8 => gl::UNSIGNED_BYTE,
+			crate::IndexType::U16 => gl::UNSIGNED_SHORT,
+			crate::IndexType::U32 => gl::UNSIGNED_INT,
 		};
+		let offset = args.index_start * args.index_type.size() as u32;
 		if args.instances >= 0 {
-			gl_check!(gl::DrawElementsInstanced(mode, count as i32, ib.ty, offset as *const _, args.instances));
+			gl_check!(gl::DrawElementsInstanced(mode, count as i32, type_, offset as *const _, args.instances));
 		}
 		else {
-			gl_check!(gl::DrawElements(mode, count as i32, ib.ty, offset as *const _));
+			gl_check!(gl::DrawElements(mode, count as i32, type_, offset as *const _));
 		}
 
 		Ok(())
@@ -461,117 +479,35 @@ impl crate::IGraphics for GlGraphics {
 		Ok(())
 	}
 
-	fn vertex_buffer_create(&mut self, name: Option<&str>, _layout: &'static crate::VertexLayout, _count: usize) -> Result<crate::VertexBuffer, crate::GfxError> {
+	fn buffer_create(&mut self, name: Option<&str>, size: usize, usage: crate::BufferUsage) -> Result<crate::Buffer, crate::GfxError> {
 		let mut buffer = 0;
-		let mut vao = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
-		gl_check!(gl::GenVertexArrays(1, &mut vao));
 
-		gl_check!(gl::BindVertexArray(vao));
-		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buffer));
-
-		for (i, attr) in _layout.attributes.iter().enumerate() {
-			let (type_, normalized) = match attr.format {
-				crate::VertexAttributeFormat::F32 => (gl::FLOAT, false),
-				crate::VertexAttributeFormat::F64 => (gl::DOUBLE, false),
-				crate::VertexAttributeFormat::I8 => (gl::BYTE, false),
-				crate::VertexAttributeFormat::U8 => (gl::UNSIGNED_BYTE, false),
-				crate::VertexAttributeFormat::I16 => (gl::SHORT, false),
-				crate::VertexAttributeFormat::U16 => (gl::UNSIGNED_SHORT, false),
-				crate::VertexAttributeFormat::I32 => (gl::INT, false),
-				crate::VertexAttributeFormat::U32 => (gl::UNSIGNED_INT, false),
-				crate::VertexAttributeFormat::I8Norm => (gl::BYTE, true),
-				crate::VertexAttributeFormat::U8Norm => (gl::UNSIGNED_BYTE, true),
-				crate::VertexAttributeFormat::I16Norm => (gl::SHORT, true),
-				crate::VertexAttributeFormat::U16Norm => (gl::UNSIGNED_SHORT, true),
-			};
-			gl_check!(gl::VertexAttribPointer(i as u32, attr.len as i32, type_, normalized as u8, _layout.size as i32, attr.offset as usize as *const _));
-			gl_check!(gl::EnableVertexAttribArray(i as u32));
-		}
-
-		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
-		gl_check!(gl::BindVertexArray(0));
-
-		let id = self.vertices.insert(name, GlVertexBuffer { buffer, vao, _layout, _count });
+		let id = self.buffers.insert(name, GlBuffer { buffer, _size: size, usage });
 		return Ok(id);
 	}
 
-	fn vertex_buffer_find(&mut self, name: &str) -> Result<crate::VertexBuffer, crate::GfxError> {
-		let Some(id) = self.vertices.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
+	fn buffer_find(&mut self, name: &str) -> Result<crate::Buffer, crate::GfxError> {
+		self.buffers.find_id(name).ok_or(crate::GfxError::NameNotFound)
 	}
 
-	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8], usage: crate::BufferUsage) -> Result<(), crate::GfxError> {
-		let Some(vb) = self.vertices.get_mut(id) else { return Err(crate::GfxError::InvalidVertexBufferHandle) };
+	fn buffer_set_data(&mut self, id: crate::Buffer, data: &[u8]) -> Result<(), crate::GfxError> {
+		let Some(buf) = self.buffers.get_mut(id) else { return Err(crate::GfxError::InvalidHandle) };
 		let size = mem::size_of_val(data) as gl::types::GLsizeiptr;
-		let gl_usage = match usage {
+		let gl_usage = match buf.usage {
 			crate::BufferUsage::Static => gl::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
-		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, vb.buffer));
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buf.buffer));
 		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, size, data.as_ptr() as *const _, gl_usage));
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 		Ok(())
 	}
 
-	fn vertex_buffer_delete(&mut self, id: crate::VertexBuffer, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(vb) = self.vertices.remove(id, free_handle) else { return Err(crate::GfxError::InvalidVertexBufferHandle) };
-		gl_check!(gl::DeleteBuffers(1, &vb.buffer));
-		Ok(())
-	}
-
-	fn index_buffer_create(&mut self, name: Option<&str>, count: usize) -> Result<crate::IndexBuffer, crate::GfxError> {
-		let mut buffer = 0;
-		gl_check!(gl::GenBuffers(1, &mut buffer));
-		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffer));
-		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
-		let id = self.indices.insert(name, GlIndexBuffer { buffer, ty: gl::UNSIGNED_INT, _count: count });
-		return Ok(id);
-	}
-
-	fn index_buffer_find(&mut self, name: &str) -> Result<crate::IndexBuffer, crate::GfxError> {
-		let Some(id) = self.indices.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
-	}
-
-	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u32], usage: crate::BufferUsage) -> Result<(), crate::GfxError> {
-		let Some(ib) = self.indices.get(id) else { return Err(crate::GfxError::InvalidIndexBufferHandle) };
-		let size = mem::size_of_val(data) as gl::types::GLsizeiptr;
-		let usage = match usage {
-			crate::BufferUsage::Static => gl::STATIC_DRAW,
-			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
-			crate::BufferUsage::Stream => gl::STREAM_DRAW,
-		};
-		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
-		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, data.as_ptr() as *const _, usage));
-		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
-		Ok(())
-	}
-
-	fn index_buffer_delete(&mut self, id: crate::IndexBuffer, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(ib) = self.indices.remove(id, free_handle) else { return Err(crate::GfxError::InvalidIndexBufferHandle) };
-		gl_check!(gl::DeleteBuffers(1, &ib.buffer));
-		Ok(())
-	}
-
-	fn uniform_buffer_create(&mut self, name: Option<&str>, layout: &'static crate::UniformLayout, count: usize) -> Result<crate::UniformBuffer, crate::GfxError> {
-		let data = Vec::with_capacity(layout.size as usize * count);
-		let id = self.uniforms.insert(name, GlUniformBuffer { data, layout });
-		return Ok(id);
-	}
-	fn uniform_buffer_find(&mut self, name: &str) -> Result<crate::UniformBuffer, crate::GfxError> {
-		let Some(id) = self.uniforms.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
-	}
-	fn uniform_buffer_set_data(&mut self, id: crate::UniformBuffer, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(ub) = self.uniforms.get_mut(id) else { return Err(crate::GfxError::InvalidUniformBufferHandle) };
-		ub.data.clear();
-		ub.data.extend_from_slice(data);
-		Ok(())
-	}
-	fn uniform_buffer_delete(&mut self, id: crate::UniformBuffer, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(_) = self.uniforms.remove(id, free_handle) else { return Err(crate::GfxError::InvalidUniformBufferHandle) };
+	fn buffer_delete(&mut self, id: crate::Buffer, free_handle: bool) -> Result<(), crate::GfxError> {
+		let Some(buf) = self.buffers.remove(id, free_handle) else { return Err(crate::GfxError::InvalidHandle) };
+		gl_check!(gl::DeleteBuffers(1, &buf.buffer));
 		Ok(())
 	}
 
@@ -582,12 +518,11 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn shader_find(&mut self, name: &str) -> Result<crate::Shader, crate::GfxError> {
-		let Some(id) = self.shaders.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
+		self.shaders.find_id(name).ok_or(crate::GfxError::NameNotFound)
 	}
 
 	fn shader_compile(&mut self, id: crate::Shader, vertex_source: &str, fragment_source: &str) -> Result<(), crate::GfxError> {
-		let Some(shader) = self.shaders.get_mut(id) else { return Err(crate::GfxError::InvalidShaderHandle) };
+		let Some(shader) = self.shaders.get_mut(id) else { return Err(crate::GfxError::InvalidHandle) };
 		let mut success = true;
 		let mut status = 0;
 
@@ -662,12 +597,12 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn shader_compile_log(&mut self, id: crate::Shader) -> Result<String, crate::GfxError> {
-		let Some(shader) = self.shaders.get(id) else { return Err(crate::GfxError::InvalidShaderHandle) };
+		let Some(shader) = self.shaders.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		return Ok(shader.compile_log.clone());
 	}
 
 	fn shader_delete(&mut self, id: crate::Shader, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(shader) = self.shaders.remove(id, free_handle) else { return Err(crate::GfxError::InvalidShaderHandle) };
+		let Some(shader) = self.shaders.remove(id, free_handle) else { return Err(crate::GfxError::InvalidHandle) };
 		gl_check!(gl::DeleteProgram(shader.program));
 		Ok(())
 	}
@@ -682,12 +617,11 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn texture2d_find(&mut self, name: &str) -> Result<crate::Texture2D, crate::GfxError> {
-		let Some(id) = self.textures2d.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
+		self.textures2d.find_id(name).ok_or(crate::GfxError::NameNotFound)
 	}
 
 	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		let format = match texture.info.format {
 			crate::TextureFormat::R8G8B8 => gl::RGB,
@@ -704,12 +638,12 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn texture2d_get_info(&mut self, id: crate::Texture2D) -> Result<crate::Texture2DInfo, crate::GfxError> {
-		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2d.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		return Ok(texture.info);
 	}
 
 	fn texture2d_delete(&mut self, id: crate::Texture2D, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures2d.remove(id, free_handle) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2d.remove(id, free_handle) else { return Err(crate::GfxError::InvalidHandle) };
 		gl_check!(gl::DeleteTextures(1, &texture.texture));
 		Ok(())
 	}
@@ -723,11 +657,10 @@ impl crate::IGraphics for GlGraphics {
 		return Ok(id);
 	}
 	fn texture2darray_find(&mut self, name: &str) -> Result<crate::Texture2DArray, crate::GfxError> {
-		let Some(id) = self.textures2darray.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
+		self.textures2darray.find_id(name).ok_or(crate::GfxError::NameNotFound)
 	}
 	fn texture2darray_set_data(&mut self, id: crate::Texture2DArray, index: usize, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		if index >= texture.info.count as usize { return Err(crate::GfxError::IndexOutOfBounds) }
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture.texture));
 		let format = match texture.info.format {
@@ -744,11 +677,11 @@ impl crate::IGraphics for GlGraphics {
 		Ok(())
 	}
 	fn texture2darray_get_info(&mut self, id: crate::Texture2DArray) -> Result<crate::Texture2DArrayInfo, crate::GfxError> {
-		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2darray.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		return Ok(texture.info);
 	}
 	fn texture2darray_delete(&mut self, id: crate::Texture2DArray, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures2darray.remove(id, free_handle) else { return Err(crate::GfxError::InvalidTexture2DHandle) };
+		let Some(texture) = self.textures2darray.remove(id, free_handle) else { return Err(crate::GfxError::InvalidHandle) };
 		gl_check!(gl::DeleteTextures(1, &texture.texture));
 		Ok(())
 	}
@@ -798,12 +731,11 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn surface_find(&mut self, name: &str) -> Result<crate::Surface, crate::GfxError> {
-		let Some(id) = self.surfaces.find_id(name) else { return Err(crate::GfxError::NameNotFound) };
-		return Ok(id);
+		self.surfaces.find_id(name).ok_or(crate::GfxError::NameNotFound)
 	}
 
 	fn surface_get_info(&mut self, id: crate::Surface) -> Result<crate::SurfaceInfo, crate::GfxError> {
-		let Some(surface) = self.surfaces.get(id) else { return Err(crate::GfxError::InvalidSurfaceHandle) };
+		let Some(surface) = self.surfaces.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		return Ok(crate::SurfaceInfo {
 			offscreen: true,
 			has_depth: surface.depth_buf != 0,
@@ -819,12 +751,12 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn surface_get_texture(&mut self, id: crate::Surface) -> Result<crate::Texture2D, crate::GfxError> {
-		let Some(surface) = self.surfaces.get(id) else { return Err(crate::GfxError::InvalidSurfaceHandle) };
+		let Some(surface) = self.surfaces.get(id) else { return Err(crate::GfxError::InvalidHandle) };
 		return Ok(surface.texture);
 	}
 
 	fn surface_delete(&mut self, id: crate::Surface, free_handle: bool) -> Result<(), crate::GfxError> {
-		let Some(surface) = self.surfaces.remove(id, free_handle) else { return Err(crate::GfxError::InvalidSurfaceHandle) };
+		let Some(surface) = self.surfaces.remove(id, free_handle) else { return Err(crate::GfxError::InvalidHandle) };
 		self.texture2d_delete(surface.texture, free_handle)?;
 		Ok(())
 	}
