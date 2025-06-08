@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shade WebGL</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg2: #070c16;
+  --card: rgba(255, 255, 255, 0.06);
+  --card2: rgba(255, 255, 255, 0.04);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.65);
+  --border: rgba(255, 255, 255, 0.10);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --primary: #4ea0ff;
+  --primary-hover: #2e8cff;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: var(--bg2);
+}
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  margin: 0;
+  padding: 18px;
+  background:
+    radial-gradient(1200px 700px at 20% 0%, rgba(78, 160, 255, 0.20), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgba(167, 139, 250, 0.18), transparent 60%),
+    linear-gradient(to bottom, var(--bg), var(--bg2));
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 18px 0;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85rem;
+  padding: 3px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 920px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+.list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.row-title:hover {
+  color: rgba(255,255,255,0.98);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.row-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row-side a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.row-side a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 0 0;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--primary);
+  color: rgba(0,0,0,0.92);
+}
+
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: rgba(255,255,255,0.96);
+}
+
+.btn-danger:hover { background: var(--danger-hover); }
+
+.stage {
+  margin-top: 12px;
+}
+
+.stage-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #000;
+  border: 1px solid var(--border);
+  display: none;
+}
+
+.stage-container.is-loading::after {
+  content: "Loading…";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.8);
+  font: inherit;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.35));
+  pointer-events: none;
+}
+
+.stage-container canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.player {
+  display: none;
+}
+
+.player.is-active {
+  display: block;
+}
+
+.gallery.is-hidden {
+  display: none;
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: var(--shadow);
+}
+
+.player-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-meta h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.player-meta p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.player-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: none;
+}
+
+.player-actions a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.player-stage {
+  margin-top: 14px;
+}
+
+.player-stage .stage-container {
+  display: block;
+  min-height: 420px;
+  height: 62vh;
+}
+
+@media (max-width: 640px) {
+  .player-stage .stage-container {
+    height: 70vh;
+    min-height: 360px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="topbar">
+    <div class="brand">
+      <h1>Shade WebGL</h1>
+      <p>Pick a demo. Press <span class="kbd">F</span> to toggle fullscreen.</p>
+    </div>
+  </div>
+
+  <div class="gallery" id="gallery">
+    <div class="list" id="demoList" aria-label="Demo list"></div>
+  </div>
+
+  <div class="player" id="player">
+    <div class="player-header">
+      <div class="player-meta">
+        <h2 id="playerTitle">Demo</h2>
+        <p id="playerHint"> </p>
+      </div>
+      <div class="player-actions">
+        <a id="playerSource" href="#" target="_blank" rel="noreferrer">Source</a>
+        <button class="btn btn-danger" id="backBtn" type="button">Back</button>
+      </div>
+    </div>
+    <div class="player-stage">
+      <div class="stage-container is-loading" id="playerStage" aria-label="Demo stage"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { createWasmAPI } from './shade.js';
+
+  function clampDevicePixelRatio(dpr) {
+    // Prevent extreme DPR from creating huge canvases.
+    return Math.max(1, Math.min(2, dpr || 1));
+  }
+
+  function createElementResizer(element, onResize) {
+    let lastW = 0;
+    let lastH = 0;
+    const ro = new ResizeObserver(() => {
+      const rect = element.getBoundingClientRect();
+      const dpr = clampDevicePixelRatio(window.devicePixelRatio);
+      const w = Math.max(1, Math.floor(rect.width * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      onResize(w, h);
+    });
+    ro.observe(element);
+    // Trigger once.
+    const rect = element.getBoundingClientRect();
+    const dpr = clampDevicePixelRatio(window.devicePixelRatio);
+    onResize(Math.max(1, Math.floor(rect.width * dpr)), Math.max(1, Math.floor(rect.height * dpr)));
+    return () => ro.disconnect();
+  }
+
+  async function runShadeDemo({ canvas, moduleName, resizeTo = null, onLoaded = null, onError = null }) {
+    if (!canvas) throw new Error('runShadeDemo: canvas is required');
+    if (!moduleName) throw new Error('runShadeDemo: moduleName is required');
+
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 is not supported by your browser.');
+    gl.getExtension('OES_standard_derivatives');
+
+    let stopped = false;
+    let rafId = null;
+    let wasmInstance = null;
+    let ctx = null;
+    let updatesize = null;
+    const abort = new AbortController();
+
+    function stopAnimation() {
+      if (rafId != null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      stopAnimation();
+      try { abort.abort(); } catch (_) {}
+      try {
+        if (wasmInstance?.exports?.drop && ctx != null) {
+          wasmInstance.exports.drop(ctx);
+        }
+      } catch (_) {}
+      wasmInstance = null;
+      ctx = null;
+      updatesize = null;
+    }
+
+    const disconnectResize = createElementResizer(resizeTo || canvas, (w, h) => {
+      // Keep CSS size controlled by layout; set backing store in device pixels.
+      canvas.width = w;
+      canvas.height = h;
+      if (updatesize) updatesize(w, h);
+    });
+
+    function attachMouseControls() {
+      let lastX = 0, lastY = 0;
+      canvas.addEventListener('mousemove', (e) => {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (wasmInstance?.exports?.mousemove && ctx != null) {
+          wasmInstance.exports.mousemove(ctx, dx, dy);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('mousedown', (e) => {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (wasmInstance?.exports?.mousedown && ctx != null) {
+          wasmInstance.exports.mousedown(ctx, e.button);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('mouseup', (e) => {
+        if (wasmInstance?.exports?.mouseup && ctx != null) {
+          wasmInstance.exports.mouseup(ctx, e.button);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault(), { signal: abort.signal });
+    }
+
+    async function loadWasm() {
+      const webgl = createWasmAPI(canvas, { colorSpace: 'srgb' });
+      const imports = {
+        webgl,
+        env: {
+          consoleLog: webgl.consoleLog,
+        }
+      };
+
+      const response = await fetch(moduleName);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch wasm: ${response.status} ${response.statusText}`);
+      }
+
+      const bytes = await response.arrayBuffer();
+      const { instance } = await WebAssembly.instantiate(bytes, imports);
+      wasmInstance = instance;
+      webgl.bindInstance(instance);
+
+      if (!wasmInstance.exports.new) {
+        throw new Error('WASM module missing required export: new');
+      }
+      if (!wasmInstance.exports.draw) {
+        throw new Error('WASM module missing required export: draw');
+      }
+
+      ctx = wasmInstance.exports.new();
+      updatesize = (width, height) => {
+        if (wasmInstance?.exports?.resize) {
+          wasmInstance.exports.resize(ctx, width, height);
+        }
+      };
+      // Force an initial resize call (ResizeObserver may have already run before updatesize existed).
+      updatesize(canvas.width, canvas.height);
+
+      attachMouseControls();
+    }
+
+    function frame() {
+      if (stopped) return;
+      try {
+        wasmInstance.exports.draw(ctx, performance.now() / 1000.0);
+      } catch (e) {
+        console.error('Draw error:', e);
+        stop();
+        if (onError) onError(e);
+        return;
+      }
+      rafId = requestAnimationFrame(frame);
+    }
+
+    try {
+      await loadWasm();
+      if (stopped) return { stop };
+      if (onLoaded) onLoaded();
+      rafId = requestAnimationFrame(frame);
+    } catch (e) {
+      console.error('WASM load error:', e);
+      stop();
+      disconnectResize();
+      if (onError) onError(e);
+      throw e;
+    }
+
+    return {
+      stop() {
+        stop();
+        disconnectResize();
+      }
+    };
+  }
+
+  const DEMOS = [
+    {
+      id: 'triangle',
+      title: 'Triangle',
+      hint: 'Minimal pipeline + draw call',
+      module: 'triangle.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/triangle',
+    },
+    {
+      id: 'oldtree',
+      title: 'Old Tree',
+      hint: 'Stylized scene rendering',
+      module: 'oldtree.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/oldtree',
+    },
+    {
+      id: 'text',
+      title: 'Text',
+      hint: 'Signed distance field text',
+      module: 'webtext.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/text',
+    },
+    {
+      id: 'zeldawater',
+      title: 'Zelda Water',
+      hint: 'Water shader experiment',
+      module: 'zeldawater.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/zeldawater',
+    },
+    {
+      id: 'globe',
+      title: 'Globe',
+      hint: 'Texturing + camera',
+      module: 'globe.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/globe',
+    },
+  ];
+
+  const galleryEl = document.getElementById('gallery');
+  const demoListEl = document.getElementById('demoList');
+  const playerEl = document.getElementById('player');
+  const playerTitleEl = document.getElementById('playerTitle');
+  const playerHintEl = document.getElementById('playerHint');
+  const playerSourceEl = document.getElementById('playerSource');
+  const playerStageEl = document.getElementById('playerStage');
+  const backBtn = document.getElementById('backBtn');
+
+  let activeRunner = null;
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    // Prefer stage fullscreen; fallback to whole document.
+    const target = playerStageEl || document.documentElement;
+    target.requestFullscreen?.();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!(playerEl?.classList.contains('is-active'))) return;
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
+  function stopActiveDemo() {
+    if (!playerStageEl) return;
+
+    try { activeRunner?.stop?.(); } catch (_) {}
+    activeRunner = null;
+
+    const canvas = playerStageEl.querySelector('canvas');
+    if (canvas) canvas.remove();
+    playerStageEl.classList.add('is-loading');
+  }
+
+  function showGallery() {
+    stopActiveDemo();
+    playerEl?.classList.remove('is-active');
+    galleryEl?.classList.remove('is-hidden');
+  }
+
+  function showPlayer(demo) {
+    if (!demo || !playerStageEl) return;
+    stopActiveDemo();
+
+    galleryEl?.classList.add('is-hidden');
+    playerEl?.classList.add('is-active');
+
+    if (playerTitleEl) playerTitleEl.textContent = demo.title;
+    if (playerHintEl) playerHintEl.textContent = demo.hint;
+    if (playerSourceEl) playerSourceEl.href = demo.source;
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'canvas';
+    canvas.tabIndex = 0;
+    canvas.setAttribute('aria-label', `Demo: ${demo.title}`);
+    playerStageEl.appendChild(canvas);
+
+    // Start the demo.
+    runShadeDemo({
+      canvas,
+      moduleName: demo.module,
+      resizeTo: playerStageEl,
+      onLoaded() {
+        playerStageEl.classList.remove('is-loading');
+        try { canvas.focus(); } catch (_) {}
+      },
+      onError(err) {
+        console.error('Demo error:', err);
+        playerStageEl.classList.remove('is-loading');
+      }
+    }).then((runner) => {
+      activeRunner = runner;
+    }).catch((err) => {
+      console.error('Failed to start demo:', err);
+    });
+  }
+
+  function renderGallery() {
+    if (!demoListEl) return;
+    demoListEl.textContent = '';
+    for (const demo of DEMOS) {
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const main = document.createElement('div');
+      main.className = 'row-main';
+
+      const titleBtn = document.createElement('button');
+      titleBtn.className = 'row-title';
+      titleBtn.type = 'button';
+      titleBtn.textContent = demo.title;
+      titleBtn.addEventListener('click', () => showPlayer(demo));
+
+      const hint = document.createElement('p');
+      hint.className = 'row-hint';
+      hint.textContent = demo.hint;
+
+      main.appendChild(titleBtn);
+      main.appendChild(hint);
+
+      const side = document.createElement('div');
+      side.className = 'row-side';
+      const link = document.createElement('a');
+      link.href = demo.source;
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      link.textContent = 'Source';
+      side.appendChild(link);
+
+      row.appendChild(main);
+      row.appendChild(side);
+      demoListEl.appendChild(row);
+    }
+  }
+
+  backBtn?.addEventListener('click', () => showGallery());
+  renderGallery();
+  showGallery();
+</script>
+
+</body>
+</html>
