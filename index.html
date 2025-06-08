@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WebGL Demos</title>
+<style>
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 1em;
+  background: #f0f0f0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: left;
+}
+
+.demo {
+  background: white;
+  margin: 1em 0;
+  padding: 1em;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.demo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.demo-header h2 {
+  margin: 0 0 1em 0;
+  font-size: 1.5em;
+}
+
+.demo-header a {
+  text-decoration: none;
+  color: #007acc;
+}
+
+.iframe-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 ratio */
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+  display: none; /* hidden initially */
+}
+
+.iframe-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.load-btn {
+  display: block;
+  padding: 0.5em 1em;
+  font-size: 1em;
+  cursor: pointer;
+  border: none;
+  background: #007acc;
+  color: white;
+  border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>WebGL Demos</h1>
+
+  <div class="demo">
+    <div class="demo-header">
+      <h2>Triangle</h2>
+      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/triangle" target="_blank">Source Code</a>
+    </div>
+    <button class="load-btn" data-module="triangle.wasm">Load the demo</button>
+    <div class="iframe-container"></div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-header">
+      <h2>Old Tree</h2>
+      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/oldtree" target="_blank">Source Code</a>
+    </div>
+    <button class="load-btn" data-module="oldtree.wasm">Load the demo</button>
+    <div class="iframe-container"></div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-header">
+      <h2>Zelda Water</h2>
+      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/zeldawater" target="_blank">Source Code</a>
+    </div>
+    <button class="load-btn" data-module="zeldawater.wasm">Load the demo</button>
+    <div class="iframe-container"></div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.load-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const module = button.dataset.module;
+      const iframeContainer = button.nextElementSibling;
+
+      const iframe = document.createElement('iframe');
+      iframe.src = `canvas.html?module=${encodeURIComponent(module)}`;
+
+      iframeContainer.appendChild(iframe);
+      iframeContainer.style.display = 'block';
+      button.style.display = 'none';
+    });
+  });
+</script>
+
+</body>
+</html>
