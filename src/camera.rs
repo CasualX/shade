@@ -104,9 +104,24 @@ impl ArcballCamera {
         self.distance = distance.clamp(CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
     }
     
-    /// Get current rotation angles (x, y)
+    /// Get current rotation angles (x, y) in radians
     pub fn get_rotation(&self) -> (f32, f32) {
         (self.rotation_x, self.rotation_y)
+    }
+    
+    /// Get current rotation angles in degrees
+    pub fn get_rotation_degrees(&self) -> (f32, f32) {
+        (self.rotation_x.to_degrees(), self.rotation_y.to_degrees())
+    }
+    
+    /// Get camera target
+    pub fn get_target(&self) -> Vec3<f32> {
+        self.target
+    }
+    
+    /// Get camera distance
+    pub fn get_distance(&self) -> f32 {
+        self.distance
     }
     
     /// Set rotation angles

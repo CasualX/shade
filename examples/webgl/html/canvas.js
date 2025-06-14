@@ -437,6 +437,49 @@ document.addEventListener("DOMContentLoaded", () => {
 			};
 			updatesize(canvas.width, canvas.height);
 
+			// Helper function to read camera state
+			function updateCameraUI() {
+				// Check if camera info functions exist
+				if (!wasmInstance.exports.get_camera_position) {
+					console.warn('Camera info functions not available in WASM module');
+					return;
+				}
+				
+				// Get camera position
+				const posPtr = wasmInstance.exports.allocate(12);
+				wasmInstance.exports.get_camera_position(ctx, posPtr, posPtr + 4, posPtr + 8);
+				const posView = new Float32Array(memory.buffer, posPtr, 3);
+				document.getElementById('camera-position').textContent = 
+					`${posView[0].toFixed(1)}, ${posView[1].toFixed(1)}, ${posView[2].toFixed(1)}`;
+				wasmInstance.exports.free(posPtr, 12);
+				
+				// Get camera target
+				const targetPtr = wasmInstance.exports.allocate(12);
+				wasmInstance.exports.get_camera_target(ctx, targetPtr, targetPtr + 4, targetPtr + 8);
+				const targetView = new Float32Array(memory.buffer, targetPtr, 3);
+				document.getElementById('camera-target').textContent = 
+					`${targetView[0].toFixed(1)}, ${targetView[1].toFixed(1)}, ${targetView[2].toFixed(1)}`;
+				wasmInstance.exports.free(targetPtr, 12);
+				
+				// Get camera rotation
+				const rotPtr = wasmInstance.exports.allocate(8);
+				wasmInstance.exports.get_camera_rotation(ctx, rotPtr, rotPtr + 4);
+				const rotView = new Float32Array(memory.buffer, rotPtr, 2);
+				document.getElementById('camera-rotation').textContent = 
+					`${rotView[0].toFixed(1)}°, ${rotView[1].toFixed(1)}°`;
+				wasmInstance.exports.free(rotPtr, 8);
+				
+				// Get camera distance
+				const distance = wasmInstance.exports.get_camera_distance(ctx);
+				document.getElementById('camera-distance').textContent = distance.toFixed(1);
+			}
+			
+			// Set up reset button
+			document.getElementById('reset-camera').addEventListener('click', () => {
+				wasmInstance.exports.update_camera(ctx, 0, 0, CAMERA_RESET_SIGNAL);
+				updateCameraUI();
+			});
+
 			drawFn = function() {
 				// Process input if needed
 				const deltas = inputController.consumeDeltas();
@@ -454,11 +497,16 @@ document.addEventListener("DOMContentLoaded", () => {
 							wasmInstance.exports.update_camera(ctx, deltas.x, deltas.y, deltas.zoom);
 						}
 					}
+					// Update UI after camera changes
+					updateCameraUI();
 				}
 				
 				// Always draw
 				wasmInstance.exports.draw(ctx, performance.now() / 1000.0);
 			}
+			
+			// Initial UI update
+			updateCameraUI();
 		} catch (error) {
 			console.error("WASM load error:", error);
 			alert(`Failed to load the WebAssembly module '${MODULE_NAME}'.`);

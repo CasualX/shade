@@ -64,6 +64,54 @@ pub extern "C" fn pan_camera(ctx: *mut Context, delta_x: f32, delta_y: f32) {
 }
 
 #[no_mangle]
+pub extern "C" fn get_camera_position(ctx: *mut Context, out_x: *mut f32, out_y: *mut f32, out_z: *mut f32) {
+	if ctx.is_null() || out_x.is_null() || out_y.is_null() || out_z.is_null() {
+		return;
+	}
+	unsafe {
+		let pos = (*ctx).camera.get_position();
+		*out_x = pos.x;
+		*out_y = pos.y;
+		*out_z = pos.z;
+	}
+}
+
+#[no_mangle]
+pub extern "C" fn get_camera_target(ctx: *mut Context, out_x: *mut f32, out_y: *mut f32, out_z: *mut f32) {
+	if ctx.is_null() || out_x.is_null() || out_y.is_null() || out_z.is_null() {
+		return;
+	}
+	unsafe {
+		let target = (*ctx).camera.get_target();
+		*out_x = target.x;
+		*out_y = target.y;
+		*out_z = target.z;
+	}
+}
+
+#[no_mangle]
+pub extern "C" fn get_camera_rotation(ctx: *mut Context, out_pitch: *mut f32, out_yaw: *mut f32) {
+	if ctx.is_null() || out_pitch.is_null() || out_yaw.is_null() {
+		return;
+	}
+	unsafe {
+		let (pitch, yaw) = (*ctx).camera.get_rotation_degrees();
+		*out_pitch = pitch;
+		*out_yaw = yaw;
+	}
+}
+
+#[no_mangle]
+pub extern "C" fn get_camera_distance(ctx: *mut Context) -> f32 {
+	if ctx.is_null() {
+		return 0.0;
+	}
+	unsafe {
+		(*ctx).camera.get_distance()
+	}
+}
+
+#[no_mangle]
 pub extern "C" fn allocate(nbytes: usize) -> *mut u8 {
 	let v = vec![0u64; (nbytes + 7) / 8].into_boxed_slice();
 	Box::into_raw(v) as *mut u8
