@@ -54,6 +54,16 @@ pub extern "C" fn update_camera(ctx: *mut Context, delta_x: f32, delta_y: f32, d
 }
 
 #[no_mangle]
+pub extern "C" fn pan_camera(ctx: *mut Context, delta_x: f32, delta_y: f32) {
+	if ctx.is_null() {
+		return;
+	}
+	unsafe {
+		(*ctx).camera.pan(delta_x, delta_y);
+	}
+}
+
+#[no_mangle]
 pub extern "C" fn allocate(nbytes: usize) -> *mut u8 {
 	let v = vec![0u64; (nbytes + 7) / 8].into_boxed_slice();
 	Box::into_raw(v) as *mut u8

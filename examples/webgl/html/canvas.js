@@ -34,6 +34,9 @@ class HandleTable {
 	}
 }
 
+// Constants
+const CAMERA_RESET_SIGNAL = -9999;
+
 class InputController {
 	constructor(canvas) {
 		this.canvas = canvas;
@@ -41,10 +44,16 @@ class InputController {
 		this.lastX = 0;
 		this.lastY = 0;
 		
+		// Key state
+		this.isSpacePressed = false;
+		this.isPanning = false;
+		
 		// Accumulated deltas (reset after consumption)
 		this.deltaX = 0;
 		this.deltaY = 0;
 		this.deltaZoom = 0;
+		this.panDeltaX = 0;
+		this.panDeltaY = 0;
 		this.needsUpdate = false;
 		
 		this.boundHandlers = {};
@@ -52,19 +61,28 @@ class InputController {
 	}
 	
 	setupEventListeners() {
-		// Use pointer events for unified mouse/touch handling
+		// Pointer events
 		this.boundHandlers.pointerdown = (e) => this.onPointerDown(e);
 		this.boundHandlers.pointermove = (e) => this.onPointerMove(e);
 		this.boundHandlers.pointerup = (e) => this.onPointerUp(e);
 		this.boundHandlers.wheel = (e) => this.onWheel(e);
+		
+		// Keyboard events
 		this.boundHandlers.keydown = (e) => this.onKeyDown(e);
+		this.boundHandlers.keyup = (e) => this.onKeyUp(e);
+		
+		// Window events
+		this.boundHandlers.blur = () => this.onBlur();
 		this.boundHandlers.contextlost = (e) => this.handleContextLost(e);
 		
+		// Register listeners
 		this.canvas.addEventListener('pointerdown', this.boundHandlers.pointerdown);
 		this.canvas.addEventListener('pointermove', this.boundHandlers.pointermove);
 		this.canvas.addEventListener('pointerup', this.boundHandlers.pointerup);
 		this.canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
 		window.addEventListener('keydown', this.boundHandlers.keydown);
+		window.addEventListener('keyup', this.boundHandlers.keyup);
+		window.addEventListener('blur', this.boundHandlers.blur);
 		this.canvas.addEventListener('webglcontextlost', this.boundHandlers.contextlost);
 	}
 	
@@ -72,22 +90,34 @@ class InputController {
 		this.isMouseDown = true;
 		this.lastX = e.clientX;
 		this.lastY = e.clientY;
-		this.canvas.style.cursor = 'grabbing';
+		
+		if (this.isSpacePressed) {
+			this.isPanning = true;
+		}
+		
+		this.updateCursor();
 		this.canvas.setPointerCapture(e.pointerId);
 	}
 	
 	onPointerMove(e) {
 		if (!this.isMouseDown) return;
 		
-		// Use movementX/Y for resolution-independent deltas
-		this.deltaX += e.movementX;
-		this.deltaY += e.movementY;
+		if (this.isPanning) {
+			// Accumulate pan deltas
+			this.panDeltaX += e.movementX;
+			this.panDeltaY += e.movementY;
+		} else {
+			// Accumulate rotation deltas
+			this.deltaX += e.movementX;
+			this.deltaY += e.movementY;
+		}
 		this.needsUpdate = true;
 	}
 	
 	onPointerUp(e) {
 		this.isMouseDown = false;
-		this.canvas.style.cursor = 'grab';
+		this.isPanning = false;
+		this.updateCursor();
 		this.canvas.releasePointerCapture(e.pointerId);
 	}
 	
@@ -98,12 +128,47 @@ class InputController {
 	}
 	
 	onKeyDown(e) {
-		if (e.key === 'r' || e.key === 'R') {
+		if (e.code === 'Space') {
+			e.preventDefault();
+			this.isSpacePressed = true;
+			if (this.isMouseDown) {
+				this.isPanning = true;
+			}
+			this.updateCursor();
+		} else if (e.code === 'KeyR') {
 			// Signal reset
 			this.deltaX = 0;
 			this.deltaY = 0;
-			this.deltaZoom = -9999; // Special value for reset
+			this.deltaZoom = CAMERA_RESET_SIGNAL;
 			this.needsUpdate = true;
+		}
+	}
+	
+	onKeyUp(e) {
+		if (e.code === 'Space') {
+			this.isSpacePressed = false;
+			this.isPanning = false;
+			this.updateCursor();
+		}
+	}
+	
+	onBlur() {
+		// Reset volatile state when window loses focus
+		this.isMouseDown = false;
+		this.isSpacePressed = false;
+		this.isPanning = false;
+		this.updateCursor();
+	}
+	
+	updateCursor() {
+		if (this.isPanning) {
+			this.canvas.style.cursor = 'move';
+		} else if (this.isMouseDown) {
+			this.canvas.style.cursor = 'grabbing';
+		} else if (this.isSpacePressed) {
+			this.canvas.style.cursor = 'move';
+		} else {
+			this.canvas.style.cursor = 'grab';
 		}
 	}
 	
@@ -118,25 +183,31 @@ class InputController {
 		const deltas = {
 			x: this.deltaX,
 			y: this.deltaY,
-			zoom: this.deltaZoom
+			zoom: this.deltaZoom,
+			panX: this.panDeltaX,
+			panY: this.panDeltaY
 		};
 		
-		// Reset accumulated values
+		// Reset all deltas
 		this.deltaX = 0;
 		this.deltaY = 0;
 		this.deltaZoom = 0;
+		this.panDeltaX = 0;
+		this.panDeltaY = 0;
 		this.needsUpdate = false;
 		
 		return deltas;
 	}
 	
 	dispose() {
-		// Clean up event listeners
+		// Clean up all event listeners
 		this.canvas.removeEventListener('pointerdown', this.boundHandlers.pointerdown);
 		this.canvas.removeEventListener('pointermove', this.boundHandlers.pointermove);
 		this.canvas.removeEventListener('pointerup', this.boundHandlers.pointerup);
 		this.canvas.removeEventListener('wheel', this.boundHandlers.wheel);
 		window.removeEventListener('keydown', this.boundHandlers.keydown);
+		window.removeEventListener('keyup', this.boundHandlers.keyup);
+		window.removeEventListener('blur', this.boundHandlers.blur);
 		this.canvas.removeEventListener('webglcontextlost', this.boundHandlers.contextlost);
 	}
 }
@@ -369,8 +440,20 @@ document.addEventListener("DOMContentLoaded", () => {
 			drawFn = function() {
 				// Process input if needed
 				const deltas = inputController.consumeDeltas();
-				if (deltas && wasmInstance.exports.update_camera) {
-					wasmInstance.exports.update_camera(ctx, deltas.x, deltas.y, deltas.zoom);
+				if (deltas) {
+					// Check for reset first
+					if (deltas.zoom === CAMERA_RESET_SIGNAL) {
+						wasmInstance.exports.update_camera(ctx, 0, 0, deltas.zoom);
+					} else {
+						// Apply pan if available
+						if ((deltas.panX !== 0 || deltas.panY !== 0) && wasmInstance.exports.pan_camera) {
+							wasmInstance.exports.pan_camera(ctx, deltas.panX, deltas.panY);
+						}
+						// Apply rotation and zoom
+						if ((deltas.x !== 0 || deltas.y !== 0 || deltas.zoom !== 0) && wasmInstance.exports.update_camera) {
+							wasmInstance.exports.update_camera(ctx, deltas.x, deltas.y, deltas.zoom);
+						}
+					}
 				}
 				
 				// Always draw

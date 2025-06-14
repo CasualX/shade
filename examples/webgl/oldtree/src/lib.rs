@@ -275,7 +275,7 @@ impl Context {
 		// Update the transformation matrices
 		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
 		let view = self.camera.get_view_matrix();
-		let camera_pos = self.camera.position;
+		let camera_pos = self.camera.get_position();
 		// let transform = projection * view * model;
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
 		let view_pos = cvmath::Vec3(-10.0, 0.0, -10.0);
