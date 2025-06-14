@@ -194,6 +194,7 @@ pub struct Context {
 	model_vertices: shade::VertexBuffer,
 	model_vertices_len: u32,
 	model_texture: shade::Texture2D,
+	camera: shade::camera::ArcballCamera,
 }
 
 impl Context {
@@ -229,6 +230,11 @@ impl Context {
 
 		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		
+		// Initialize camera
+		let camera_pos = cvmath::Vec3(0.0, 2.0, -10.0);
+		let model_center = (mins + maxs) * 0.5;
+		let camera = shade::camera::ArcballCamera::new(camera_pos, model_center);
 
 		Context {
 			webgl,
@@ -238,6 +244,7 @@ impl Context {
 			model_vertices: vb,
 			model_vertices_len: vb_len,
 			model_texture: texture,
+			camera,
 		}
 	}
 
@@ -259,17 +266,16 @@ impl Context {
 			..Default::default()
 		}).unwrap();
 
-		// Rotate the model
+		// Model transform (centering and initial rotation)
 		let model_origin = (self.model_bounds.mins + self.model_bounds.maxs) * 0.5;
 		let model_transform =
 			cvmath::Mat4::rotate(cvmath::Deg(-90.0), cvmath::Vec3::X) *
-			cvmath::Mat4::translate(-model_origin) *
-			cvmath::Mat4::rotate(cvmath::Rad(time as f32), cvmath::Vec3::Z);
+			cvmath::Mat4::translate(-model_origin);
 
 		// Update the transformation matrices
 		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
-		let camera_pos = cvmath::Vec3(0.0, 2.0, -10.0);
-		let view = cvmath::Mat4::look_at(camera_pos, model_origin, cvmath::Vec3(0.0, 1.0, 0.0), cvmath::RH);
+		let view = self.camera.get_view_matrix();
+		let camera_pos = self.camera.position;
 		// let transform = projection * view * model;
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
 		let view_pos = cvmath::Vec3(-10.0, 0.0, -10.0);

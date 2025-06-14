@@ -34,6 +34,113 @@ class HandleTable {
 	}
 }
 
+class InputController {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.isMouseDown = false;
+		this.lastX = 0;
+		this.lastY = 0;
+		
+		// Accumulated deltas (reset after consumption)
+		this.deltaX = 0;
+		this.deltaY = 0;
+		this.deltaZoom = 0;
+		this.needsUpdate = false;
+		
+		this.boundHandlers = {};
+		this.setupEventListeners();
+	}
+	
+	setupEventListeners() {
+		// Use pointer events for unified mouse/touch handling
+		this.boundHandlers.pointerdown = (e) => this.onPointerDown(e);
+		this.boundHandlers.pointermove = (e) => this.onPointerMove(e);
+		this.boundHandlers.pointerup = (e) => this.onPointerUp(e);
+		this.boundHandlers.wheel = (e) => this.onWheel(e);
+		this.boundHandlers.keydown = (e) => this.onKeyDown(e);
+		this.boundHandlers.contextlost = (e) => this.handleContextLost(e);
+		
+		this.canvas.addEventListener('pointerdown', this.boundHandlers.pointerdown);
+		this.canvas.addEventListener('pointermove', this.boundHandlers.pointermove);
+		this.canvas.addEventListener('pointerup', this.boundHandlers.pointerup);
+		this.canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
+		window.addEventListener('keydown', this.boundHandlers.keydown);
+		this.canvas.addEventListener('webglcontextlost', this.boundHandlers.contextlost);
+	}
+	
+	onPointerDown(e) {
+		this.isMouseDown = true;
+		this.lastX = e.clientX;
+		this.lastY = e.clientY;
+		this.canvas.style.cursor = 'grabbing';
+		this.canvas.setPointerCapture(e.pointerId);
+	}
+	
+	onPointerMove(e) {
+		if (!this.isMouseDown) return;
+		
+		// Use movementX/Y for resolution-independent deltas
+		this.deltaX += e.movementX;
+		this.deltaY += e.movementY;
+		this.needsUpdate = true;
+	}
+	
+	onPointerUp(e) {
+		this.isMouseDown = false;
+		this.canvas.style.cursor = 'grab';
+		this.canvas.releasePointerCapture(e.pointerId);
+	}
+	
+	onWheel(e) {
+		e.preventDefault();
+		this.deltaZoom += e.deltaY;
+		this.needsUpdate = true;
+	}
+	
+	onKeyDown(e) {
+		if (e.key === 'r' || e.key === 'R') {
+			// Signal reset
+			this.deltaX = 0;
+			this.deltaY = 0;
+			this.deltaZoom = -9999; // Special value for reset
+			this.needsUpdate = true;
+		}
+	}
+	
+	handleContextLost(e) {
+		console.warn('WebGL context lost');
+		e.preventDefault();
+	}
+	
+	consumeDeltas() {
+		if (!this.needsUpdate) return null;
+		
+		const deltas = {
+			x: this.deltaX,
+			y: this.deltaY,
+			zoom: this.deltaZoom
+		};
+		
+		// Reset accumulated values
+		this.deltaX = 0;
+		this.deltaY = 0;
+		this.deltaZoom = 0;
+		this.needsUpdate = false;
+		
+		return deltas;
+	}
+	
+	dispose() {
+		// Clean up event listeners
+		this.canvas.removeEventListener('pointerdown', this.boundHandlers.pointerdown);
+		this.canvas.removeEventListener('pointermove', this.boundHandlers.pointermove);
+		this.canvas.removeEventListener('pointerup', this.boundHandlers.pointerup);
+		this.canvas.removeEventListener('wheel', this.boundHandlers.wheel);
+		window.removeEventListener('keydown', this.boundHandlers.keydown);
+		this.canvas.removeEventListener('webglcontextlost', this.boundHandlers.contextlost);
+	}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 	if (!MODULE_NAME) {
 		alert("No module specified. Please provide a module name in the URL hash, e.g., #module=your_module.wasm");
@@ -249,6 +356,10 @@ document.addEventListener("DOMContentLoaded", () => {
 			// console.log(wasmInstance.exports);
 
 			var ctx = wasmInstance.exports.new();
+			
+			// Create input controller
+			let inputController = new InputController(canvas);
+			canvas.style.cursor = 'grab';
 
 			updatesize = function(width, height) {
 				wasmInstance.exports.resize(ctx, width, height);
@@ -256,6 +367,13 @@ document.addEventListener("DOMContentLoaded", () => {
 			updatesize(canvas.width, canvas.height);
 
 			drawFn = function() {
+				// Process input if needed
+				const deltas = inputController.consumeDeltas();
+				if (deltas && wasmInstance.exports.update_camera) {
+					wasmInstance.exports.update_camera(ctx, deltas.x, deltas.y, deltas.zoom);
+				}
+				
+				// Always draw
 				wasmInstance.exports.draw(ctx, performance.now() / 1000.0);
 			}
 		} catch (error) {

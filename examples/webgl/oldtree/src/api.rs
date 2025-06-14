@@ -39,6 +39,21 @@ pub extern "C" fn draw(ctx: *mut Context, time: f64) {
 }
 
 #[no_mangle]
+pub extern "C" fn update_camera(ctx: *mut Context, delta_x: f32, delta_y: f32, delta_zoom: f32) {
+	if ctx.is_null() {
+		return;
+	}
+	unsafe {
+		// Special case for reset
+		if delta_zoom < -9000.0 {
+			(*ctx).camera.reset();
+		} else {
+			(*ctx).camera.update_from_input(delta_x, delta_y, delta_zoom);
+		}
+	}
+}
+
+#[no_mangle]
 pub extern "C" fn allocate(nbytes: usize) -> *mut u8 {
 	let v = vec![0u64; (nbytes + 7) / 8].into_boxed_slice();
 	Box::into_raw(v) as *mut u8
