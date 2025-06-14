@@ -34,6 +34,184 @@ class HandleTable {
 	}
 }
 
+// Constants
+const CAMERA_RESET_SIGNAL = -9999;
+
+class InputController {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.isMouseDown = false;
+		this.lastX = 0;
+		this.lastY = 0;
+		
+		// Key state
+		this.isSpacePressed = false;
+		this.isPanning = false;
+		
+		// Accumulated deltas (reset after consumption)
+		this.deltaX = 0;
+		this.deltaY = 0;
+		this.deltaZoom = 0;
+		this.panDeltaX = 0;
+		this.panDeltaY = 0;
+		this.needsUpdate = false;
+		
+		this.boundHandlers = {};
+		this.setupEventListeners();
+	}
+	
+	setupEventListeners() {
+		// Pointer events
+		this.boundHandlers.pointerdown = (e) => this.onPointerDown(e);
+		this.boundHandlers.pointermove = (e) => this.onPointerMove(e);
+		this.boundHandlers.pointerup = (e) => this.onPointerUp(e);
+		this.boundHandlers.wheel = (e) => this.onWheel(e);
+		
+		// Keyboard events
+		this.boundHandlers.keydown = (e) => this.onKeyDown(e);
+		this.boundHandlers.keyup = (e) => this.onKeyUp(e);
+		
+		// Window events
+		this.boundHandlers.blur = () => this.onBlur();
+		this.boundHandlers.contextlost = (e) => this.handleContextLost(e);
+		
+		// Register listeners
+		this.canvas.addEventListener('pointerdown', this.boundHandlers.pointerdown);
+		this.canvas.addEventListener('pointermove', this.boundHandlers.pointermove);
+		this.canvas.addEventListener('pointerup', this.boundHandlers.pointerup);
+		this.canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
+		window.addEventListener('keydown', this.boundHandlers.keydown);
+		window.addEventListener('keyup', this.boundHandlers.keyup);
+		window.addEventListener('blur', this.boundHandlers.blur);
+		this.canvas.addEventListener('webglcontextlost', this.boundHandlers.contextlost);
+	}
+	
+	onPointerDown(e) {
+		this.isMouseDown = true;
+		this.lastX = e.clientX;
+		this.lastY = e.clientY;
+		
+		if (this.isSpacePressed) {
+			this.isPanning = true;
+		}
+		
+		this.updateCursor();
+		this.canvas.setPointerCapture(e.pointerId);
+	}
+	
+	onPointerMove(e) {
+		if (!this.isMouseDown) return;
+		
+		if (this.isPanning) {
+			// Accumulate pan deltas
+			this.panDeltaX += e.movementX;
+			this.panDeltaY += e.movementY;
+		} else {
+			// Accumulate rotation deltas
+			this.deltaX += e.movementX;
+			this.deltaY += e.movementY;
+		}
+		this.needsUpdate = true;
+	}
+	
+	onPointerUp(e) {
+		this.isMouseDown = false;
+		this.isPanning = false;
+		this.updateCursor();
+		this.canvas.releasePointerCapture(e.pointerId);
+	}
+	
+	onWheel(e) {
+		e.preventDefault();
+		this.deltaZoom += e.deltaY;
+		this.needsUpdate = true;
+	}
+	
+	onKeyDown(e) {
+		if (e.code === 'Space') {
+			e.preventDefault();
+			this.isSpacePressed = true;
+			if (this.isMouseDown) {
+				this.isPanning = true;
+			}
+			this.updateCursor();
+		} else if (e.code === 'KeyR') {
+			// Signal reset
+			this.deltaX = 0;
+			this.deltaY = 0;
+			this.deltaZoom = CAMERA_RESET_SIGNAL;
+			this.needsUpdate = true;
+		}
+	}
+	
+	onKeyUp(e) {
+		if (e.code === 'Space') {
+			this.isSpacePressed = false;
+			this.isPanning = false;
+			this.updateCursor();
+		}
+	}
+	
+	onBlur() {
+		// Reset volatile state when window loses focus
+		this.isMouseDown = false;
+		this.isSpacePressed = false;
+		this.isPanning = false;
+		this.updateCursor();
+	}
+	
+	updateCursor() {
+		if (this.isPanning) {
+			this.canvas.style.cursor = 'move';
+		} else if (this.isMouseDown) {
+			this.canvas.style.cursor = 'grabbing';
+		} else if (this.isSpacePressed) {
+			this.canvas.style.cursor = 'move';
+		} else {
+			this.canvas.style.cursor = 'grab';
+		}
+	}
+	
+	handleContextLost(e) {
+		console.warn('WebGL context lost');
+		e.preventDefault();
+	}
+	
+	consumeDeltas() {
+		if (!this.needsUpdate) return null;
+		
+		const deltas = {
+			x: this.deltaX,
+			y: this.deltaY,
+			zoom: this.deltaZoom,
+			panX: this.panDeltaX,
+			panY: this.panDeltaY
+		};
+		
+		// Reset all deltas
+		this.deltaX = 0;
+		this.deltaY = 0;
+		this.deltaZoom = 0;
+		this.panDeltaX = 0;
+		this.panDeltaY = 0;
+		this.needsUpdate = false;
+		
+		return deltas;
+	}
+	
+	dispose() {
+		// Clean up all event listeners
+		this.canvas.removeEventListener('pointerdown', this.boundHandlers.pointerdown);
+		this.canvas.removeEventListener('pointermove', this.boundHandlers.pointermove);
+		this.canvas.removeEventListener('pointerup', this.boundHandlers.pointerup);
+		this.canvas.removeEventListener('wheel', this.boundHandlers.wheel);
+		window.removeEventListener('keydown', this.boundHandlers.keydown);
+		window.removeEventListener('keyup', this.boundHandlers.keyup);
+		window.removeEventListener('blur', this.boundHandlers.blur);
+		this.canvas.removeEventListener('webglcontextlost', this.boundHandlers.contextlost);
+	}
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 	if (!MODULE_NAME) {
 		alert("No module specified. Please provide a module name in the URL hash, e.g., #module=your_module.wasm");
@@ -249,15 +427,86 @@ document.addEventListener("DOMContentLoaded", () => {
 			// console.log(wasmInstance.exports);
 
 			var ctx = wasmInstance.exports.new();
+			
+			// Create input controller
+			let inputController = new InputController(canvas);
+			canvas.style.cursor = 'grab';
 
 			updatesize = function(width, height) {
 				wasmInstance.exports.resize(ctx, width, height);
 			};
 			updatesize(canvas.width, canvas.height);
 
+			// Helper function to read camera state
+			function updateCameraUI() {
+				// Check if camera info functions exist
+				if (!wasmInstance.exports.get_camera_position) {
+					console.warn('Camera info functions not available in WASM module');
+					return;
+				}
+				
+				// Get camera position
+				const posPtr = wasmInstance.exports.allocate(12);
+				wasmInstance.exports.get_camera_position(ctx, posPtr, posPtr + 4, posPtr + 8);
+				const posView = new Float32Array(memory.buffer, posPtr, 3);
+				document.getElementById('camera-position').textContent = 
+					`${posView[0].toFixed(1)}, ${posView[1].toFixed(1)}, ${posView[2].toFixed(1)}`;
+				wasmInstance.exports.free(posPtr, 12);
+				
+				// Get camera target
+				const targetPtr = wasmInstance.exports.allocate(12);
+				wasmInstance.exports.get_camera_target(ctx, targetPtr, targetPtr + 4, targetPtr + 8);
+				const targetView = new Float32Array(memory.buffer, targetPtr, 3);
+				document.getElementById('camera-target').textContent = 
+					`${targetView[0].toFixed(1)}, ${targetView[1].toFixed(1)}, ${targetView[2].toFixed(1)}`;
+				wasmInstance.exports.free(targetPtr, 12);
+				
+				// Get camera rotation
+				const rotPtr = wasmInstance.exports.allocate(8);
+				wasmInstance.exports.get_camera_rotation(ctx, rotPtr, rotPtr + 4);
+				const rotView = new Float32Array(memory.buffer, rotPtr, 2);
+				document.getElementById('camera-rotation').textContent = 
+					`${rotView[0].toFixed(1)}°, ${rotView[1].toFixed(1)}°`;
+				wasmInstance.exports.free(rotPtr, 8);
+				
+				// Get camera distance
+				const distance = wasmInstance.exports.get_camera_distance(ctx);
+				document.getElementById('camera-distance').textContent = distance.toFixed(1);
+			}
+			
+			// Set up reset button
+			document.getElementById('reset-camera').addEventListener('click', () => {
+				wasmInstance.exports.update_camera(ctx, 0, 0, CAMERA_RESET_SIGNAL);
+				updateCameraUI();
+			});
+
 			drawFn = function() {
+				// Process input if needed
+				const deltas = inputController.consumeDeltas();
+				if (deltas) {
+					// Check for reset first
+					if (deltas.zoom === CAMERA_RESET_SIGNAL) {
+						wasmInstance.exports.update_camera(ctx, 0, 0, deltas.zoom);
+					} else {
+						// Apply pan if available
+						if ((deltas.panX !== 0 || deltas.panY !== 0) && wasmInstance.exports.pan_camera) {
+							wasmInstance.exports.pan_camera(ctx, deltas.panX, deltas.panY);
+						}
+						// Apply rotation and zoom
+						if ((deltas.x !== 0 || deltas.y !== 0 || deltas.zoom !== 0) && wasmInstance.exports.update_camera) {
+							wasmInstance.exports.update_camera(ctx, deltas.x, deltas.y, deltas.zoom);
+						}
+					}
+					// Update UI after camera changes
+					updateCameraUI();
+				}
+				
+				// Always draw
 				wasmInstance.exports.draw(ctx, performance.now() / 1000.0);
 			}
+			
+			// Initial UI update
+			updateCameraUI();
 		} catch (error) {
 			console.error("WASM load error:", error);
 			alert(`Failed to load the WebAssembly module '${MODULE_NAME}'.`);
