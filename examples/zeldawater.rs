@@ -78,7 +78,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, Default, Debug, dataview::Pod)]
+#[derive(Copy, Clone, Default, Debug)]
 #[repr(C)]
 struct Uniform {
 	time: f32,
@@ -88,8 +88,8 @@ struct Uniform {
 
 unsafe impl shade::TUniform for Uniform {
 	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: std::mem::size_of::<Uniform>() as u16,
-		alignment: std::mem::align_of::<Uniform>() as u16,
+		size: mem::size_of::<Uniform>() as u16,
+		alignment: mem::align_of::<Uniform>() as u16,
 		fields: &[
 			shade::UniformField {
 				name: "u_time",

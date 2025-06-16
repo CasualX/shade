@@ -159,9 +159,9 @@ fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &WebGLProgram, textures: 
 					crate::UniformType::B2 => unsafe { api::uniform2iv(location, uattr.len as i32, data_ptr as *const _) },
 					crate::UniformType::B3 => unsafe { api::uniform3iv(location, uattr.len as i32, data_ptr as *const _) },
 					crate::UniformType::B4 => unsafe { api::uniform4iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::Mat2x2 { order } => {
+					crate::UniformType::Mat2x2 { layout } => {
 						let transposed;
-						let data_ptr = match order {
+						let data_ptr = match layout {
 							crate::MatrixLayout::ColumnMajor => data_ptr,
 							crate::MatrixLayout::RowMajor => {
 								let data = &unsafe { *(data_ptr as *const [f32; 4]) };
@@ -174,9 +174,9 @@ fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &WebGLProgram, textures: 
 						};
 						unsafe { api::uniformMatrix2fv(location, uattr.len as i32, false, data_ptr as *const _) }
 					},
-					crate::UniformType::Mat3x3 { order } => {
+					crate::UniformType::Mat3x3 { layout } => {
 						let transposed;
-						let data_ptr = match order {
+						let data_ptr = match layout {
 							crate::MatrixLayout::ColumnMajor => data_ptr,
 							crate::MatrixLayout::RowMajor => {
 								let data = &unsafe { *(data_ptr as *const [f32; 9]) };
@@ -190,9 +190,9 @@ fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &WebGLProgram, textures: 
 						};
 						unsafe { api::uniformMatrix3fv(location, uattr.len as i32, false, data_ptr as *const _) }
 					},
-					crate::UniformType::Mat4x4 { order } => {
+					crate::UniformType::Mat4x4 { layout } => {
 						let transposed;
-						let data_ptr = match order {
+						let data_ptr = match layout {
 							crate::MatrixLayout::ColumnMajor => data_ptr,
 							crate::MatrixLayout::RowMajor => {
 								let data = &unsafe { *(data_ptr as *const [f32; 16]) };

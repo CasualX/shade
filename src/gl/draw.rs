@@ -154,8 +154,8 @@ fn gl_attributes(shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &Reso
 	}
 }
 
-fn gl_mat_order(order: crate::MatrixLayout) -> GLboolean {
-	match order {
+fn gl_transpose(layout: crate::MatrixLayout) -> GLboolean {
+	match layout {
 		crate::MatrixLayout::ColumnMajor => gl::FALSE,
 		crate::MatrixLayout::RowMajor => gl::TRUE,
 	}
@@ -191,15 +191,15 @@ fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &GlShader, textures: &GlT
 					crate::UniformType::B2 => gl_check!(gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _)),
 					crate::UniformType::B3 => gl_check!(gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _)),
 					crate::UniformType::B4 => gl_check!(gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::Mat2x2 { order } => gl_check!(gl::UniformMatrix2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat2x3 { order } => gl_check!(gl::UniformMatrix2x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat2x4 { order } => gl_check!(gl::UniformMatrix2x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat3x2 { order } => gl_check!(gl::UniformMatrix3x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat3x3 { order } => gl_check!(gl::UniformMatrix3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat3x4 { order } => gl_check!(gl::UniformMatrix3x4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat4x2 { order } => gl_check!(gl::UniformMatrix4x2fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat4x3 { order } => gl_check!(gl::UniformMatrix4x3fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
-					crate::UniformType::Mat4x4 { order } => gl_check!(gl::UniformMatrix4fv(location, uattr.len as i32, gl_mat_order(order), data_ptr as *const _)),
+					crate::UniformType::Mat2x2 { layout } => gl_check!(gl::UniformMatrix2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat2x3 { layout } => gl_check!(gl::UniformMatrix2x3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat2x4 { layout } => gl_check!(gl::UniformMatrix2x4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat3x2 { layout } => gl_check!(gl::UniformMatrix3x2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat3x3 { layout } => gl_check!(gl::UniformMatrix3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat3x4 { layout } => gl_check!(gl::UniformMatrix3x4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat4x2 { layout } => gl_check!(gl::UniformMatrix4x2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat4x3 { layout } => gl_check!(gl::UniformMatrix4x3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
+					crate::UniformType::Mat4x4 { layout } => gl_check!(gl::UniformMatrix4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
 					crate::UniformType::Sampler2D => {
 						let ids = unsafe { slice::from_raw_parts(data_ptr as *const crate::Texture2D, uattr.len as usize) };
 						for &id in ids {

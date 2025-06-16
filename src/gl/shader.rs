@@ -16,7 +16,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		let mut log_len = 0;
 		gl_check!(gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
-		gl_check!(gl::GetShaderInfoLog(vertex_shader, log_len, std::ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
+		gl_check!(gl::GetShaderInfoLog(vertex_shader, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		println!("# Vertex shader compile log:\n{}", String::from_utf8_lossy(&log));
 		success = false;
 	}
@@ -29,7 +29,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		let mut log_len = 0;
 		gl_check!(gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
-		gl_check!(gl::GetShaderInfoLog(fragment_shader, log_len, std::ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
+		gl_check!(gl::GetShaderInfoLog(fragment_shader, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		println!("# Fragment shader compile log:\n{}", String::from_utf8_lossy(&log));
 		success = false;
 	}
@@ -54,7 +54,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		let mut log_len = 0;
 		gl_check!(gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
-		gl_check!(gl::GetProgramInfoLog(program, log_len, std::ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
+		gl_check!(gl::GetProgramInfoLog(program, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		println!("# Program link log:\n{}", String::from_utf8_lossy(&log));
 		gl_check!(gl::DeleteProgram(program));
 		return Err(crate::GfxError::ShaderCompileError);

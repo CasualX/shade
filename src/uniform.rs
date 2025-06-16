@@ -1,5 +1,7 @@
+use std::ptr;
+
 /// Defines a type containing uniform data.
-pub unsafe trait TUniform: Copy + Default + dataview::Pod {
+pub unsafe trait TUniform: Copy + Default {
 	const LAYOUT: &'static UniformLayout;
 }
 
@@ -21,7 +23,7 @@ impl<'a> Default for UniformRef<'a> {
 	#[inline]
 	fn default() -> Self {
 		UniformRef {
-			data_ptr: std::ptr::null(),
+			data_ptr: ptr::null(),
 			layout: &DUMMY_UNIFORM_LAYOUT,
 		}
 	}
@@ -51,9 +53,9 @@ pub enum UniformType {
 	I1, I2, I3, I4,
 	U1, U2, U3, U4,
 	B1, B2, B3, B4,
-	Mat2x2 { order: MatrixLayout }, Mat2x3 { order: MatrixLayout }, Mat2x4 { order: MatrixLayout },
-	Mat3x2 { order: MatrixLayout }, Mat3x3 { order: MatrixLayout }, Mat3x4 { order: MatrixLayout },
-	Mat4x2 { order: MatrixLayout }, Mat4x3 { order: MatrixLayout }, Mat4x4 { order: MatrixLayout },
+	Mat2x2 { layout: MatrixLayout }, Mat2x3 { layout: MatrixLayout }, Mat2x4 { layout: MatrixLayout },
+	Mat3x2 { layout: MatrixLayout }, Mat3x3 { layout: MatrixLayout }, Mat3x4 { layout: MatrixLayout },
+	Mat4x2 { layout: MatrixLayout }, Mat4x3 { layout: MatrixLayout }, Mat4x4 { layout: MatrixLayout },
 	Sampler2D,
 }
 

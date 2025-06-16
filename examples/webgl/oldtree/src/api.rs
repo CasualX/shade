@@ -29,6 +29,20 @@ pub extern "C" fn resize(ctx: *mut Context, width: i32, height: i32) {
 }
 
 #[no_mangle]
+pub extern "C" fn input(ctx: *mut Context, mode: u32, x: f32, y: f32, _z: f32) {
+	if ctx.is_null() {
+		return;
+	}
+	let ctx = unsafe { &mut *ctx };
+	match mode {
+		0 => ctx.camera.rotate(x, y),
+		1 => ctx.camera.pan(x, y),
+		2 => ctx.camera.zoom(x),
+		_ => return,
+	};
+}
+
+#[no_mangle]
 pub extern "C" fn draw(ctx: *mut Context, time: f64) {
 	if ctx.is_null() {
 		return;

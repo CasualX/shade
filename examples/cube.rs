@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{mem, thread, time};
 
 //----------------------------------------------------------------
 // The cube's geometry
@@ -13,8 +13,8 @@ struct MyVertex3 {
 
 unsafe impl shade::TVertex for MyVertex3 {
 	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: std::mem::size_of::<MyVertex3>() as u16,
-		alignment: std::mem::align_of::<MyVertex3>() as u16,
+		size: mem::size_of::<MyVertex3>() as u16,
+		alignment: mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
 			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
 			shade::VertexAttribute::with::<cvmath::Vec2f>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
@@ -109,7 +109,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, dataview::Pod)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 struct MyUniform3 {
 	transform: cvmath::Mat4f,
@@ -127,12 +127,12 @@ impl Default for MyUniform3 {
 
 unsafe impl shade::TUniform for MyUniform3 {
 	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: std::mem::size_of::<MyUniform3>() as u16,
-		alignment: std::mem::align_of::<MyUniform3>() as u16,
+		size: mem::size_of::<MyUniform3>() as u16,
+		alignment: mem::align_of::<MyUniform3>() as u16,
 		fields: &[
 			shade::UniformField {
 				name: "transform",
-				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(MyUniform3.transform) as u16,
 				len: 1,
 			},
@@ -264,6 +264,6 @@ fn main() {
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();
-		sleep(Duration::from_millis(16));
+		thread::sleep(time::Duration::from_millis(16));
 	}
 }

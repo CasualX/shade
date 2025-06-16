@@ -1,4 +1,5 @@
-use std::{thread::sleep, time::Duration};
+use std::collections::HashMap;
+use std::{fs, mem, thread, time};
 
 //----------------------------------------------------------------
 // The bunny's geometry
@@ -12,8 +13,8 @@ struct MyVertex3 {
 
 unsafe impl shade::TVertex for MyVertex3 {
 	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: std::mem::size_of::<MyVertex3>() as u16,
-		alignment: std::mem::align_of::<MyVertex3>() as u16,
+		size: mem::size_of::<MyVertex3>() as u16,
+		alignment: mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
 			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
 			shade::VertexAttribute::with::<cvmath::Vec3f>("aNormal", dataview::offset_of!(MyVertex3.normal)),
@@ -53,7 +54,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, dataview::Pod)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 struct MyUniform3 {
 	transform: cvmath::Mat4f,
@@ -69,12 +70,12 @@ impl Default for MyUniform3 {
 
 unsafe impl shade::TUniform for MyUniform3 {
 	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: std::mem::size_of::<MyUniform3>() as u16,
-		alignment: std::mem::align_of::<MyUniform3>() as u16,
+		size: mem::size_of::<MyUniform3>() as u16,
+		alignment: mem::align_of::<MyUniform3>() as u16,
 		fields: &[
 			shade::UniformField {
 				name: "transform",
-				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(MyUniform3.transform) as u16,
 				len: 1,
 			},
@@ -103,7 +104,7 @@ fn main() {
 	// Create the graphics context
 	let mut g = shade::gl::GlGraphics::new();
 
-	let mut bunny_file = std::fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
+	let mut bunny_file = fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
 	let bunny_stl = stl::read_stl(&mut bunny_file).unwrap();
 
 	let mut mins = cvmath::Vec3::dup(f32::INFINITY);
@@ -128,7 +129,7 @@ fn main() {
 		}
 
 		// Smooth the normals
-		let mut map = std::collections::HashMap::new();
+		let mut map = HashMap::new();
 		for v in vertices.iter() {
 			map.entry(v.position.map(f32::to_bits)).or_insert(Vec::new()).push(v.normal);
 		}
@@ -230,6 +231,6 @@ fn main() {
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();
-		sleep(Duration::from_millis(16));
+		thread::sleep(time::Duration::from_millis(16));
 	}
 }

@@ -1,3 +1,4 @@
+use std::mem;
 
 //----------------------------------------------------------------
 // The triangle's vertex
@@ -11,8 +12,8 @@ struct TriangleVertex {
 
 unsafe impl shade::TVertex for TriangleVertex {
 	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: std::mem::size_of::<TriangleVertex>() as u16,
-		alignment: std::mem::align_of::<TriangleVertex>() as u16,
+		size: mem::size_of::<TriangleVertex>() as u16,
+		alignment: mem::align_of::<TriangleVertex>() as u16,
 		attributes: &[
 			shade::VertexAttribute {
 				name: "aPos",

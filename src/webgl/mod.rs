@@ -57,7 +57,7 @@ struct WebGLActiveUniform {
 }
 impl WebGLActiveUniform {
 	fn name(&self) -> &str {
-		std::str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
+		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
 	}
 }
 

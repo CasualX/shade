@@ -24,8 +24,10 @@ pub use self::uniform::*;
 pub use self::shader::Shader;
 
 pub mod d2;
+pub mod d3;
 
 pub mod image;
+pub mod camera;
 
 #[cfg(feature = "gl")]
 pub mod gl;

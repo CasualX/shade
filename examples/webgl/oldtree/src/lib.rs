@@ -99,7 +99,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, dataview::Pod)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 struct Uniform {
 	model: cvmath::Mat4f,
@@ -134,25 +134,25 @@ unsafe impl shade::TUniform for Uniform {
 		fields: &[
 			shade::UniformField {
 				name: "model",
-				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(Uniform.model) as u16,
 				len: 1,
 			},
 			shade::UniformField {
 				name: "view",
-				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(Uniform.view) as u16,
 				len: 1,
 			},
 			shade::UniformField {
 				name: "projection",
-				ty: shade::UniformType::Mat4x4 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(Uniform.projection) as u16,
 				len: 1,
 			},
 			shade::UniformField {
 				name: "normalMatrix",
-				ty: shade::UniformType::Mat3x3 { order: shade::MatrixLayout::RowMajor },
+				ty: shade::UniformType::Mat3x3 { layout: shade::MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(Uniform.normal_matrix) as u16,
 				len: 1,
 			},
@@ -189,7 +189,8 @@ unsafe impl shade::TUniform for Uniform {
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: cvmath::Vec2<i32>,
-	model_bounds: cvmath::Bounds3<f32>,
+	camera: shade::camera::ArcballCamera,
+	auto_rotate: bool,
 	model_shader: shade::Shader,
 	model_vertices: shade::VertexBuffer,
 	model_vertices_len: u32,
@@ -218,6 +219,10 @@ impl Context {
 			}
 		}
 
+		let extent = maxs - mins;
+		let target = (maxs + mins) * 0.5;
+		let camera_position = target + cvmath::Vec3::<f32>::X * f32::max(extent.x, extent.y) * 0.8;
+
 		let texture = include_bytes!("../../../oldtree/texture.png");
 
 		let texture = shade::image::png::load(&mut g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
@@ -233,7 +238,8 @@ impl Context {
 		Context {
 			webgl,
 			screen_size: cvmath::Vec2::ZERO,
-			model_bounds: cvmath::Bounds(mins, maxs),
+			camera: shade::camera::ArcballCamera::new(camera_position, target, cvmath::Vec3::Z),
+			auto_rotate: true,
 			model_shader: shader,
 			model_vertices: vb,
 			model_vertices_len: vb_len,
@@ -245,7 +251,7 @@ impl Context {
 		self.screen_size = cvmath::Vec2(width, height);
 	}
 
-	pub fn draw(&mut self, time: f64) {
+	pub fn draw(&mut self, _time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
 
 		// Render the frame
@@ -259,29 +265,27 @@ impl Context {
 			..Default::default()
 		}).unwrap();
 
-		// Rotate the model
-		let model_origin = (self.model_bounds.mins + self.model_bounds.maxs) * 0.5;
-		let model_transform =
-			cvmath::Mat4::rotate(cvmath::Deg(-90.0), cvmath::Vec3::X) *
-			cvmath::Mat4::translate(-model_origin) *
-			cvmath::Mat4::rotate(cvmath::Rad(time as f32), cvmath::Vec3::Z);
+		if self.auto_rotate {
+			self.camera.rotate(1.0, 0.0);
+		}
 
 		// Update the transformation matrices
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
-		let camera_pos = cvmath::Vec3(0.0, 2.0, -10.0);
-		let view = cvmath::Mat4::look_at(camera_pos, model_origin, cvmath::Vec3(0.0, 1.0, 0.0), cvmath::RH);
+		let model = cvmath::Mat4::IDENTITY;
+		let view = self.camera.view_matrix(cvmath::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
 		// let transform = projection * view * model;
+		let camera_pos = self.camera.position();
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
 		let view_pos = cvmath::Vec3(-10.0, 0.0, -10.0);
-		let normal_matrix = model_transform.mat3().inverse().transpose();
+		let normal_matrix = model.mat3().inverse().transpose();
 
 		// Update the uniforms
-		let uniforms = Uniform { model: model_transform, view, projection, normal_matrix, light_pos, view_pos, camera_pos, texture: self.model_texture };
+		let uniforms = Uniform { model, view, projection, normal_matrix, light_pos, view_pos, camera_pos, texture: self.model_texture };
 
 		// Draw the model
 		g.draw(&shade::DrawArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::c(0, 0, self.screen_size.x, self.screen_size.y),
+			viewport: cvmath::Bounds2::vec(self.screen_size),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),

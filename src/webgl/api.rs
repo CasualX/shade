@@ -9,6 +9,7 @@ pub mod types {
 	pub type GLboolean = bool;
 	pub type GLintptr = isize;
 	pub type GLsizeiptr = isize;
+	pub type GLfloat = f32;
 }
 
 #[link(wasm_import_module = "webgl")]

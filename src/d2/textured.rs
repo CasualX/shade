@@ -11,8 +11,8 @@ pub struct TexturedVertex {
 
 unsafe impl TVertex for TexturedVertex {
 	const LAYOUT: &'static crate::VertexLayout = &crate::VertexLayout {
-		size: std::mem::size_of::<TexturedVertex>() as u16,
-		alignment: std::mem::align_of::<TexturedVertex>() as u16,
+		size: mem::size_of::<TexturedVertex>() as u16,
+		alignment: mem::align_of::<TexturedVertex>() as u16,
 		attributes: &[
 			VertexAttribute {
 				name: "a_pos",
@@ -49,7 +49,7 @@ impl ToVertex<TexturedVertex> for TexturedTemplate {
 }
 
 /// Textured uniform.
-#[derive(Copy, Clone, Debug, dataview::Pod)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct TexturedUniform {
 	pub transform: Transform2f,
@@ -69,12 +69,12 @@ impl Default for TexturedUniform {
 
 unsafe impl TUniform for TexturedUniform {
 	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: std::mem::size_of::<TexturedUniform>() as u16,
-		alignment: std::mem::align_of::<TexturedUniform>() as u16,
+		size: mem::size_of::<TexturedUniform>() as u16,
+		alignment: mem::align_of::<TexturedUniform>() as u16,
 		fields: &[
 			UniformField {
 				name: "u_transform",
-				ty: UniformType::Mat3x2 { order: MatrixLayout::RowMajor },
+				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(TexturedUniform.transform) as u16,
 				len: 1,
 			},

@@ -2,8 +2,7 @@
 Utility to load GIF files to texture.
 */
 
-use std::fs;
-use std::path;
+use std::{fs, path};
 
 use super::{AnimatedImage, TextureProps};
 

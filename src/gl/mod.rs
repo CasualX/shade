@@ -2,7 +2,7 @@
 OpenGL graphics backend.
 */
 
-use std::{mem, ops, slice};
+use std::{mem, ops, ptr, slice};
 
 /// Re-exported OpenGL bindings.
 pub use gl as capi;
@@ -77,7 +77,7 @@ struct GlActiveAttrib {
 }
 impl GlActiveAttrib {
 	fn name(&self) -> &str {
-		std::str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
+		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
 	}
 }
 
@@ -91,7 +91,7 @@ struct GlActiveUniform {
 }
 impl GlActiveUniform {
 	fn name(&self) -> &str {
-		std::str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
+		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
 	}
 }
 
@@ -401,7 +401,7 @@ impl crate::IGraphics for GlGraphics {
 			crate::SurfaceFormat::RGBA8 => gl::RGBA,
 		};
 		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
-		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, format as i32, info.width, info.height, 0, format, gl::UNSIGNED_BYTE, std::ptr::null::<GLvoid>()));
+		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, format as i32, info.width, info.height, 0, format, gl::UNSIGNED_BYTE, ptr::null::<GLvoid>()));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32));

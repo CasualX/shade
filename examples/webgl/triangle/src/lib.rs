@@ -122,7 +122,7 @@ impl Context {
 		// Draw the triangle
 		g.draw(&shade::DrawArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::c(0, 0, self.screen_size.x, self.screen_size.y),
+			viewport: cvmath::Bounds2::vec(self.screen_size),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,

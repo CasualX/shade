@@ -12,8 +12,8 @@ pub struct TextVertex {
 
 unsafe impl TVertex for TextVertex {
 	const LAYOUT: &'static crate::VertexLayout = &crate::VertexLayout {
-		size: std::mem::size_of::<TextVertex>() as u16,
-		alignment: std::mem::align_of::<TextVertex>() as u16,
+		size: mem::size_of::<TextVertex>() as u16,
+		alignment: mem::align_of::<TextVertex>() as u16,
 		attributes: &[
 			VertexAttribute {
 				name: "a_pos",
@@ -56,7 +56,7 @@ impl ToVertex<TextVertex> for TextTemplate {
 }
 
 /// Text uniform.
-#[derive(Copy, Clone, Debug, dataview::Pod)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct TextUniform {
 	pub transform: Transform2f,
@@ -86,12 +86,12 @@ impl Default for TextUniform {
 
 unsafe impl TUniform for TextUniform {
 	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: std::mem::size_of::<TextUniform>() as u16,
-		alignment: std::mem::align_of::<TextUniform>() as u16,
+		size: mem::size_of::<TextUniform>() as u16,
+		alignment: mem::align_of::<TextUniform>() as u16,
 		fields: &[
 			UniformField {
 				name: "u_transform",
-				ty: UniformType::Mat3x2 { order: MatrixLayout::RowMajor },
+				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
 				offset: dataview::offset_of!(TextUniform.transform) as u16,
 				len: 1,
 			},

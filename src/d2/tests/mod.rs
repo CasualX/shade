@@ -27,7 +27,7 @@ impl ToVertex<MockVertex> for () {
 	}
 }
 
-#[derive(Copy, Clone, Default, dataview::Pod)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 struct MockUniform {}
 
