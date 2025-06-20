@@ -60,29 +60,10 @@ impl Default for ColorUniform {
 	}
 }
 
-unsafe impl TUniform for ColorUniform {
-	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: mem::size_of::<ColorUniform>() as u16,
-		alignment: mem::align_of::<ColorUniform>() as u16,
-		fields: &[
-			UniformField {
-				name: "u_transform",
-				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(ColorUniform.transform) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_pattern",
-				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(ColorUniform.pattern) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_colormod",
-				ty: UniformType::F4,
-				offset: dataview::offset_of!(ColorUniform.colormod) as u16,
-				len: 1,
-			},
-		],
-	};
+impl UniformVisitor for ColorUniform {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_pattern", &self.pattern);
+		set.value("u_colormod", &self.colormod);
+	}
 }

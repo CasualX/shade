@@ -31,12 +31,8 @@ impl ToVertex<MockVertex> for () {
 #[repr(C)]
 struct MockUniform {}
 
-unsafe impl TUniform for MockUniform {
-	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: mem::size_of::<MockUniform>() as u16,
-		alignment: mem::align_of::<MockUniform>() as u16,
-		fields: &[],
-	};
+impl UniformVisitor for MockUniform {
+	fn visit(&self, _set: &mut dyn UniformSetter) {}
 }
 
 mod pen;

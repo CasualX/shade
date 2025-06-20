@@ -78,7 +78,7 @@ pub struct DrawArgs<'a> {
 	/// Vertex buffers.
 	pub vertices: &'a [DrawVertexBuffer],
 	/// Uniforms.
-	pub uniforms: &'a [UniformRef<'a>],
+	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
@@ -114,7 +114,7 @@ pub struct DrawIndexedArgs<'a> {
 	/// Indices.
 	pub indices: IndexBuffer,
 	/// Uniforms.
-	pub uniforms: &'a [UniformRef<'a>],
+	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.

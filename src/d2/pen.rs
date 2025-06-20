@@ -7,7 +7,7 @@ pub struct Pen<T> {
 	pub template: T,
 }
 
-impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
+impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 	/// Draws a line from `a` to `b`.
 	#[inline(never)]
 	pub fn draw_line<T: ToVertex<V>>(&mut self, pen: &Pen<T>, a: Point2f, b: Point2f) {

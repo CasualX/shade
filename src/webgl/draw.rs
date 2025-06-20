@@ -131,97 +131,126 @@ fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &
 	}
 }
 
-fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &WebGLProgram, textures: &WebGLTextures) {
-	for uniform_ref in uniforms {
-		for uattr in uniform_ref.layout.fields {
-			let data_ptr = unsafe { uniform_ref.data_ptr.offset(uattr.offset as isize) };
-			if let Some(u) = shader.get_uniform(uattr.name) {
-				// println!("Uniform: {} (index: {})", uattr.name, i);
-				let location = u.location;
-				match uattr.ty {
-					// crate::UniformType::D1 => unsafe { api::uniform1dv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::D2 => unsafe { api::uniform2dv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::D3 => unsafe { api::uniform3dv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::D4 => unsafe { api::uniform4dv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::F1 => unsafe { api::uniform1fv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::F2 => unsafe { api::uniform2fv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::F3 => unsafe { api::uniform3fv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::F4 => unsafe { api::uniform4fv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::I1 => unsafe { api::uniform1iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::I2 => unsafe { api::uniform2iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::I3 => unsafe { api::uniform3iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::I4 => unsafe { api::uniform4iv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::U1 => unsafe { api::uniform1uiv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::U2 => unsafe { api::uniform2uiv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::U3 => unsafe { api::uniform3uiv(location, uattr.len as i32, data_ptr as *const _) },
-					// crate::UniformType::U4 => unsafe { api::uniform4uiv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::B1 => unsafe { api::uniform1iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::B2 => unsafe { api::uniform2iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::B3 => unsafe { api::uniform3iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::B4 => unsafe { api::uniform4iv(location, uattr.len as i32, data_ptr as *const _) },
-					crate::UniformType::Mat2x2 { layout } => {
-						let transposed;
-						let data_ptr = match layout {
-							crate::MatrixLayout::ColumnMajor => data_ptr,
-							crate::MatrixLayout::RowMajor => {
-								let data = &unsafe { *(data_ptr as *const [f32; 4]) };
-								transposed = [
-									data[0], data[2], // first column
-									data[1], data[3], // second column
-								];
-								&transposed as *const _ as *const u8
-							}
-						};
-						unsafe { api::uniformMatrix2fv(location, uattr.len as i32, false, data_ptr as *const _) }
-					},
-					crate::UniformType::Mat3x3 { layout } => {
-						let transposed;
-						let data_ptr = match layout {
-							crate::MatrixLayout::ColumnMajor => data_ptr,
-							crate::MatrixLayout::RowMajor => {
-								let data = &unsafe { *(data_ptr as *const [f32; 9]) };
-								transposed = [
-									data[0], data[3], data[6],
-									data[1], data[4], data[7],
-									data[2], data[5], data[8],
-								];
-								&transposed as *const _ as *const u8
-							}
-						};
-						unsafe { api::uniformMatrix3fv(location, uattr.len as i32, false, data_ptr as *const _) }
-					},
-					crate::UniformType::Mat4x4 { layout } => {
-						let transposed;
-						let data_ptr = match layout {
-							crate::MatrixLayout::ColumnMajor => data_ptr,
-							crate::MatrixLayout::RowMajor => {
-								let data = &unsafe { *(data_ptr as *const [f32; 16]) };
-								transposed = [
-									data[0],  data[4],  data[8],  data[12],
-									data[1],  data[5],  data[9],  data[13],
-									data[2],  data[6],  data[10], data[14],
-									data[3],  data[7],  data[11], data[15],
-								];
-								&transposed as *const _ as *const u8
-							}
-						};
-						unsafe { api::uniformMatrix4fv(location, uattr.len as i32, false, data_ptr as *const _) }
-					},
-					crate::UniformType::Sampler2D => {
-						let ids = unsafe { slice::from_raw_parts(data_ptr as *const crate::Texture2D, uattr.len as usize) };
-						for &id in ids {
-							let texture = textures.get2d(id);
-							let texture_unit = u.texture_unit as i32 & 0x1f;
-							unsafe { api::uniform1iv(location, 1, &texture_unit) };
-							unsafe { api::activeTexture(api::TEXTURE0 + texture_unit as u32) };
-							unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
-						}
-					}
-					_ => unimplemented!("Uniform type not implemented: {:?}", uattr.ty),
-				}
+struct WebGLUniformSetter<'a> {
+	shader: &'a WebGLProgram,
+	textures: &'a WebGLTextures,
+}
+impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
+	fn d1v(&mut self, name: &str, _data: &[f64]) {
+		unimplemented!("WebGL does not support f64 uniforms: {name}");
+	}
+	fn d2v(&mut self, name: &str, _data: &[[f64; 2]]) {
+		unimplemented!("WebGL does not support f64 uniforms: {name}");
+	}
+	fn d3v(&mut self, name: &str, _data: &[[f64; 3]]) {
+		unimplemented!("WebGL does not support f64 uniforms: {name}");
+	}
+	fn d4v(&mut self, name: &str, _data: &[[f64; 4]]) {
+		unimplemented!("WebGL does not support f64 uniforms: {name}");
+	}
+	fn f1v(&mut self, name: &str, data: &[f32]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform1fv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn f2v(&mut self, name: &str, data: &[[f32; 2]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform2fv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn f3v(&mut self, name: &str, data: &[[f32; 3]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform3fv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn f4v(&mut self, name: &str, data: &[[f32; 4]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform4fv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn i1v(&mut self, name: &str, data: &[i32]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform1iv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn i2v(&mut self, name: &str, data: &[[i32; 2]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform2iv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn i3v(&mut self, name: &str, data: &[[i32; 3]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform3iv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn i4v(&mut self, name: &str, data: &[[i32; 4]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform4iv(u.location, data.len() as i32, data.as_ptr()) };
+		}
+	}
+	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			for (i, data) in data.iter().enumerate() {
+				let transposed = data.into_column_major();
+				unsafe { api::uniformMatrix2fv(u.location + i as i32, 1, false, &transposed) };
 			}
-			else {
-				// panic!("Uniform not found: {}", uattr.name);
+		}
+	}
+	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			for (i, data) in data.iter().enumerate() {
+				let transposed = data.into_column_major();
+				unsafe { api::uniformMatrix3fv(u.location + i as i32, 1, false, &transposed) };
+			}
+		}
+	}
+	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			for (i, data) in data.iter().enumerate() {
+				let transposed = data.into_column_major();
+				unsafe { api::uniformMatrix4fv(u.location + i as i32, 1, false, &transposed) };
+			}
+		}
+	}
+	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform3fv(u.location, data.len() as i32 * 2, data.as_ptr() as *const [f32; 3]) };
+		}
+	}
+	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			unsafe { api::uniform4fv(u.location, data.len() as i32 * 3, data.as_ptr() as *const [f32; 4]) };
+		}
+	}
+	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			const MAX_TEXTURES: usize = 32;
+
+			// Ensure we don't exceed the maximum number of texture units
+			let base_unit = u.texture_unit as i32;
+			assert!(base_unit as usize + textures.len() <= MAX_TEXTURES && textures.len() <= MAX_TEXTURES, "Too many textures! {name}");
+
+			// Initialize texture unit assignments
+			let mut units: [mem::MaybeUninit<i32>; MAX_TEXTURES] = [mem::MaybeUninit::uninit(); MAX_TEXTURES];
+			let units = &mut units[..textures.len()];
+
+			for (i, unit) in units.iter_mut().enumerate() {
+				*unit = mem::MaybeUninit::new(base_unit + i as i32);
+			}
+
+			let units = unsafe { slice::from_raw_parts(units.as_ptr() as *const i32, units.len()) };
+
+			// Upload all sampler indices in one call
+			unsafe { api::uniform1iv(u.location, units.len() as i32, units.as_ptr()) };
+
+			// Bind textures to texture units
+			for (i, &id) in textures.iter().enumerate() {
+				let texture = self.textures.get2d(id);
+				let texture_unit = (base_unit + i as i32) as GLenum;
+				unsafe {
+					api::activeTexture(api::TEXTURE0 + texture_unit);
+					api::bindTexture(api::TEXTURE_2D, texture.texture);
+				}
 			}
 		}
 	}
@@ -296,7 +325,11 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) -> Result<(), cr
 
 	unsafe { api::useProgram(shader.program) };
 	gl_attributes(shader, args.vertices, &this.vbuffers);
-	gl_uniforms(args.uniforms, shader, &this.textures);
+
+	let ref mut set = WebGLUniformSetter { shader, textures: &this.textures };
+	for uniforms in args.uniforms {
+		uniforms.visit(set);
+	}
 
 	let mode = match args.prim_type {
 		crate::PrimType::Lines => api::LINES,
@@ -340,7 +373,11 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Resul
 	unsafe { api::useProgram(shader.program) };
 	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, ib.buffer) };
 	gl_attributes(shader, args.vertices, &this.vbuffers);
-	gl_uniforms(args.uniforms, shader, &this.textures);
+
+	let ref mut set = WebGLUniformSetter { shader, textures: &this.textures };
+	for uniforms in args.uniforms {
+		uniforms.visit(set);
+	}
 
 	let mode = match args.prim_type {
 		crate::PrimType::Lines => api::LINES,

@@ -29,7 +29,7 @@ pub struct CommandBuffer<V, U> {
 	pub cull_mode: Option<CullMode>,
 }
 
-impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
+impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 	/// Creates a new command buffer.
 	pub fn new() -> Self {
 		CommandBuffer {
@@ -67,7 +67,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 		let indices = g.index_buffer(None, &self.indices, BufferUsage::Static)?;
 
 		for cmd in &self.commands {
-			let uniforms = &[UniformRef::from(&self.uniforms[cmd.uniform_index as usize])];
+			let uniforms = &self.uniforms[cmd.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
 				surface,
 				viewport: self.viewport,
@@ -83,7 +83,7 @@ impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
 					divisor: VertexDivisor::PerVertex,
 				}],
 				indices,
-				uniforms,
+				uniforms: &[uniforms],
 				vertex_start: cmd.vertex_start,
 				vertex_end: cmd.vertex_end,
 				index_start: cmd.index_start,

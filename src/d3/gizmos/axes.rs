@@ -24,14 +24,10 @@ pub struct Uniform {
 	pub transform: Mat4f,
 }
 
-unsafe impl TUniform for Uniform {
-	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: mem::size_of::<Uniform>() as u16,
-		alignment: mem::align_of::<Uniform>() as u16,
-		fields: &[
-			UniformField { name: "u_transform", ty: UniformType::Mat4x4 { layout: MatrixLayout::RowMajor }, offset: dataview::offset_of!(Uniform.transform) as u16, len: 1 },
-		],
-	};
+impl UniformVisitor for Uniform {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_transform", &self.transform);
+	}
 }
 
 pub struct Axes {

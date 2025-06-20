@@ -68,21 +68,11 @@ impl Default for MyUniform3 {
 	}
 }
 
-unsafe impl shade::TUniform for MyUniform3 {
-	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: mem::size_of::<MyUniform3>() as u16,
-		alignment: mem::align_of::<MyUniform3>() as u16,
-		fields: &[
-			shade::UniformField {
-				name: "transform",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(MyUniform3.transform) as u16,
-				len: 1,
-			},
-		],
-	};
+impl shade::UniformVisitor for MyUniform3 {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("transform", &self.transform);
+	}
 }
-
 
 //----------------------------------------------------------------
 
@@ -220,7 +210,7 @@ fn main() {
 				buffer: vb,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[shade::UniformRef::from(&uniforms)],
+			uniforms: &[&uniforms],
 			vertex_start: 0,
 			vertex_end: vb_len,
 			instances: -1,

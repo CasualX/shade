@@ -127,61 +127,17 @@ impl Default for Uniform {
 	}
 }
 
-unsafe impl shade::TUniform for Uniform {
-	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: mem::size_of::<Uniform>() as u16,
-		alignment: mem::align_of::<Uniform>() as u16,
-		fields: &[
-			shade::UniformField {
-				name: "model",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.model) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "view",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.view) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "projection",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.projection) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "normalMatrix",
-				ty: shade::UniformType::Mat3x3 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.normal_matrix) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "lightPos",
-				ty: shade::UniformType::F3,
-				offset: dataview::offset_of!(Uniform.light_pos) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "viewPos",
-				ty: shade::UniformType::F3,
-				offset: dataview::offset_of!(Uniform.view_pos) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "cameraPos",
-				ty: shade::UniformType::F3,
-				offset: dataview::offset_of!(Uniform.camera_pos) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "baseColorTexture",
-				ty: shade::UniformType::Sampler2D,
-				offset: dataview::offset_of!(Uniform.texture) as u16,
-				len: 1,
-			},
-		],
-	};
+impl shade::UniformVisitor for Uniform {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("model", &self.model);
+		set.value("view", &self.view);
+		set.value("projection", &self.projection);
+		set.value("normalMatrix", &self.normal_matrix);
+		set.value("lightPos", &self.light_pos);
+		set.value("viewPos", &self.view_pos);
+		set.value("cameraPos", &self.camera_pos);
+		set.value("baseColorTexture", &self.texture);
+	}
 }
 
 //----------------------------------------------------------------
@@ -304,7 +260,7 @@ impl Context {
 				buffer: self.model_vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[shade::UniformRef::from(&uniforms)],
+			uniforms: &[&uniforms],
 			vertex_start: 0,
 			vertex_end: self.model_vertices_len,
 			instances: -1,

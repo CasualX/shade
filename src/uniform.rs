@@ -1,75 +1,183 @@
-use std::ptr;
+use std::slice;
 
-/// Defines a type containing uniform data.
-pub unsafe trait TUniform: Copy + Default {
-	const LAYOUT: &'static UniformLayout;
+use crate::Texture2D;
+
+// /// Matrix layout.
+// #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+// pub enum MatrixLayout {
+// 	ColumnMajor,
+// 	RowMajor,
+// }
+
+pub trait TUniformValue {
+	fn set(&self, name: &str, set: &mut dyn UniformSetter);
 }
 
-static DUMMY_UNIFORM_LAYOUT: UniformLayout = UniformLayout {
-	size: 0,
-	alignment: 1,
-	fields: &[],
-};
-
-/// Uniform reference.
-///
-/// This is a non-generic reference to uniform data.
-#[derive(Copy, Clone)]
-pub struct UniformRef<'a> {
-	pub(crate) data_ptr: *const u8,
-	pub(crate) layout: &'a UniformLayout,
+pub trait UniformSetter {
+	fn d1v(&mut self, name: &str, data: &[f64]);
+	fn d2v(&mut self, name: &str, data: &[[f64; 2]]);
+	fn d3v(&mut self, name: &str, data: &[[f64; 3]]);
+	fn d4v(&mut self, name: &str, data: &[[f64; 4]]);
+	fn f1v(&mut self, name: &str, data: &[f32]);
+	fn f2v(&mut self, name: &str, data: &[[f32; 2]]);
+	fn f3v(&mut self, name: &str, data: &[[f32; 3]]);
+	fn f4v(&mut self, name: &str, data: &[[f32; 4]]);
+	fn i1v(&mut self, name: &str, data: &[i32]);
+	fn i2v(&mut self, name: &str, data: &[[i32; 2]]);
+	fn i3v(&mut self, name: &str, data: &[[i32; 3]]);
+	fn i4v(&mut self, name: &str, data: &[[i32; 4]]);
+	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]);
+	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]);
+	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]);
+	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]);
+	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]);
+	fn sampler2d(&mut self, name: &str, texture: &[Texture2D]);
 }
-impl<'a> Default for UniformRef<'a> {
+
+impl<'a> dyn UniformSetter + 'a {
 	#[inline]
-	fn default() -> Self {
-		UniformRef {
-			data_ptr: ptr::null(),
-			layout: &DUMMY_UNIFORM_LAYOUT,
+	pub fn value<T: TUniformValue + ?Sized>(&mut self, name: &str, value: &T) {
+		value.set(name, self)
+	}
+}
+
+pub trait UniformVisitor {
+	fn visit(&self, f: &mut dyn UniformSetter);
+}
+
+macro_rules! impl_uniform_value {
+	($ty:ty, $set1_fn:ident, $set2_fn:ident, $set3_fn:ident, $set4_fn:ident) => {
+		impl TUniformValue for $ty {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set1_fn(name, slice::from_ref(self));
+			}
+		}
+		impl TUniformValue for [$ty; 2] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set2_fn(name, slice::from_ref(self));
+			}
+		}
+		impl TUniformValue for [$ty; 3] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set3_fn(name, slice::from_ref(self));
+			}
+		}
+		impl TUniformValue for [$ty; 4] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set4_fn(name, slice::from_ref(self));
+			}
+		}
+		impl TUniformValue for [$ty] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set1_fn(name, self);
+			}
+		}
+		impl TUniformValue for [[$ty; 2]] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set2_fn(name, self);
+			}
+		}
+		impl TUniformValue for [[$ty; 3]] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set3_fn(name, self);
+			}
+		}
+		impl TUniformValue for [[$ty; 4]] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set4_fn(name, self);
+			}
+		}
+		impl TUniformValue for cvmath::Vec2<$ty> {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set2_fn(name, slice::from_ref(self.as_ref()));
+			}
+		}
+		impl TUniformValue for cvmath::Vec3<$ty> {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set3_fn(name, slice::from_ref(self.as_ref()));
+			}
+		}
+		impl TUniformValue for cvmath::Vec4<$ty> {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set4_fn(name, slice::from_ref(self.as_ref()));
+			}
+		}
+		impl TUniformValue for cvmath::Bounds2<$ty> {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				let data: &[[$ty; 2]] = unsafe { slice::from_raw_parts(&*(self as *const _ as *const [$ty; 2]), 2) };
+				set.$set2_fn(name, data);
+			}
+		}
+	};
+}
+
+impl_uniform_value!(f64, d1v, d2v, d3v, d4v);
+impl_uniform_value!(f32, f1v, f2v, f3v, f4v);
+impl_uniform_value!(i32, i1v, i2v, i3v, i4v);
+// impl_uniform_value!(bool, v1b, v2b, v3b, v4b);
+
+impl TUniformValue for crate::Texture2D {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, slice::from_ref(self));
+	}
+}
+impl TUniformValue for [crate::Texture2D] {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, self);
+	}
+}
+
+macro_rules! impl_uniform_matrix {
+	($ty:ty, $layout:expr, $set_fn:ident) => {
+		impl TUniformValue for $ty {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set_fn(name, slice::from_ref(self));
+			}
+		}
+		impl TUniformValue for [$ty] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set_fn(name, self);
+			}
 		}
 	}
 }
-impl<'a, T: TUniform> From<&'a T> for UniformRef<'a> {
-	#[inline]
-	fn from(data: &'a T) -> Self {
-		UniformRef {
-			data_ptr: data as *const T as *const u8,
-			layout: T::LAYOUT,
+
+impl_uniform_matrix!(cvmath::Mat2f, MatrixLayout::RowMajor, mat2);
+impl_uniform_matrix!(cvmath::Mat3f, MatrixLayout::RowMajor, mat3);
+impl_uniform_matrix!(cvmath::Mat4f, MatrixLayout::RowMajor, mat4);
+
+macro_rules! impl_transform_matrix {
+	($ty:ty, $set_fn:ident) => {
+		impl TUniformValue for $ty {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set_fn(name, slice::from_ref(self));
+			}
 		}
-	}
+		impl TUniformValue for [$ty] {
+			#[inline]
+			fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+				set.$set_fn(name, self);
+			}
+		}
+	};
 }
 
-/// Matrix layout.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum MatrixLayout {
-	ColumnMajor,
-	RowMajor,
-}
-
-/// Uniform data type.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum UniformType {
-	D1, D2, D3, D4,
-	F1, F2, F3, F4,
-	I1, I2, I3, I4,
-	U1, U2, U3, U4,
-	B1, B2, B3, B4,
-	Mat2x2 { layout: MatrixLayout }, Mat2x3 { layout: MatrixLayout }, Mat2x4 { layout: MatrixLayout },
-	Mat3x2 { layout: MatrixLayout }, Mat3x3 { layout: MatrixLayout }, Mat3x4 { layout: MatrixLayout },
-	Mat4x2 { layout: MatrixLayout }, Mat4x3 { layout: MatrixLayout }, Mat4x4 { layout: MatrixLayout },
-	Sampler2D,
-}
-
-/// Uniform field.
-pub struct UniformField {
-	pub name: &'static str,
-	pub ty: UniformType,
-	pub offset: u16,
-	pub len: u16,
-}
-
-/// Uniform layout.
-pub struct UniformLayout {
-	pub size: u16,
-	pub alignment: u16,
-	pub fields: &'static [UniformField],
-}
+impl_transform_matrix!(cvmath::Transform2f, transform2);
+impl_transform_matrix!(cvmath::Transform3f, transform3);

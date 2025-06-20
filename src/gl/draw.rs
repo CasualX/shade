@@ -154,66 +154,123 @@ fn gl_attributes(shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &Reso
 	}
 }
 
-fn gl_transpose(layout: crate::MatrixLayout) -> GLboolean {
-	match layout {
-		crate::MatrixLayout::ColumnMajor => gl::FALSE,
-		crate::MatrixLayout::RowMajor => gl::TRUE,
-	}
+struct GlUniformSetter<'a> {
+	shader: &'a GlShader,
+	textures: &'a GlTextures,
 }
+impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
+	fn d1v(&mut self, name: &str, data: &[f64]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform1dv(u.location, data.len() as i32, data.as_ptr()));
+		}
+	}
+	fn d2v(&mut self, name: &str, data: &[[f64; 2]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform2dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
+		}
+	}
+	fn d3v(&mut self, name: &str, data: &[[f64; 3]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform3dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
+		}
+	}
+	fn d4v(&mut self, name: &str, data: &[[f64; 4]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform4dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
+		}
+	}
+	fn f1v(&mut self, name: &str, data: &[f32]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform1fv(u.location, data.len() as i32, data.as_ptr()));
+		}
+	}
+	fn f2v(&mut self, name: &str, data: &[[f32; 2]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
+		}
+	}
+	fn f3v(&mut self, name: &str, data: &[[f32; 3]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
+		}
+	}
+	fn f4v(&mut self, name: &str, data: &[[f32; 4]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
+		}
+	}
+	fn i1v(&mut self, name: &str, data: &[i32]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform1iv(u.location, data.len() as i32, data.as_ptr()));
+		}
+	}
+	fn i2v(&mut self, name: &str, data: &[[i32; 2]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
+		}
+	}
+	fn i3v(&mut self, name: &str, data: &[[i32; 3]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
+		}
+	}
+	fn i4v(&mut self, name: &str, data: &[[i32; 4]]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::Uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
+		}
+	}
+	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::UniformMatrix2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+		}
+	}
+	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::UniformMatrix3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+		}
+	}
+	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::UniformMatrix4fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+		}
+	}
+	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::UniformMatrix3x2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+		}
+	}
+	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			gl_check!(gl::UniformMatrix4x3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+		}
+	}
+	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
+		if let Some(u) = self.shader.get_uniform(name) {
+			const MAX_TEXTURES: usize = 32;
 
-fn gl_uniforms(uniforms: &[crate::UniformRef], shader: &GlShader, textures: &GlTextures) {
-	gl_check!(gl::UseProgram(shader.program));
+			// Ensure we don't exceed the maximum number of texture units
+			let base_unit = u.texture_unit as i32;
+			assert!(base_unit as usize + textures.len() <= MAX_TEXTURES && textures.len() <= MAX_TEXTURES, "Too many textures! {name}");
 
-	for uniform_ref in uniforms {
-		for uattr in uniform_ref.layout.fields {
-			let data_ptr = unsafe { uniform_ref.data_ptr.offset(uattr.offset as isize) };
-			if let Some(u) = shader.get_uniform(uattr.name) {
-				// println!("Uniform: {} (index: {})", uattr.name, i);
-				let location = u.location;
-				match uattr.ty {
-					crate::UniformType::D1 => gl_check!(gl::Uniform1dv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::D2 => gl_check!(gl::Uniform2dv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::D3 => gl_check!(gl::Uniform3dv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::D4 => gl_check!(gl::Uniform4dv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::F1 => gl_check!(gl::Uniform1fv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::F2 => gl_check!(gl::Uniform2fv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::F3 => gl_check!(gl::Uniform3fv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::F4 => gl_check!(gl::Uniform4fv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::I1 => gl_check!(gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::I2 => gl_check!(gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::I3 => gl_check!(gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::I4 => gl_check!(gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::U1 => gl_check!(gl::Uniform1uiv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::U2 => gl_check!(gl::Uniform2uiv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::U3 => gl_check!(gl::Uniform3uiv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::U4 => gl_check!(gl::Uniform4uiv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::B1 => gl_check!(gl::Uniform1iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::B2 => gl_check!(gl::Uniform2iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::B3 => gl_check!(gl::Uniform3iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::B4 => gl_check!(gl::Uniform4iv(location, uattr.len as i32, data_ptr as *const _)),
-					crate::UniformType::Mat2x2 { layout } => gl_check!(gl::UniformMatrix2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat2x3 { layout } => gl_check!(gl::UniformMatrix2x3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat2x4 { layout } => gl_check!(gl::UniformMatrix2x4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat3x2 { layout } => gl_check!(gl::UniformMatrix3x2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat3x3 { layout } => gl_check!(gl::UniformMatrix3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat3x4 { layout } => gl_check!(gl::UniformMatrix3x4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat4x2 { layout } => gl_check!(gl::UniformMatrix4x2fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat4x3 { layout } => gl_check!(gl::UniformMatrix4x3fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Mat4x4 { layout } => gl_check!(gl::UniformMatrix4fv(location, uattr.len as i32, gl_transpose(layout), data_ptr as *const _)),
-					crate::UniformType::Sampler2D => {
-						let ids = unsafe { slice::from_raw_parts(data_ptr as *const crate::Texture2D, uattr.len as usize) };
-						for &id in ids {
-							let texture = textures.get2d(id);
-							let texture_unit = u.texture_unit & 0x1F; // Ensure it's in the range 0-31
-							gl_check!(gl::Uniform1i(location, texture_unit as i32));
-							gl_check!(gl::ActiveTexture(gl::TEXTURE0 + texture_unit as u32));
-							gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-						}
-					}
-				}
+			// Initialize texture unit assignments
+			let mut units: [mem::MaybeUninit<i32>; MAX_TEXTURES] = [mem::MaybeUninit::uninit(); MAX_TEXTURES];
+			let units = &mut units[..textures.len()];
+
+			for (i, unit) in units.iter_mut().enumerate() {
+				*unit = mem::MaybeUninit::new(base_unit + i as i32);
 			}
-			else {
-				// panic!("Uniform not found: {}", uattr.name);
+
+			let units = unsafe { slice::from_raw_parts(units.as_ptr() as *const i32, units.len()) };
+
+			// Upload all sampler indices at once to the uniform array
+			gl_check!(gl::Uniform1iv(u.location, units.len() as i32, units.as_ptr()));
+
+			// Bind textures to texture units
+			for (i, &id) in textures.iter().enumerate() {
+				let texture = self.textures.get2d(id);
+				let texture_unit = (base_unit + i as i32) as u32;
+				gl_check!(gl::ActiveTexture(gl::TEXTURE0 + texture_unit));
+				gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 			}
 		}
 	}
@@ -283,7 +340,11 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) -> Result<(), crate
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
 	gl_attributes(shader, args.vertices, &this.vbuffers);
-	gl_uniforms(args.uniforms, shader, &this.textures);
+
+	let ref mut set = GlUniformSetter { shader, textures: &this.textures };
+	for uniforms in args.uniforms {
+		uniforms.visit(set);
+	}
 
 	let mode = match args.prim_type {
 		crate::PrimType::Lines => gl::LINES,
@@ -331,7 +392,11 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) -> Result<(
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
 	gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
 	gl_attributes(shader, args.vertices, &this.vbuffers);
-	gl_uniforms(args.uniforms, shader, &this.textures);
+
+	let ref mut set = GlUniformSetter { shader, textures: &this.textures };
+	for uniforms in args.uniforms {
+		uniforms.visit(set);
+	}
 
 	let mode = match args.prim_type {
 		crate::PrimType::Lines => gl::LINES,

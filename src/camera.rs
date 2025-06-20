@@ -3,6 +3,7 @@
 */
 
 use cvmath::*;
+use super::*;
 
 mod arcballv2;
 pub use self::arcballv2::ArcballCamera;
@@ -64,5 +65,19 @@ impl CameraSetup {
 		// Create a ray from near to far
 		let direction = (far - near).normalize();
 		Ray { origin: near, direction }
+	}
+}
+
+impl UniformVisitor for CameraSetup {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_viewport", &self.viewport);
+		set.value("u_aspect_ratio", &self.aspect_ratio);
+		set.value("u_position", &self.position);
+		set.value("u_near", &self.near);
+		set.value("u_far", &self.far);
+		set.value("u_view", &self.view);
+		set.value("u_projection", &self.projection);
+		set.value("u_view_proj", &self.view_proj);
+		set.value("u_inv_view_proj", &self.inv_view_proj);
 	}
 }

@@ -89,49 +89,15 @@ struct Uniform {
 	waveshadow: cvmath::Vec3f,
 }
 
-unsafe impl shade::TUniform for Uniform {
-	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: mem::size_of::<Uniform>() as u16,
-		alignment: mem::align_of::<Uniform>() as u16,
-		fields: &[
-			shade::UniformField {
-				name: "u_time",
-				offset: dataview::offset_of!(Uniform.time) as u16,
-				ty: shade::UniformType::F1,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "u_texture",
-				offset: dataview::offset_of!(Uniform.texture) as u16,
-				ty: shade::UniformType::Sampler2D,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "u_displacement",
-				offset: dataview::offset_of!(Uniform.distortion) as u16,
-				ty: shade::UniformType::Sampler2D,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "u_waterbase",
-				offset: dataview::offset_of!(Uniform.waterbase) as u16,
-				ty: shade::UniformType::F3,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "u_wavehighlight",
-				offset: dataview::offset_of!(Uniform.wavehighlight) as u16,
-				ty: shade::UniformType::F3,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "u_waveshadow",
-				offset: dataview::offset_of!(Uniform.waveshadow) as u16,
-				ty: shade::UniformType::F3,
-				len: 1,
-			},
-		],
-	};
+impl shade::UniformVisitor for Uniform {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_time", &self.time);
+		set.value("u_texture", &self.texture);
+		set.value("u_displacement", &self.distortion);
+		set.value("u_waterbase", &self.waterbase);
+		set.value("u_wavehighlight", &self.wavehighlight);
+		set.value("u_waveshadow", &self.waveshadow);
+	}
 }
 
 //----------------------------------------------------------------
@@ -232,7 +198,7 @@ impl Context {
 			indices: self.ib,
 			index_start: 0,
 			index_end: 6,
-			uniforms: &[shade::UniformRef::from(&uniform)],
+			uniforms: &[&uniform],
 			vertex_start: 0,
 			vertex_end: 4,
 			instances: -1,

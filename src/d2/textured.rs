@@ -67,29 +67,10 @@ impl Default for TexturedUniform {
 	}
 }
 
-unsafe impl TUniform for TexturedUniform {
-	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: mem::size_of::<TexturedUniform>() as u16,
-		alignment: mem::align_of::<TexturedUniform>() as u16,
-		fields: &[
-			UniformField {
-				name: "u_transform",
-				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(TexturedUniform.transform) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_texture",
-				ty: UniformType::Sampler2D,
-				offset: dataview::offset_of!(TexturedUniform.texture) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_colormod",
-				ty: UniformType::F4,
-				offset: dataview::offset_of!(TexturedUniform.colormod) as u16,
-				len: 1,
-			},
-		],
-	};
+impl UniformVisitor for TexturedUniform {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_texture", &self.texture);
+		set.value("u_colormod", &self.colormod);
+	}
 }

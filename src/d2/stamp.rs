@@ -13,7 +13,7 @@ pub struct Stamp<T> {
 	pub bottom_right: T,
 }
 
-impl<V: TVertex, U: TUniform> CommandBuffer<V, U> {
+impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 	#[inline(never)]
 	pub fn stamp_rect<T: ToVertex<V>>(&mut self, stamp: &Stamp<T>, rc: &Bounds2<f32>) {
 		let vertices = [

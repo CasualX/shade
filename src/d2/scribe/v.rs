@@ -84,59 +84,15 @@ impl Default for TextUniform {
 	}
 }
 
-unsafe impl TUniform for TextUniform {
-	const LAYOUT: &'static UniformLayout = &UniformLayout {
-		size: mem::size_of::<TextUniform>() as u16,
-		alignment: mem::align_of::<TextUniform>() as u16,
-		fields: &[
-			UniformField {
-				name: "u_transform",
-				ty: UniformType::Mat3x2 { layout: MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(TextUniform.transform) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_texture",
-				ty: UniformType::Sampler2D,
-				offset: dataview::offset_of!(TextUniform.texture) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_unit_range",
-				ty: UniformType::F2,
-				offset: dataview::offset_of!(TextUniform.unit_range) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_threshold",
-				ty: UniformType::F1,
-				offset: dataview::offset_of!(TextUniform.threshold) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_out_bias",
-				ty: UniformType::F1,
-				offset: dataview::offset_of!(TextUniform.out_bias) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_outline_width_absolute",
-				ty: UniformType::F1,
-				offset: dataview::offset_of!(TextUniform.outline_width_absolute) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_outline_width_relative",
-				ty: UniformType::F1,
-				offset: dataview::offset_of!(TextUniform.outline_width_relative) as u16,
-				len: 1,
-			},
-			UniformField {
-				name: "u_gamma",
-				ty: UniformType::F1,
-				offset: dataview::offset_of!(TextUniform.gamma) as u16,
-				len: 1,
-			},
-		],
-	};
+impl UniformVisitor for TextUniform {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_texture", &self.texture);
+		set.value("u_unit_range", &self.unit_range);
+		set.value("u_threshold", &self.threshold);
+		set.value("u_out_bias", &self.out_bias);
+		set.value("u_outline_width_absolute", &self.outline_width_absolute);
+		set.value("u_outline_width_relative", &self.outline_width_relative);
+		set.value("u_gamma", &self.gamma);
+	}
 }

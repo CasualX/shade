@@ -119,49 +119,15 @@ impl Default for Uniform {
 	}
 }
 
-unsafe impl shade::TUniform for Uniform {
-	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: mem::size_of::<Uniform>() as u16,
-		alignment: mem::align_of::<Uniform>() as u16,
-		fields: &[
-			shade::UniformField {
-				name: "model",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.model) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "view",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.view) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "projection",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.projection) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "lightPos",
-				ty: shade::UniformType::F3,
-				offset: dataview::offset_of!(Uniform.light_pos) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "cameraPos",
-				ty: shade::UniformType::F3,
-				offset: dataview::offset_of!(Uniform.camera_pos) as u16,
-				len: 1,
-			},
-			shade::UniformField {
-				name: "baseColorTexture",
-				ty: shade::UniformType::Sampler2D,
-				offset: dataview::offset_of!(Uniform.texture) as u16,
-				len: 1,
-			},
-		],
-	};
+impl shade::UniformVisitor for Uniform {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("model", &self.model);
+		set.value("view", &self.view);
+		set.value("projection", &self.projection);
+		set.value("lightPos", &self.light_pos);
+		set.value("cameraPos", &self.camera_pos);
+		set.value("baseColorTexture", &self.texture);
+	}
 }
 
 //----------------------------------------------------------------
@@ -225,7 +191,7 @@ impl State {
 				buffer: self.model_vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[shade::UniformRef::from(&uniforms)],
+			uniforms: &[&uniforms],
 			vertex_start: 0,
 			vertex_end: self.model_vertices_len,
 			instances: -1,
@@ -245,7 +211,7 @@ impl State {
 				buffer: self.gizmo.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[shade::UniformRef::from(&shade::d3::gizmos::axes::Uniform { transform: gizmo_transform })],
+			uniforms: &[&shade::d3::gizmos::axes::Uniform { transform: gizmo_transform }],
 			indices: self.gizmo.indices,
 			index_start: 0,
 			vertex_start: 0,

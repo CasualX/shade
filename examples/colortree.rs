@@ -67,21 +67,11 @@ impl Default for Uniform {
 	}
 }
 
-unsafe impl shade::TUniform for Uniform {
-	const LAYOUT: &'static shade::UniformLayout = &shade::UniformLayout {
-		size: mem::size_of::<Uniform>() as u16,
-		alignment: mem::align_of::<Uniform>() as u16,
-		fields: &[
-			shade::UniformField {
-				name: "transform",
-				ty: shade::UniformType::Mat4x4 { layout: shade::MatrixLayout::RowMajor },
-				offset: dataview::offset_of!(Uniform.transform) as u16,
-				len: 1,
-			},
-		],
-	};
+impl shade::UniformVisitor for Uniform {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("transform", &self.transform);
+	}
 }
-
 
 //----------------------------------------------------------------
 
@@ -130,7 +120,7 @@ impl State {
 				buffer: self.model_vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[shade::UniformRef::from(&uniforms)],
+			uniforms: &[&uniforms],
 			vertex_start: 0,
 			vertex_end: self.model_vertices_len,
 			instances: -1,
