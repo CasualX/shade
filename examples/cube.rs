@@ -213,8 +213,8 @@ fn main() {
 		model = model * cvmath::Mat4::rotate(cvmath::Deg(1.0), cvmath::Vec3(0.8, 0.6, 0.1));
 
 		// Update the transformation matrices
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 100.0, (cvmath::RH, cvmath::NO));
-		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 0.0, 4.0), cvmath::Vec3::ZERO, cvmath::Vec3(0.0, 1.0, 0.0), cvmath::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 100.0, (cvmath::Hand::RH, cvmath::Clip::NO));
+		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 0.0, 4.0), cvmath::Vec3::ZERO, cvmath::Vec3(0.0, 1.0, 0.0), cvmath::Hand::RH);
 		let transform = projection * view * model;
 
 		// Update the uniform buffer with the new transformation matrix

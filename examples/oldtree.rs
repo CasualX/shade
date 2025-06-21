@@ -158,8 +158,8 @@ impl State {
 
 		// Update the transformation matrices
 		let model = cvmath::Mat4::IDENTITY;
-		let view = self.camera.view_matrix(cvmath::RH);
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
+		let view = self.camera.view_matrix(cvmath::Hand::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::Hand::RH, cvmath::Clip::NO));
 		// let transform = projection * view * model;
 		let camera_pos = self.camera.position();
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
@@ -319,7 +319,7 @@ fn main() {
 					let dy = position.y as f32 - cursor_position.y as f32;
 					if left_click {
 						auto_rotate = false;
-						state.camera.rotate(-dx, dy);
+						state.camera.rotate(dx, dy);
 					}
 					if right_click {
 						auto_rotate = false;
