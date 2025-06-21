@@ -49,8 +49,7 @@ impl ToVertex<TexturedVertex> for TexturedTemplate {
 }
 
 /// Textured uniform.
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 pub struct TexturedUniform {
 	pub transform: Transform2f,
 	pub texture: Texture2D,

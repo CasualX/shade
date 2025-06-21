@@ -99,8 +99,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct Uniform {
 	model: cvmath::Mat4f,
 	view: cvmath::Mat4f,
@@ -110,21 +109,6 @@ struct Uniform {
 	view_pos: cvmath::Vec3f,
 	camera_pos: cvmath::Vec3f,
 	texture: shade::Texture2D,
-}
-
-impl Default for Uniform {
-	fn default() -> Self {
-		Uniform {
-			model: cvmath::Mat4::IDENTITY,
-			view: cvmath::Mat4::IDENTITY,
-			projection: cvmath::Mat4::IDENTITY,
-			normal_matrix: cvmath::Mat3::IDENTITY,
-			light_pos: cvmath::Vec3::ZERO,
-			view_pos: cvmath::Vec3::ZERO,
-			camera_pos: cvmath::Vec3::ZERO,
-			texture: shade::Texture2D::INVALID,
-		}
-	}
 }
 
 impl shade::UniformVisitor for Uniform {
@@ -227,8 +211,8 @@ impl Context {
 
 		// Update the transformation matrices
 		let model = cvmath::Mat4::IDENTITY;
-		let view = self.camera.view_matrix(cvmath::RH);
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
+		let view = self.camera.view_matrix(cvmath::Hand::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::Hand::RH, cvmath::Clip::NO));
 		// let transform = projection * view * model;
 		let camera_pos = self.camera.position();
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
@@ -245,7 +229,7 @@ impl Context {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
-			cull_mode: Some(shade::CullMode::CCW),
+			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask {
 				red: true,
 				green: true,

@@ -28,8 +28,7 @@ unsafe impl TVertex for ColorVertex {
 }
 
 /// Color template.
-#[derive(Copy, Clone, Debug, Default, dataview::Pod)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct ColorTemplate {
 	pub color: Vec4<u8>,
 }
@@ -42,22 +41,11 @@ impl ToVertex<ColorVertex> for ColorTemplate {
 }
 
 /// Color uniform.
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 pub struct ColorUniform {
 	pub transform: Transform2f,
 	pub pattern: Transform2f,
 	pub colormod: Vec4f,
-}
-
-impl Default for ColorUniform {
-	fn default() -> Self {
-		ColorUniform {
-			transform: Transform2f::IDENTITY,
-			pattern: Transform2f::IDENTITY,
-			colormod: Vec4::dup(1.0f32),
-		}
-	}
 }
 
 impl UniformVisitor for ColorUniform {

@@ -78,8 +78,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, Default, Debug)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct Uniform {
 	time: f32,
 	texture: shade::Texture2D,
@@ -155,10 +154,10 @@ fn main() {
 		event_loop.run_return(|event, _, control_flow| {
 			*control_flow = winit::event_loop::ControlFlow::Wait;
 
-			if let winit::event::Event::WindowEvent { event, .. } = &event {
-				// Print only Window events to reduce noise
-				println!("{:?}", event);
-			}
+			// // Print only Window events to reduce noise
+			// if let winit::event::Event::WindowEvent { event, .. } = &event {
+			// 	println!("{:?}", event);
+			// }
 
 			match event {
 				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {

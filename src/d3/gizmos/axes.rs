@@ -18,7 +18,7 @@ unsafe impl TVertex for Vertex {
 	};
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[repr(C)]
 pub struct Uniform {
 	pub transform: Mat4f,
@@ -49,39 +49,43 @@ impl Axes {
 	}
 }
 
+const RED: [u8; 4] = [255, 0, 0, 255];
+const GREEN: [u8; 4] = [0, 255, 0, 255];
+const BLUE: [u8; 4] = [0, 64, 255, 255];
+
 static VERTICES: [Vertex; 27] = [
-	// X axis
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: [255, 0, 0, 255] }, // 0
-	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: [255, 0, 0, 255] }, // 1
-	Vertex { position: Vec3f::new(0.9, 0.05, 0.0), color: [255, 0, 0, 255] }, // 2
-	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: [255, 0, 0, 255] }, // 3
-	Vertex { position: Vec3f::new(0.9, -0.05, 0.0), color: [255, 0, 0, 255] }, // 4
-	Vertex { position: Vec3f::new(1.1, 0.04, 0.04), color: [255, 0, 0, 255] }, // 5
-	Vertex { position: Vec3f::new(1.1, -0.04, -0.04), color: [255, 0, 0, 255] }, // 6
-	Vertex { position: Vec3f::new(1.1, 0.04, -0.04), color: [255, 0, 0, 255] }, // 7
-	Vertex { position: Vec3f::new(1.1, -0.04, 0.04), color: [255, 0, 0, 255] }, // 8
+	// X axis [0]
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(0.9, 0.05, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(0.9, -0.05, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.1, 0.04, 0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, -0.04, -0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, 0.04, -0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, -0.04, 0.04), color: RED },
 
-	// Y axis
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: [0, 255, 0, 255] }, // 9
-	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: [0, 255, 0, 255] }, // 10
-	Vertex { position: Vec3f::new(0.05, 0.9, 0.0), color: [0, 255, 0, 255] }, // 11
-	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: [0, 255, 0, 255] }, // 12
-	Vertex { position: Vec3f::new(-0.05, 0.9, 0.0), color: [0, 255, 0, 255] }, // 13
-	Vertex { position: Vec3f::new(0.03, 1.1, 0.04), color: [0, 255, 0, 255] }, // 14
-	Vertex { position: Vec3f::new(0.0, 1.1, 0.0), color: [0, 255, 0, 255] }, // 15
-	Vertex { position: Vec3f::new(-0.03, 1.1, 0.04), color: [0, 255, 0, 255] }, // 16
-	Vertex { position: Vec3f::new(0.0, 1.1, -0.04), color: [0, 255, 0, 255] }, // 17
+	// Y axis [9]
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.05, 0.9, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(-0.05, 0.9, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.03, 1.1, 0.04), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.1, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(-0.03, 1.1, 0.04), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.1, -0.04), color: GREEN },
 
-	// Z axis
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: [0, 64, 255, 255] }, // 18
-	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: [0, 64, 255, 255] }, // 19
-	Vertex { position: Vec3f::new(0.05, 0.0, 0.9), color: [0, 64, 255, 255] }, // 20
-	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: [0, 64, 255, 255] }, // 21
-	Vertex { position: Vec3f::new(-0.05, 0.0, 0.9), color: [0, 64, 255, 255] }, // 22
-	Vertex { position: Vec3f::new(-0.04, 0.04, 1.1), color: [0, 64, 255, 255] }, // 23
-	Vertex { position: Vec3f::new(0.04, 0.04, 1.1), color: [0, 64, 255, 255] }, // 24
-	Vertex { position: Vec3f::new(-0.04, -0.04, 1.1), color: [0, 64, 255, 255] }, // 25
-	Vertex { position: Vec3f::new(0.04, -0.04, 1.1), color: [0, 64, 255, 255] }, // 26
+	// Z axis [18]
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: BLUE },
+	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	Vertex { position: Vec3f::new(0.05, 0.0, 0.9), color: BLUE },
+	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	Vertex { position: Vec3f::new(-0.05, 0.0, 0.9), color: BLUE },
+	Vertex { position: Vec3f::new(-0.04, 0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(0.04, 0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(-0.04, -0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
 ];
 
 static INDICES: [u16; 34] = [

@@ -100,10 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
 						gl.deleteBuffer(handles.get(buffer));
 						handles.remove(buffer);
 					},
-					getAttribLocation(program, name_ptr, name_len) {
-						const name = new TextDecoder().decode(new Uint8Array(memory.buffer, name_ptr, name_len));
-						return gl.getAttribLocation(handles.get(program), name);
-					},
 					enableVertexAttribArray(index) { gl.enableVertexAttribArray(index); },
 					disableVertexAttribArray(index) { gl.disableVertexAttribArray(index); },
 					vertexAttribPointer(index, size, type, normalized, stride, offset) {
@@ -160,6 +156,32 @@ document.addEventListener("DOMContentLoaded", () => {
 							throw new Error(`Uniform location for '${name}' not found in program.`);
 						}
 						return handles.add(location);
+					},
+					getActiveAttrib(program, index, bufSize, length_ptr, size_ptr, type_ptr, name_ptr) {
+						const info = gl.getActiveAttrib(handles.get(program), index);
+						if (!info) {
+							throw new Error(`No active uniform at index ${index}`);
+						}
+
+						const name = info.name;
+						const nameBytes = new TextEncoder().encode(name);
+						if (nameBytes.length >= bufSize) {
+							throw new Error(`Uniform name buffer too small: ${bufSize} bytes needed, ${nameBytes.length} bytes provided.`);
+						}
+						new Uint8Array(memory.buffer, name_ptr, nameBytes.length).set(nameBytes);
+						if (length_ptr) {
+							new Uint32Array(memory.buffer, length_ptr, 1)[0] = nameBytes.length;
+						}
+						if (size_ptr) {
+							new Uint32Array(memory.buffer, size_ptr, 1)[0] = info.size;
+						}
+						if (type_ptr) {
+							new Uint32Array(memory.buffer, type_ptr, 1)[0] = info.type;
+						}
+					},
+					getAttribLocation(program, name_ptr, name_len) {
+						const name = new TextDecoder().decode(new Uint8Array(memory.buffer, name_ptr, name_len));
+						return gl.getAttribLocation(handles.get(program), name);
 					},
 					uniform1fv(location, count, value) {
 						gl.uniform1fv(handles.get(location), new Float32Array(memory.buffer, value, count * 1));

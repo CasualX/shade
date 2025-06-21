@@ -35,6 +35,7 @@ extern "C" {
 	pub fn deleteBuffer(buffer: types::GLuint);
 	pub fn bufferData(target: types::GLenum, size: types::GLsizeiptr, data: *const u8, usage: types::GLenum);
 	pub fn enableVertexAttribArray(index: types::GLuint);
+	pub fn disableVertexAttribArray(index: types::GLuint);
 	// pub fn disableVertexAttribArray(index: types::GLuint);
 	pub fn vertexAttribPointer(
 		index: types::GLuint,
@@ -59,18 +60,19 @@ extern "C" {
 	pub fn getProgramInfoLog(program: types::GLuint);
 	pub fn getActiveUniform(rogram: types::GLuint, index: types::GLuint, bufSize: types::GLsizei, length: *mut types::GLsizei, size: *mut types::GLint, type_: *mut types::GLenum, name: *mut u8);
 	pub fn getUniformLocation(program: types::GLuint, name_ptr: *const u8, name_len: usize) -> types::GLint;
+	pub fn getActiveAttrib(program: types::GLuint, index: types::GLuint, bufSize: types::GLsizei, length: *mut types::GLsizei, size: *mut types::GLint, type_: *mut types::GLenum, name: *mut u8);
 	pub fn getAttribLocation(program: types::GLuint, name_ptr: *const u8, name_len: usize) -> types::GLint;
-	pub fn uniform1fv(location: types::GLint, count: types::GLsizei, value: *const f32);
-	pub fn uniform2fv(location: types::GLint, count: types::GLsizei, value: *const [f32; 2]);
-	pub fn uniform3fv(location: types::GLint, count: types::GLsizei, value: *const [f32; 3]);
-	pub fn uniform4fv(location: types::GLint, count: types::GLsizei, value: *const [f32; 4]);
-	pub fn uniform1iv(location: types::GLint, count: types::GLsizei, value: *const types::GLint);
-	pub fn uniform2iv(location: types::GLint, count: types::GLsizei, value: *const [types::GLint; 2]);
-	pub fn uniform3iv(location: types::GLint, count: types::GLsizei, value: *const [types::GLint; 3]);
-	pub fn uniform4iv(location: types::GLint, count: types::GLsizei, value: *const [types::GLint; 4]);
-	pub fn uniformMatrix2fv(location: types::GLint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 2]; 2]);
-	pub fn uniformMatrix3fv(location: types::GLint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 3]; 3]);
-	pub fn uniformMatrix4fv(location: types::GLint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 4]; 4]);
+	pub fn uniform1fv(location: types::GLuint, count: types::GLsizei, value: *const f32);
+	pub fn uniform2fv(location: types::GLuint, count: types::GLsizei, value: *const [f32; 2]);
+	pub fn uniform3fv(location: types::GLuint, count: types::GLsizei, value: *const [f32; 3]);
+	pub fn uniform4fv(location: types::GLuint, count: types::GLsizei, value: *const [f32; 4]);
+	pub fn uniform1iv(location: types::GLuint, count: types::GLsizei, value: *const types::GLint);
+	pub fn uniform2iv(location: types::GLuint, count: types::GLsizei, value: *const [types::GLint; 2]);
+	pub fn uniform3iv(location: types::GLuint, count: types::GLsizei, value: *const [types::GLint; 3]);
+	pub fn uniform4iv(location: types::GLuint, count: types::GLsizei, value: *const [types::GLint; 4]);
+	pub fn uniformMatrix2fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 2]; 2]);
+	pub fn uniformMatrix3fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 3]; 3]);
+	pub fn uniformMatrix4fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 4]; 4]);
 	pub fn createTexture() -> types::GLuint;
 	pub fn deleteTexture(texture: types::GLuint);
 	pub fn activeTexture(texture: types::GLenum);

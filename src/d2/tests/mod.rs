@@ -27,8 +27,7 @@ impl ToVertex<MockVertex> for () {
 	}
 }
 
-#[derive(Copy, Clone, Default)]
-#[repr(C)]
+#[derive(Clone, Debug, Default)]
 struct MockUniform {}
 
 impl UniformVisitor for MockUniform {

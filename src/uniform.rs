@@ -2,13 +2,6 @@ use std::slice;
 
 use crate::Texture2D;
 
-// /// Matrix layout.
-// #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-// pub enum MatrixLayout {
-// 	ColumnMajor,
-// 	RowMajor,
-// }
-
 pub trait TUniformValue {
 	fn set(&self, name: &str, set: &mut dyn UniformSetter);
 }
@@ -41,6 +34,9 @@ impl<'a> dyn UniformSetter + 'a {
 	}
 }
 
+/// Visiting uniform parameters.
+///
+/// Uniform structs should be `Clone` and `Debug`.
 pub trait UniformVisitor {
 	fn visit(&self, f: &mut dyn UniformSetter);
 }

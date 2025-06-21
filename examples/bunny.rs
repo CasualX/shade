@@ -54,18 +54,9 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct MyUniform3 {
 	transform: cvmath::Mat4f,
-}
-
-impl Default for MyUniform3 {
-	fn default() -> Self {
-		MyUniform3 {
-			transform: cvmath::Mat4::IDENTITY,
-		}
-	}
 }
 
 impl shade::UniformVisitor for MyUniform3 {
@@ -153,10 +144,10 @@ fn main() {
 		event_loop.run_return(|event, _, control_flow| {
 			*control_flow = winit::event_loop::ControlFlow::Wait;
 
-			if let winit::event::Event::WindowEvent { event, .. } = &event {
-				// Print only Window events to reduce noise
-				println!("{:?}", event);
-			}
+			// // Print only Window events to reduce noise
+			// if let winit::event::Event::WindowEvent { event, .. } = &event {
+			// 	println!("{:?}", event);
+			// }
 
 			match event {
 				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
@@ -188,8 +179,8 @@ fn main() {
 		model = model * cvmath::Mat4::rotate(cvmath::Deg(1.0), cvmath::Vec3::Z);
 
 		// Update the transformation matrices
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::RH, cvmath::NO));
-		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 50.0, -200.0), cvmath::Vec3(0.0, 0.0, 0.0), cvmath::Vec3(0.0, 1.0, 0.0), cvmath::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
+		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 50.0, -200.0), cvmath::Vec3(0.0, 0.0, 0.0), cvmath::Vec3(0.0, 1.0, 0.0), cvmath::Hand::RH);
 		let transform = projection * view * model;
 
 		// Update the uniform buffer with the new transformation matrix

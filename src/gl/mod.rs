@@ -68,12 +68,13 @@ impl Resource for GlIndexBuffer {
 	type Handle = crate::IndexBuffer;
 }
 
+#[allow(dead_code)]
 struct GlActiveAttrib {
-	location: GLint,
+	location: u32,
 	namelen: u8,
 	namebuf: [u8; 64],
-	_size: GLint,
-	_ty: GLenum,
+	size: GLint,
+	ty: GLenum,
 }
 impl GlActiveAttrib {
 	fn name(&self) -> &str {
@@ -81,12 +82,13 @@ impl GlActiveAttrib {
 	}
 }
 
+#[allow(dead_code)]
 struct GlActiveUniform {
 	location: GLint,
 	namelen: u8,
 	namebuf: [u8; 64],
-	_size: GLint,
-	_ty: GLenum,
+	size: GLint,
+	ty: GLenum,
 	texture_unit: i8, // Texture unit, -1 if not a sampler
 }
 impl GlActiveUniform {

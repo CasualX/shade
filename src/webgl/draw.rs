@@ -98,19 +98,18 @@ fn gl_viewport(viewport: &cvmath::Bounds2<i32>) {
 	unsafe { api::viewport(viewport.mins.x, viewport.mins.y, viewport.width(), viewport.height()) };
 }
 
-fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &ResourceMap<WebGLVertexBuffer>) {
+fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &ResourceMap<WebGLVertexBuffer>) -> u32 {
+	let mut enabled_attribs = 0u32;
 	for vb in data {
 		let Some(buf) = map.get(vb.buffer) else { continue }; // Validated in draw calls
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, buf.buffer) };
 
 		let layout = buf.layout;
 		for attr in layout.attributes {
-			let location = unsafe { api::getAttribLocation(shader.program, attr.name.as_ptr(), attr.name.len()) };
-			if location < 0 {
-				continue; // Attribute not found in shader
-			}
-			let location = location as u32;
-			unsafe { api::enableVertexAttribArray(location) };
+			let Some(attrib) = shader.get_attrib(attr.name) else { continue };
+			enabled_attribs |= 1 << attrib.location;
+			unsafe { api::enableVertexAttribArray(attrib.location) };
+
 			let size = attr.format.size() as GLint;
 			let type_ = match attr.format.ty() {
 				crate::VertexAttributeType::F32 => api::FLOAT,
@@ -123,10 +122,23 @@ fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &
 				crate::VertexAttributeType::U8 => api::UNSIGNED_BYTE,
 			};
 			let normalized = if attr.format.normalized() { api::TRUE } else { api::FALSE };
-			if layout.size >= 256 {
-				panic!("Vertex attribute size too large: {}", layout.size);
-			}
-			unsafe { api::vertexAttribPointer(location, size, type_, normalized, layout.size as GLsizei, attr.offset as GLintptr) };
+			unsafe { api::vertexAttribPointer(attrib.location, size, type_, normalized, layout.size as GLsizei, attr.offset as GLintptr) };
+		}
+	}
+	unsafe { api::bindBuffer(api::ARRAY_BUFFER, 0) };
+
+	// Assert that all attributes are bound
+	#[cfg(debug_assertions)]
+	for attr in &shader.attribs {
+		assert!(enabled_attribs & (1 << attr.location) != 0, "Attribute {} not bound in shader {}", attr.name(), shader.program);
+	}
+	return enabled_attribs;
+}
+
+fn gl_attributes_disable(enabled_attribs: u32) {
+	for i in 0..32 {
+		if enabled_attribs & (1 << i) != 0 {
+			unsafe { api::disableVertexAttribArray(i) };
 		}
 	}
 }
@@ -192,7 +204,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		if let Some(u) = self.shader.get_uniform(name) {
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
-				unsafe { api::uniformMatrix2fv(u.location + i as i32, 1, false, &transposed) };
+				unsafe { api::uniformMatrix2fv(u.location + i as u32, 1, false, &transposed) };
 			}
 		}
 	}
@@ -200,7 +212,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		if let Some(u) = self.shader.get_uniform(name) {
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
-				unsafe { api::uniformMatrix3fv(u.location + i as i32, 1, false, &transposed) };
+				unsafe { api::uniformMatrix3fv(u.location + i as u32, 1, false, &transposed) };
 			}
 		}
 	}
@@ -208,7 +220,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		if let Some(u) = self.shader.get_uniform(name) {
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
-				unsafe { api::uniformMatrix4fv(u.location + i as i32, 1, false, &transposed) };
+				unsafe { api::uniformMatrix4fv(u.location + i as u32, 1, false, &transposed) };
 			}
 		}
 	}
@@ -324,7 +336,7 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) -> Result<(), cr
 	gl_viewport(&args.viewport);
 
 	unsafe { api::useProgram(shader.program) };
-	gl_attributes(shader, args.vertices, &this.vbuffers);
+	let enabled_attribs = gl_attributes(shader, args.vertices, &this.vbuffers);
 
 	let ref mut set = WebGLUniformSetter { shader, textures: &this.textures };
 	for uniforms in args.uniforms {
@@ -341,6 +353,9 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) -> Result<(), cr
 	else {
 		unsafe { api::drawArrays(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32) };
 	}
+
+	gl_attributes_disable(enabled_attribs);
+	unsafe { api::useProgram(0) };
 
 	Ok(())
 }
@@ -372,7 +387,7 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Resul
 
 	unsafe { api::useProgram(shader.program) };
 	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, ib.buffer) };
-	gl_attributes(shader, args.vertices, &this.vbuffers);
+	let enabled_attribs = gl_attributes(shader, args.vertices, &this.vbuffers);
 
 	let ref mut set = WebGLUniformSetter { shader, textures: &this.textures };
 	for uniforms in args.uniforms {
@@ -396,6 +411,10 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Resul
 	else {
 		unsafe { api::drawElements(mode, count as i32, type_, offset as api::types::GLintptr) };
 	}
+
+	gl_attributes_disable(enabled_attribs);
+	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
+	unsafe { api::useProgram(0) };
 
 	Ok(())
 }

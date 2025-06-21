@@ -106,24 +106,18 @@ fn gl_viewport(viewport: &cvmath::Bounds2<i32>) {
 	gl_check!(gl::Viewport(viewport.mins.x, viewport.mins.y, viewport.width(), viewport.height()));
 }
 
-fn gl_attributes(shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &ResourceMap<GlVertexBuffer>) {
-	let mut attribs = 0u64;
-	for dvb in data {
-		let Some(buf) = map.get(dvb.buffer) else { continue }; // Validated in draw calls
+fn gl_attributes(shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &ResourceMap<GlVertexBuffer>) -> u32 {
+	let mut enabled_attribs = 0u32;
+	for vb in data {
+		let Some(buf) = map.get(vb.buffer) else { continue }; // Validated in draw calls
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buf.buffer));
 
 		let layout = buf.layout;
 		for attr in layout.attributes {
-			let mut namebuf = [0u8; 64];
-			namebuf[..attr.name.len()].copy_from_slice(attr.name.as_bytes());
-			namebuf[attr.name.len()] = 0; // Null-terminate the string
-			let location: i32 = gl_check!(gl::GetAttribLocation(shader.program, namebuf.as_ptr() as *const _));
-			// This program does not use this attribute, skip it
-			if location < 0 {
-				continue;
-			}
-			let location = location as u32;
-			attribs |= 1 << location;
+			let Some(attrib) = shader.get_attrib(attr.name) else { continue };
+			enabled_attribs |= 1 << attrib.location;
+			gl_check!(gl::EnableVertexAttribArray(attrib.location));
+
 			let size = attr.format.size() as GLint;
 			let normalized = if attr.format.normalized() { gl::TRUE } else { gl::FALSE };
 			let type_ = match attr.format.ty() {
@@ -136,21 +130,30 @@ fn gl_attributes(shader: &GlShader, data: &[crate::DrawVertexBuffer], map: &Reso
 				crate::VertexAttributeType::I8 => gl::BYTE,
 				crate::VertexAttributeType::U8 => gl::UNSIGNED_BYTE,
 			};
-			gl_check!(gl::VertexAttribPointer(location, size, type_, normalized, layout.size as i32, attr.offset as usize as *const GLvoid));
-			let divisor = match dvb.divisor {
+			gl_check!(gl::VertexAttribPointer(attrib.location, size, type_, normalized, layout.size as i32, attr.offset as usize as *const GLvoid));
+
+			let divisor = match vb.divisor {
 				crate::VertexDivisor::PerVertex => 0,
 				crate::VertexDivisor::PerInstance => 1,
 			};
-			gl_check!(gl::VertexAttribDivisor(location, divisor));
-			gl_check!(gl::EnableVertexAttribArray(location));
+			gl_check!(gl::VertexAttribDivisor(attrib.location, divisor));
 		}
 	}
-
 	gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 
 	// Assert that all attributes are bound
+	#[cfg(debug_assertions)]
 	for attr in &shader.attribs {
-		assert!(attribs & (1 << attr.location) != 0, "Attribute {} not bound in shader {}", attr.name(), shader.program);
+		assert!(enabled_attribs & (1 << attr.location) != 0, "Attribute {} not bound in shader {}", attr.name(), shader.program);
+	}
+	return enabled_attribs;
+}
+
+fn gl_attributes_disable(enabled_attribs: u32) {
+	for i in 0..32 {
+		if enabled_attribs & (1 << i) != 0 {
+			gl_check!(gl::DisableVertexAttribArray(i as u32));
+		}
 	}
 }
 
@@ -339,7 +342,7 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) -> Result<(), crate
 
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
-	gl_attributes(shader, args.vertices, &this.vbuffers);
+	let enabled_attribs = gl_attributes(shader, args.vertices, &this.vbuffers);
 
 	let ref mut set = GlUniformSetter { shader, textures: &this.textures };
 	for uniforms in args.uniforms {
@@ -357,6 +360,7 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) -> Result<(), crate
 		gl_check!(gl::DrawArrays(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32));
 	}
 
+	gl_attributes_disable(enabled_attribs);
 	gl_check!(gl::BindVertexArray(0));
 	gl_check!(gl::UseProgram(0));
 

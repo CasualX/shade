@@ -41,7 +41,6 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	}
 
 	let program = gl_check!(gl::CreateProgram());
-	// let mut shader = GlProgram { program, attribs: Vec::new(), uniforms: Vec::new() };
 
 	gl_check!(gl::AttachShader(program, vertex_shader));
 	gl_check!(gl::AttachShader(program, fragment_shader));
@@ -64,21 +63,16 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	gl_check!(gl::GetProgramiv(program, gl::ACTIVE_ATTRIBUTES, &mut nattribs));
 	let mut attribs = Vec::new();
 	for i in 0..nattribs {
-		let mut name_len = 0;
-		let mut size = 0;
-		let mut ty = 0;
-		let mut name = [0; 64];
-		gl_check!(gl::GetActiveAttrib(program, i as u32, name.len() as GLsizei, &mut name_len, &mut size, &mut ty, name.as_mut_ptr() as *mut GLchar));
-		assert!((name_len as usize) < name.len(), "Attribute name too long: {}", String::from_utf8_lossy(&name));
-		let location = gl_check!(gl::GetAttribLocation(program, name.as_ptr() as *const _));
-		assert!(location >= 0, "Attribute not found?!: {}", String::from_utf8_lossy(&name));
-		attribs.push(GlActiveAttrib {
-			location,
-			namelen: name_len as u8,
-			namebuf: name,
-			_size: size,
-			_ty: ty,
-		});
+		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
+		gl_check!(gl::GetActiveAttrib(program, i as u32, namebuf.len() as GLsizei, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr() as *mut GLchar));
+		assert!((namelen as usize) < namebuf.len(), "Attribute name too long: {}", String::from_utf8_lossy(&namebuf));
+
+		let location = gl_check!(gl::GetAttribLocation(program, namebuf.as_ptr() as *const _));
+		assert!(location >= 0, "Attribute not found?!: {}", String::from_utf8_lossy(&namebuf));
+
+		let location = location as u32;
+		let namelen = namelen as u8;
+		attribs.push(GlActiveAttrib { location, size, ty, namelen, namebuf });
 		// println!("Attribute: {} (location: {})", shader.attribs.last().unwrap().name(), location);
 	}
 
@@ -87,27 +81,17 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	let mut uniforms = Vec::new();
 	let mut texture_slot = -1;
 	for i in 0..nuniforms {
-		let mut name_len = 0;
-		let mut size = 0;
-		let mut ty = 0;
-		let mut name = [0; 64];
-		gl_check!(gl::GetActiveUniform(program, i as u32, name.len() as GLsizei, &mut name_len, &mut size, &mut ty, name.as_mut_ptr() as *mut GLchar));
-		assert!((name_len as usize) < name.len(), "Uniform name too long: {}", String::from_utf8_lossy(&name));
-		let location = gl_check!(gl::GetUniformLocation(program, name.as_ptr() as *const _));
-		assert!(location >= 0, "Uniform not found?!: {}", String::from_utf8_lossy(&name));
-		let texslot = if ty == gl::SAMPLER_2D || ty == gl::SAMPLER_2D_ARRAY || ty == gl::SAMPLER_1D || ty == gl::SAMPLER_1D_ARRAY || ty == gl::SAMPLER_CUBE || ty == gl::SAMPLER_3D {
-			texture_slot += 1;
-			texture_slot
-		}
-		else { -1 };
-		uniforms.push(GlActiveUniform {
-			location,
-			namelen: name_len as u8,
-			namebuf: name,
-			_size: size,
-			_ty: ty,
-			texture_unit: texslot,
-		});
+		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
+		gl_check!(gl::GetActiveUniform(program, i as u32, namebuf.len() as GLsizei, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr() as *mut GLchar));
+		assert!((namelen as usize) < namebuf.len(), "Uniform name too long: {}", String::from_utf8_lossy(&namebuf));
+
+		let location = gl_check!(gl::GetUniformLocation(program, namebuf.as_ptr() as *const _));
+		assert!(location >= 0, "Uniform not found?!: {}", String::from_utf8_lossy(&namebuf));
+
+		let needs_texture_unit = matches!(ty, gl::SAMPLER_2D | gl::SAMPLER_2D_ARRAY | gl::SAMPLER_1D | gl::SAMPLER_1D_ARRAY | gl::SAMPLER_CUBE | gl::SAMPLER_3D);
+		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
+		let namelen = namelen as u8;
+		uniforms.push(GlActiveUniform { location, size, ty, texture_unit, namelen, namebuf });
 		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 

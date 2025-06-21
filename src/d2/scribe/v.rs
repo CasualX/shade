@@ -40,8 +40,7 @@ unsafe impl TVertex for TextVertex {
 }
 
 // Text template.
-#[derive(Copy, Clone, Debug, Default, dataview::Pod)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 pub struct TextTemplate {
 	pub uv: Vec2f,
 	pub color: Vec4<u8>,
@@ -56,8 +55,7 @@ impl ToVertex<TextVertex> for TextTemplate {
 }
 
 /// Text uniform.
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 pub struct TextUniform {
 	pub transform: Transform2f,
 	pub texture: Texture2D,

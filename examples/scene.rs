@@ -65,8 +65,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct MyUniform3 {
 	transform: cvmath::Mat4f,
 	texture: shade::Texture2D,
@@ -129,10 +128,10 @@ fn main() {
 		event_loop.run_return(|event, _, control_flow| {
 			*control_flow = winit::event_loop::ControlFlow::Wait;
 
-			if let winit::event::Event::WindowEvent { event, .. } = &event {
-				// Print only Window events to reduce noise
-				println!("{:?}", event);
-			}
+			// // Print only Window events to reduce noise
+			// if let winit::event::Event::WindowEvent { event, .. } = &event {
+			// 	println!("{:?}", event);
+			// }
 
 			match event {
 				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
@@ -163,12 +162,12 @@ fn main() {
 		let curtime = time::Instant::now().duration_since(time_base).as_secs_f32();
 
 		// Update the camera
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::RH, cvmath::NO));
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
 		let view = {
 			let eye = cvmath::Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
 			let target = cvmath::Vec3(96.0 * 0.5, 0.0, 32.0);
 			let up = cvmath::Vec3(0.0, 1.0, 0.0);
-			cvmath::Mat4::look_at(eye, target, up, cvmath::RH)
+			cvmath::Mat4::look_at(eye, target, up, cvmath::Hand::RH)
 		};
 		let transform = projection * view;
 

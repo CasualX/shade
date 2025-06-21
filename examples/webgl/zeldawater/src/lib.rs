@@ -78,8 +78,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone, Default, Debug)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct Uniform {
 	time: f32,
 	texture: shade::Texture2D,

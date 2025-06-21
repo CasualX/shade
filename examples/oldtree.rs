@@ -71,7 +71,7 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aUV;
 
-out vec3 FragPos;  // <-- Pass fragment world position to fragment shader
+out vec3 FragPos;
 out vec3 Normal;
 out vec2 UV;
 
@@ -95,8 +95,7 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct Uniform {
 	model: cvmath::Mat4f,
 	view: cvmath::Mat4f,
@@ -104,19 +103,6 @@ struct Uniform {
 	light_pos: cvmath::Vec3f,
 	camera_pos: cvmath::Vec3f,
 	texture: shade::Texture2D,
-}
-
-impl Default for Uniform {
-	fn default() -> Self {
-		Uniform {
-			model: cvmath::Mat4::IDENTITY,
-			view: cvmath::Mat4::IDENTITY,
-			projection: cvmath::Mat4::IDENTITY,
-			light_pos: cvmath::Vec3::ZERO,
-			camera_pos: cvmath::Vec3::ZERO,
-			texture: shade::Texture2D::INVALID,
-		}
-	}
 }
 
 impl shade::UniformVisitor for Uniform {
@@ -158,8 +144,8 @@ impl State {
 
 		// Update the transformation matrices
 		let model = cvmath::Mat4::IDENTITY;
-		let view = self.camera.view_matrix(cvmath::RH);
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::RH, cvmath::NO));
+		let view = self.camera.view_matrix(cvmath::Hand::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 40.0, (cvmath::Hand::RH, cvmath::Clip::NO));
 		// let transform = projection * view * model;
 		let camera_pos = self.camera.position();
 		let light_pos = cvmath::Vec3(4.0, 0.0, -230.0);
@@ -176,7 +162,7 @@ impl State {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
-			cull_mode: Some(shade::CullMode::CCW),
+			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask {
 				red: true,
 				green: true,
@@ -203,7 +189,7 @@ impl State {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
-			cull_mode: Some(shade::CullMode::CCW),
+			cull_mode: None,
 			mask: shade::DrawMask::ALL,
 			prim_type: shade::PrimType::Lines,
 			shader: self.gizmo.shader,
@@ -319,7 +305,7 @@ fn main() {
 					let dy = position.y as f32 - cursor_position.y as f32;
 					if left_click {
 						auto_rotate = false;
-						state.camera.rotate(-dx, dy);
+						state.camera.rotate(dx, dy);
 					}
 					if right_click {
 						auto_rotate = false;

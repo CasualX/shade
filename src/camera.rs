@@ -27,8 +27,8 @@ pub struct CameraSetup {
 }
 
 impl CameraSetup {
-	/// Projects a 3D world-space point to 2D screen-space (in pixels), or returns None if behind camera.
-	pub fn world_to_screen(&self, pt: Vec3f) -> Option<Vec2f> {
+	/// Projects a 3D world-space point into 2D viewport-space (in pixels), or returns None if behind the camera.
+	pub fn world_to_viewport(&self, pt: Vec3f) -> Option<Vec2f> {
 		// Transform world-space point into clip space
 		let clip = self.view_proj * pt.vec4(1.0);
 
@@ -46,21 +46,21 @@ impl CameraSetup {
 		Some(Vec2f(x, y))
 	}
 
-	/// Generates a world-space ray from a screen-space pixel coordinate.
-	pub fn unproject(&self, pt: Vec2i) -> Ray<f32> {
+	/// Generates a world-space ray from a 2D viewport-space pixel coordinate.
+	pub fn viewport_to_ray(&self, pt: Vec2i) -> Ray<f32> {
 		// Convert screen pixel to normalized device coordinates (NDC)
-		let ndc_x = 2.0 * (pt.x as f32 - self.viewport.mins.x as f32) / (self.viewport.width() as f32) - 1.0;
-		let ndc_y = 1.0 - 2.0 * (pt.y as f32 - self.viewport.mins.y as f32) / (self.viewport.height() as f32); // Flip Y!
+		let ndc_x = 2.0 * (pt.x - self.viewport.mins.x) as f32 / (self.viewport.width() as f32) - 1.0;
+		let ndc_y = 1.0 - 2.0 * (pt.y - self.viewport.mins.y) as f32 / (self.viewport.height() as f32); // Flip Y!
 
 		// Construct clip-space positions at near and far depth
 		let ndc_near = match self.clip { Clip::NO => -1.0, Clip::ZO => 0.0 };
 		let ndc_far = 1.0;
 		let near_clip = Vec4f(ndc_x, ndc_y, ndc_near, 1.0);
-		let far_clip  = Vec4f(ndc_x, ndc_y, ndc_far, 1.0);
+		let far_clip = Vec4f(ndc_x, ndc_y, ndc_far, 1.0);
 
 		// Transform to world-space using the inverse view-projection matrix
 		let near = (self.inv_view_proj * near_clip).hdiv();
-		let far  = (self.inv_view_proj * far_clip).hdiv();
+		let far = (self.inv_view_proj * far_clip).hdiv();
 
 		// Create a ray from near to far
 		let direction = (far - near).normalize();
@@ -79,5 +79,11 @@ impl UniformVisitor for CameraSetup {
 		set.value("u_projection", &self.projection);
 		set.value("u_view_proj", &self.view_proj);
 		set.value("u_inv_view_proj", &self.inv_view_proj);
+
+		let ndc_near = match self.clip { Clip::NO => -1.0, Clip::ZO => 0.0 };
+		set.value("u_ndc_near", &ndc_near);
 	}
 }
+
+#[cfg(test)]
+mod tests;

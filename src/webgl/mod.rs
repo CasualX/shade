@@ -47,17 +47,35 @@ impl Resource for WebGLIndexBuffer {
 	type Handle = crate::IndexBuffer;
 }
 
-struct WebGLActiveUniform {
-	location: GLint,
+struct WebGLActiveAttrib {
+	location: GLuint,
+	size: GLint,
+	ty: GLenum,
 	namelen: u8,
-	namebuf: [u8; 64],
-	_size: GLint,
-	_ty: GLenum,
+	namebuf: [u8; 63],
+}
+impl WebGLActiveAttrib {
+	fn name(&self) -> &str {
+		#[cfg(not(debug_assertions))]
+		return unsafe { str::from_utf8_unchecked(self.namebuf.get_unchecked(..self.namelen as usize)) };
+		#[cfg(debug_assertions)]
+		return str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err");
+	}
+}
+struct WebGLActiveUniform {
+	location: GLuint,
+	size: GLint,
+	ty: GLenum,
 	texture_unit: i8, // -1 if not a texture
+	namelen: u8,
+	namebuf: [u8; 66],
 }
 impl WebGLActiveUniform {
 	fn name(&self) -> &str {
-		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
+		#[cfg(not(debug_assertions))]
+		return unsafe { str::from_utf8_unchecked(self.namebuf.get_unchecked(..self.namelen as usize)) };
+		#[cfg(debug_assertions)]
+		return str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err");
 	}
 }
 
@@ -65,12 +83,13 @@ struct WebGLProgram {
 	program: GLuint,
 	// compile_log: String, // Displayed in JS console
 
+	attribs: Vec<WebGLActiveAttrib>,
 	uniforms: Vec<WebGLActiveUniform>,
 }
 impl WebGLProgram {
-	// fn get_attrib(&self, name: &str) -> Option<&WebGLActiveAttrib> {
-	// 	self.attribs.iter().find(|a| a.name() == name)
-	// }
+	fn get_attrib(&self, name: &str) -> Option<&WebGLActiveAttrib> {
+		self.attribs.iter().find(|a| a.name() == name)
+	}
 	fn get_uniform(&self, name: &str) -> Option<&WebGLActiveUniform> {
 		self.uniforms.iter().find(|u| u.name() == name)
 	}
@@ -187,6 +206,10 @@ impl crate::IGraphics for WebGLGraphics {
 
 	fn vertex_buffer_create(&mut self, name: Option<&str>, _size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> Result<crate::VertexBuffer, crate::GfxError> {
 		let buffer = unsafe { api::createBuffer() };
+
+		if layout.size >= 256 {
+			panic!("Vertex layout size {} exceeds WebGL 1.0 limit of 256 bytes", layout.size);
+		}
 
 		let id = self.vbuffers.insert(name, WebGLVertexBuffer { buffer, _size, layout, usage });
 		return Ok(id);

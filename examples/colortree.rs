@@ -53,18 +53,9 @@ void main()
 }
 "#;
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone, Debug)]
 struct Uniform {
 	transform: cvmath::Mat4f,
-}
-
-impl Default for Uniform {
-	fn default() -> Self {
-		Uniform {
-			transform: cvmath::Mat4::IDENTITY,
-		}
-	}
 }
 
 impl shade::UniformVisitor for Uniform {
@@ -98,8 +89,8 @@ impl State {
 
 		// Update the transformation matrices
 		let model = cvmath::Mat4::IDENTITY;
-		let view = self.camera.view_matrix(cvmath::RH);
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 10000.0, (cvmath::RH, cvmath::NO));
+		let view = self.camera.view_matrix(cvmath::Hand::RH);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 10000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
 		let transform = projection * view * model;
 
 		// Update the uniform buffer with the new transformation matrix
@@ -212,7 +203,7 @@ fn main() {
 					let dy = position.y as f32 - cursor_position.y as f32;
 					if left_click {
 						auto_rotate = false;
-						state.camera.rotate(-dx, dy);
+						state.camera.rotate(dx, dy);
 					}
 					if right_click {
 						auto_rotate = false;
