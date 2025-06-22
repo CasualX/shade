@@ -2,4 +2,4 @@
 use super::*;
 use cvmath::*;
 
-pub mod gizmos;
+pub mod axes;

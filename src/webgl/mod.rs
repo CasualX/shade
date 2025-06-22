@@ -47,6 +47,7 @@ impl Resource for WebGLIndexBuffer {
 	type Handle = crate::IndexBuffer;
 }
 
+#[allow(dead_code)]
 struct WebGLActiveAttrib {
 	location: GLuint,
 	size: GLint,
@@ -62,6 +63,8 @@ impl WebGLActiveAttrib {
 		return str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err");
 	}
 }
+
+#[allow(dead_code)]
 struct WebGLActiveUniform {
 	location: GLuint,
 	size: GLint,

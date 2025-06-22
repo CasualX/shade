@@ -13,9 +13,9 @@ unsafe impl shade::TVertex for Vertex {
 		size: mem::size_of::<Vertex>() as u16,
 		alignment: mem::align_of::<Vertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aNormal", dataview::offset_of!(Vertex.normal)),
-			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("aColor", dataview::offset_of!(Vertex.color)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
+			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("a_color", dataview::offset_of!(Vertex.color)),
 		],
 	};
 }
@@ -24,57 +24,102 @@ const FRAGMENT_SHADER: &str = r#"
 #version 330 core
 out vec4 FragColor;
 
-in vec3 Normal;
-in vec4 Color;
+in vec3 v_normal;
+in vec4 v_color;
+in vec3 v_fragpos;
+
+uniform vec3 u_lightpos;
 
 void main() {
-	vec3 lightDir = normalize(vec3(1.0, -1.0, 1.0));
-	float diff = max(dot(Normal, lightDir), 0.0);
-	FragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diff * 0.5) * Color;
+	vec3 lightDir = normalize(u_lightpos - v_fragpos);
+	float diff = max(dot(v_normal, lightDir), 0.0);
+	FragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diff * 0.5) * v_color;
 }
 "#;
 
 const VERTEX_SHADER: &str = r#"
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
-layout (location = 2) in vec4 aColor;
+in vec3 a_pos;
+in vec3 a_normal;
+in vec4 a_color;
 
-out vec3 Normal;
-out vec4 Color;
+out vec3 v_normal;
+out vec4 v_color;
+out vec3 v_fragpos;
 
-uniform mat4x4 transform;
+uniform mat4x4 u_transform;
+uniform mat4x4 u_model;
 
 void main()
 {
-	Normal = aNormal;
-	Color = aColor;
-	gl_Position = transform * vec4(aPos, 1.0);
+	v_normal = a_normal;
+	v_color = a_color;
+	v_fragpos = (u_model * vec4(a_pos, 1.0)).xyz;
+	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
 "#;
 
-#[derive(Clone, Debug)]
-struct Uniform {
-	transform: cvmath::Mat4f,
+//----------------------------------------------------------------
+
+struct ColorTreeInstance {
+	model: cvmath::Mat4f,
+	light_pos: cvmath::Vec3f,
 }
 
-impl shade::UniformVisitor for Uniform {
+impl shade::UniformVisitor for ColorTreeInstance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("transform", &self.transform);
+		set.value("u_model", &self.model);
+		set.value("u_lightpos", &self.light_pos);
+	}
+}
+
+struct ColorTreeModel {
+	shader: shade::Shader,
+	vertices: shade::VertexBuffer,
+	vertices_len: u32,
+}
+
+impl shade::UniformVisitor for ColorTreeModel {
+	fn visit(&self, _set: &mut dyn shade::UniformSetter) {
+		// No additional uniforms needed for this model
+	}
+}
+
+impl ColorTreeModel {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::camera::CameraSetup, instance: &ColorTreeInstance) {
+		let transform = camera.view_proj * instance.model;
+		g.draw(&shade::DrawArgs {
+			surface: shade::Surface::BACK_BUFFER,
+			viewport: camera.viewport,
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: Some(shade::DepthTest::Less),
+			cull_mode: None,
+			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
+			prim_type: shade::PrimType::Triangles,
+			shader: self.shader,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: self.vertices,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			uniforms: &[camera, self, instance, &("u_transform", &transform)],
+			vertex_start: 0,
+			vertex_end: self.vertices_len,
+			instances: -1,
+		}).unwrap();
 	}
 }
 
 //----------------------------------------------------------------
 
-struct State {
+struct Scene {
 	screen_size: cvmath::Vec2<i32>,
 	camera: shade::camera::ArcballCamera,
-	model_shader: shade::Shader,
-	model_vertices: shade::VertexBuffer,
-	model_vertices_len: u32,
+	color_tree: ColorTreeModel,
+	axes: shade::d3::axes::AxesModel,
 }
 
-impl State {
+impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		// Render the frame
 		g.begin().unwrap();
@@ -88,34 +133,30 @@ impl State {
 		}).unwrap();
 
 		// Update the transformation matrices
-		let model = cvmath::Mat4::IDENTITY;
-		let view = self.camera.view_matrix(cvmath::Hand::RH);
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, 0.1, 10000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
-		let transform = projection * view * model;
+		let viewport = cvmath::Bounds2::vec(self.screen_size);
+		let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
+		let position = self.camera.position();
+		let hand = cvmath::Hand::RH;
+		let clip = cvmath::Clip::NO;
+		let near = 0.1;
+		let far = 10000.0;
+		let view = self.camera.view_matrix(hand);
+		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip));
+		let view_proj = projection * view;
+		let inv_view_proj = view_proj.inverse();
+		let camera = shade::camera::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip };
 
-		// Update the uniform buffer with the new transformation matrix
-		let uniforms = Uniform { transform };
+		let light_pos = cvmath::Vec3f::new(10000.0, 10000.0, 10000.0);
 
 		// Draw the model
-		g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::vec(self.screen_size),
-			scissor: None,
-			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::Less),
-			cull_mode: None,
-			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
-			prim_type: shade::PrimType::Triangles,
-			shader: self.model_shader,
-			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.model_vertices,
-				divisor: shade::VertexDivisor::PerVertex,
-			}],
-			uniforms: &[&uniforms],
-			vertex_start: 0,
-			vertex_end: self.model_vertices_len,
-			instances: -1,
-		}).unwrap();
+		self.color_tree.draw(g, &camera, &ColorTreeInstance {
+			model: cvmath::Mat4f::IDENTITY,
+			light_pos,
+		});
+
+		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
+			local: cvmath::Mat4::scale(position.len() * 0.2),
+		});
 
 		// Finish the frame
 		g.end().unwrap();
@@ -161,12 +202,22 @@ fn main() {
 	// Create the shader
 	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
 
-	let mut state = State {
+	let color_tree = ColorTreeModel {
+		shader,
+		vertices: vb,
+		vertices_len: vb_len,
+	};
+
+	let axes = {
+		let shader = g.shader_create(None, include_str!("../src/gl/shaders/gizmo.axes.vs.glsl"), include_str!("../src/gl/shaders/gizmo.axes.fs.glsl")).unwrap();
+		shade::d3::axes::AxesModel::create(&mut g, shader)
+	};
+
+	let mut scene = Scene {
 		screen_size: cvmath::Vec2::new(size.width as i32, size.height as i32),
 		camera: shade::camera::ArcballCamera::new(camera_position, target, cvmath::Vec3::Z),
-		model_shader: shader,
-		model_vertices: vb,
-		model_vertices_len: vb_len,
+		color_tree,
+		axes,
 	};
 
 	let mut left_click = false;
@@ -194,8 +245,8 @@ fn main() {
 				}
 				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
 					size = new_size;
-					state.screen_size.x = new_size.width as i32;
-					state.screen_size.y = new_size.height as i32;
+					scene.screen_size.x = new_size.width as i32;
+					scene.screen_size.y = new_size.height as i32;
 					context.resize(new_size);
 				}
 				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CursorMoved { position, .. }, .. } => {
@@ -203,14 +254,14 @@ fn main() {
 					let dy = position.y as f32 - cursor_position.y as f32;
 					if left_click {
 						auto_rotate = false;
-						state.camera.rotate(dx, dy);
+						scene.camera.rotate(dx, dy);
 					}
 					if right_click {
 						auto_rotate = false;
-						state.camera.pan(dx, dy);
+						scene.camera.pan(-dx, dy);
 					}
 					if middle_click {
-						state.camera.zoom(dy * 0.01);
+						scene.camera.zoom(dy * 0.01);
 					}
 					cursor_position = position;
 				}
@@ -231,10 +282,10 @@ fn main() {
 		});
 
 		if auto_rotate {
-			state.camera.rotate(1.0, 0.0);
+			scene.camera.rotate(1.0, 0.0);
 		}
 
-		state.draw(&mut g);
+		scene.draw(&mut g);
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();

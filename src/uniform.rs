@@ -41,6 +41,14 @@ pub trait UniformVisitor {
 	fn visit(&self, f: &mut dyn UniformSetter);
 }
 
+impl<'a, T: TUniformValue> UniformVisitor for (&'a str, &'a T) {
+	#[inline]
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		let (name, value) = self;
+		value.set(name, set);
+	}
+}
+
 macro_rules! impl_uniform_value {
 	($ty:ty, $set1_fn:ident, $set2_fn:ident, $set3_fn:ident, $set4_fn:ident) => {
 		impl TUniformValue for $ty {
