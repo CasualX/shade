@@ -2,66 +2,163 @@ use std::collections::HashMap;
 use std::{fs, mem, thread, time};
 
 //----------------------------------------------------------------
-// The bunny's geometry
+// Geometry, uniforms and shader
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
-struct MyVertex3 {
+struct BunnyVertex {
 	position: cvmath::Vec3f,
 	normal: cvmath::Vec3f,
 }
 
-unsafe impl shade::TVertex for MyVertex3 {
+unsafe impl shade::TVertex for BunnyVertex {
 	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: mem::size_of::<MyVertex3>() as u16,
-		alignment: mem::align_of::<MyVertex3>() as u16,
+		size: mem::size_of::<BunnyVertex>() as u16,
+		alignment: mem::align_of::<BunnyVertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aNormal", dataview::offset_of!(MyVertex3.normal)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(BunnyVertex.position)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("a_normal", dataview::offset_of!(BunnyVertex.normal)),
 		],
 	};
 }
 
-//----------------------------------------------------------------
-// Shader and uniforms
+#[derive(Clone, Debug)]
+struct BunnyUniforms {
+	transform: cvmath::Mat4f,
+	light_dir: cvmath::Vec3f,
+}
 
-const FRAGMENT_SHADER: &str = r#"
+impl shade::UniformVisitor for BunnyUniforms {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_lightDir", &self.light_dir);
+	}
+}
+
+const BUNNY_FS: &str = r#"\
 #version 330 core
-out vec4 FragColor;
 
-in vec3 Normal;
+out vec4 o_fragColor;
+
+in vec3 v_normal;
+
+uniform vec3 u_lightDir;
 
 void main() {
-	vec3 lightDir = normalize(vec3(1.0, -1.0, 1.0));
-	float diff = max(dot(Normal, lightDir), 0.0);
-	FragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diff * 0.5);
+	float diffuseLight = max(dot(v_normal, u_lightDir), 0.0);
+	o_fragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diffuseLight * 0.5);
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
+const BUNNY_VS: &str = r#"\
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
 
-out vec3 Normal;
+in vec3 a_pos;
+in vec3 a_normal;
 
-uniform mat4x4 transform;
+out vec3 v_normal;
+
+uniform mat4 u_transform;
 
 void main()
 {
-	Normal = aNormal;
-	gl_Position = transform * vec4(aPos, 1.0);
+	v_normal = a_normal;
+	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
 "#;
 
-#[derive(Clone, Debug)]
-struct MyUniform3 {
-	transform: cvmath::Mat4f,
+//----------------------------------------------------------------
+// Model and instance
+
+struct BunnyInstance {
+	model: cvmath::Transform3f,
+	light_dir: cvmath::Vec3f,
 }
 
-impl shade::UniformVisitor for MyUniform3 {
-	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("transform", &self.transform);
+struct BunnyModel {
+	shader: shade::Shader,
+	vertices: shade::VertexBuffer,
+	vertices_len: u32,
+	bounds: cvmath::Bounds3<f32>,
+}
+
+impl BunnyModel {
+	fn create(g: &mut shade::Graphics) -> BunnyModel {
+		let mut bunny_file = fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
+		let bunny_stl = stl::read_stl(&mut bunny_file).unwrap();
+
+		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
+		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		let mut vertices = Vec::new();
+		for triangle in bunny_stl.triangles.iter() {
+			vertices.push(BunnyVertex {
+				position: triangle.v1.into(),
+				normal: triangle.normal.into(),
+			});
+			vertices.push(BunnyVertex {
+				position: triangle.v2.into(),
+				normal: triangle.normal.into(),
+			});
+			vertices.push(BunnyVertex {
+				position: triangle.v3.into(),
+				normal: triangle.normal.into(),
+			});
+			mins = mins.min(triangle.v1.into()).min(triangle.v2.into()).min(triangle.v3.into());
+			maxs = maxs.max(triangle.v1.into()).max(triangle.v2.into()).max(triangle.v3.into());
+		}
+		let bounds = cvmath::Bounds(mins, maxs);
+
+		// Smooth the normals
+		let mut map = HashMap::new();
+		for v in vertices.iter() {
+			map.entry(v.position.map(f32::to_bits)).or_insert(Vec::new()).push(v.normal);
+		}
+		for v in &mut vertices {
+			let normals = map.get(&v.position.map(f32::to_bits)).unwrap();
+			let mut normal = cvmath::Vec3::ZERO;
+			for n in normals.iter() {
+				normal += *n;
+			}
+			v.normal = normal.normalize();
+		};
+
+		// Create the vertex and index buffers
+		let vertices_len = vertices.len() as u32;
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+
+		println!("Bunny # vertices: {vertices_len}");
+		println!("Bunny bounds: {bounds:#?}");
+
+		// Create the shader
+		let shader = g.shader_create(None, BUNNY_VS, BUNNY_FS).unwrap();
+
+		BunnyModel { shader, vertices, vertices_len, bounds }
+	}
+
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &BunnyInstance) {
+		let transform = camera.view_proj * instance.model;
+		let light_dir = instance.light_dir;
+		let uniforms = BunnyUniforms { transform, light_dir };
+
+		g.draw(&shade::DrawArgs {
+			surface: camera.surface,
+			viewport: camera.viewport,
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: Some(shade::DepthTest::Less),
+			cull_mode: None,
+			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
+			prim_type: shade::PrimType::Triangles,
+			shader: self.shader,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: self.vertices,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			uniforms: &[&uniforms],
+			vertex_start: 0,
+			vertex_end: self.vertices_len,
+			instances: -1,
+		}).unwrap();
 	}
 }
 
@@ -83,58 +180,19 @@ fn main() {
 	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
 
 	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
+	let ref mut g = shade::gl::GlGraphics::new();
 
-	let mut bunny_file = fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
-	let bunny_stl = stl::read_stl(&mut bunny_file).unwrap();
+	// Create the bunny model
+	let bunny = BunnyModel::create(g);
 
-	let mut mins = cvmath::Vec3::dup(f32::INFINITY);
-	let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
-	let (vb, vb_len) = {
-		let mut vertices = Vec::new();
-		for triangle in bunny_stl.triangles.iter() {
-			vertices.push(MyVertex3 {
-				position: triangle.v1.into(),
-				normal: triangle.normal.into(),
-			});
-			vertices.push(MyVertex3 {
-				position: triangle.v2.into(),
-				normal: triangle.normal.into(),
-			});
-			vertices.push(MyVertex3 {
-				position: triangle.v3.into(),
-				normal: triangle.normal.into(),
-			});
-			mins = mins.min(triangle.v1.into()).min(triangle.v2.into()).min(triangle.v3.into());
-			maxs = maxs.max(triangle.v1.into()).max(triangle.v2.into()).max(triangle.v3.into());
-		}
-
-		// Smooth the normals
-		let mut map = HashMap::new();
-		for v in vertices.iter() {
-			map.entry(v.position.map(f32::to_bits)).or_insert(Vec::new()).push(v.normal);
-		}
-		for v in &mut vertices {
-			let normals = map.get(&v.position.map(f32::to_bits)).unwrap();
-			let mut normal = cvmath::Vec3::ZERO;
-			for n in normals.iter() {
-				normal += *n;
-			}
-			v.normal = normal.normalize();
-		};
-
-		// Create the vertex and index buffers
-		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
-		(vb, dbg!(vertices.len()) as u32)
+	// Create the axes gizmo
+	let axes = {
+		let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
+		shade::d3::axes::AxesModel::create(g, shader)
 	};
 
-	println!("Bunny bounding box: {:?}", cvmath::Bounds(mins, maxs));
-
-	// Create the shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
-
-	// Model matrix to rotate the bunny
-	let mut model = cvmath::Mat4::rotate(cvmath::Deg(-90.0), cvmath::Vec3::X) * cvmath::Mat4::translate(-(mins + maxs) * 0.5);
+	// Bunny model transform
+	let mut bunny_rotation = cvmath::Transform3::IDENTITY;
 
 	// Main loop
 	let mut quit = false;
@@ -175,37 +233,35 @@ fn main() {
 			..Default::default()
 		}).unwrap();
 
+		// Camera setup
+		let camera = {
+			let surface = shade::Surface::BACK_BUFFER;
+			let viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
+			let aspect_ratio = size.width as f32 / size.height as f32;
+			let position = cvmath::Vec3(100.0, 100.0, bunny.bounds.height());
+			let target = cvmath::Vec3::ZERO;
+			let view = cvmath::Transform3f::look_at(position, target, cvmath::Vec3::Z, cvmath::Hand::RH);
+			let (near, far) = (0.1,1000.0);
+			let fov_y = cvmath::Deg(45.0);
+			let projection = cvmath::Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (cvmath::Hand::RH, cvmath::Clip::NO));
+			let view_proj = projection * view;
+			let inv_view_proj = view_proj.inverse();
+			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: cvmath::Clip::NO }
+		};
+
 		// Rotate the bunny
-		model = model * cvmath::Mat4::rotate(cvmath::Deg(1.0), cvmath::Vec3::Z);
-
-		// Update the transformation matrices
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
-		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 50.0, -200.0), cvmath::Vec3(0.0, 0.0, 0.0), cvmath::Vec3(0.0, 1.0, 0.0), cvmath::Hand::RH);
-		let transform = projection * view * model;
-
-		// Update the uniform buffer with the new transformation matrix
-		let uniforms = MyUniform3 { transform };
+		bunny_rotation *= cvmath::Transform3::rotate(cvmath::Vec3::Z, cvmath::Deg(1.0));
 
 		// Draw the bunny
-		g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32),
-			scissor: None,
-			blend_mode: shade::BlendMode::Solid,
+		let model = bunny_rotation * cvmath::Transform3::translate(-bunny.bounds.center());
+		let light_dir = cvmath::Vec3::new(1.0, -1.0, 1.0).normalize();
+		bunny.draw(g, &camera, &BunnyInstance { model, light_dir });
+
+		// Draw the axes gizmo
+		axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
+			local: cvmath::Transform3f::scale(camera.position.len() * 0.32),
 			depth_test: Some(shade::DepthTest::Less),
-			cull_mode: None,
-			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
-			prim_type: shade::PrimType::Triangles,
-			shader,
-			vertices: &[shade::DrawVertexBuffer {
-				buffer: vb,
-				divisor: shade::VertexDivisor::PerVertex,
-			}],
-			uniforms: &[&uniforms],
-			vertex_start: 0,
-			vertex_end: vb_len,
-			instances: -1,
-		}).unwrap();
+		});
 
 		// Finish the frame
 		g.end().unwrap();

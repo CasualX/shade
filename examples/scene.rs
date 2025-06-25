@@ -167,7 +167,7 @@ fn main() {
 			let eye = cvmath::Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
 			let target = cvmath::Vec3(96.0 * 0.5, 0.0, 32.0);
 			let up = cvmath::Vec3(0.0, 1.0, 0.0);
-			cvmath::Mat4::look_at(eye, target, up, cvmath::Hand::RH)
+			cvmath::Transform3f::look_at(eye, target, up, cvmath::Hand::RH)
 		};
 		let transform = projection * view;
 

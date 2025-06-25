@@ -164,91 +164,110 @@ struct GlUniformSetter<'a> {
 impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	fn d1v(&mut self, name: &str, data: &[f64]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::DOUBLE, "Uniform {name:?} expected `double` type in shader");
 			gl_check!(gl::Uniform1dv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
 	fn d2v(&mut self, name: &str, data: &[[f64; 2]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::DOUBLE_VEC2, "Uniform {name:?} expected `dvec2` type in shader");
 			gl_check!(gl::Uniform2dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
 		}
 	}
 	fn d3v(&mut self, name: &str, data: &[[f64; 3]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::DOUBLE_VEC3, "Uniform {name:?} expected `dvec3` type in shader");
 			gl_check!(gl::Uniform3dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
 		}
 	}
 	fn d4v(&mut self, name: &str, data: &[[f64; 4]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::DOUBLE_VEC4, "Uniform {name:?} expected `dvec4` type in shader");
 			gl_check!(gl::Uniform4dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
 		}
 	}
 	fn f1v(&mut self, name: &str, data: &[f32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT, "Uniform {name:?} expected `float` type in shader");
 			gl_check!(gl::Uniform1fv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
 	fn f2v(&mut self, name: &str, data: &[[f32; 2]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
 			gl_check!(gl::Uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn f3v(&mut self, name: &str, data: &[[f32; 3]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
 			gl_check!(gl::Uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn f4v(&mut self, name: &str, data: &[[f32; 4]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
 			gl_check!(gl::Uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn i1v(&mut self, name: &str, data: &[i32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::INT, "Uniform {name:?} expected `int` type in shader");
 			gl_check!(gl::Uniform1iv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
 	fn i2v(&mut self, name: &str, data: &[[i32; 2]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
 			gl_check!(gl::Uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn i3v(&mut self, name: &str, data: &[[i32; 3]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
 			gl_check!(gl::Uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn i4v(&mut self, name: &str, data: &[[i32; 4]]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
 			gl_check!(gl::Uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_MAT2, "Uniform {name:?} expected `mat2` type in shader");
 			gl_check!(gl::UniformMatrix2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
 			gl_check!(gl::UniformMatrix3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
 			gl_check!(gl::UniformMatrix4fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_MAT3x2, "Uniform {name:?} expected `mat3x2` type in shader");
 			gl_check!(gl::UniformMatrix3x2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::FLOAT_MAT4x3, "Uniform {name:?} expected `mat4x3` type in shader");
 			gl_check!(gl::UniformMatrix4x3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
 		if let Some(u) = self.shader.get_uniform(name) {
+			debug_assert_eq!(u.ty, gl::SAMPLER_2D, "Uniform {name:?} expected `sampler2D` type in shader");
+
 			const MAX_TEXTURES: usize = 32;
 
 			// Ensure we don't exceed the maximum number of texture units

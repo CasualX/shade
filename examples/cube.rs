@@ -1,24 +1,24 @@
 use std::{mem, thread, time};
 
 //----------------------------------------------------------------
-// The cube's geometry
+// Geometry, uniforms and shader
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
-struct MyVertex3 {
+struct CubeVertex {
 	position: cvmath::Vec3f,
 	tex_coord: cvmath::Vec2f,
 	color: [shade::Norm<u8>; 4],
 }
 
-unsafe impl shade::TVertex for MyVertex3 {
+unsafe impl shade::TVertex for CubeVertex {
 	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: mem::size_of::<MyVertex3>() as u16,
-		alignment: mem::align_of::<MyVertex3>() as u16,
+		size: mem::size_of::<CubeVertex>() as u16,
+		alignment: mem::align_of::<CubeVertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
-			shade::VertexAttribute::with::<cvmath::Vec2f>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
-			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("aColor", dataview::offset_of!(MyVertex3.color)),
+			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(CubeVertex.position)),
+			shade::VertexAttribute::with::<cvmath::Vec2f>("a_uv", dataview::offset_of!(CubeVertex.tex_coord)),
+			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("a_color", dataview::offset_of!(CubeVertex.color)),
 		],
 	};
 }
@@ -30,37 +30,37 @@ const Y_MAX: f32 =  1.0;
 const Z_MIN: f32 = -1.0;
 const Z_MAX: f32 =  1.0;
 
-static VERTICES: [MyVertex3; 24] = [
+static VERTICES: [CubeVertex; 24] = [
 	// Front face
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255,   0,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192,   0,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192,   0,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128,   0,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255,   0,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192,   0,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192,   0,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128,   0,   0, 255]) },
 	// Back face
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0, 255, 255, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0, 192, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0, 192, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0, 128, 128, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0, 255, 255, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0, 192, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0, 192, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0, 128, 128, 255]) },
 	// Left face
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0, 255,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0, 192,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0, 192,   0, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0, 128,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0, 255,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0, 192,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0, 192,   0, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0, 128,   0, 255]) },
 	// Right face
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255,   0, 255, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192,   0, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192,   0, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128,   0, 128, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255,   0, 255, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192,   0, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192,   0, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128,   0, 128, 255]) },
 	// Top face
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0,   0, 255, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0,   0, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0,   0, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0,   0, 128, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([  0,   0, 255, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MAX), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([  0,   0, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([  0,   0, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MAX, Z_MIN), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([  0,   0, 128, 255]) },
 	// Bottom face
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255, 255, 255, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192, 192, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192, 192, 192, 255]) },
-	MyVertex3 { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128, 128, 128, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(0.0, 0.0), color: shade::norm!([255, 255, 255, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MIN), tex_coord: cvmath::Vec2(1.0, 0.0), color: shade::norm!([192, 192, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MAX, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(0.0, 1.0), color: shade::norm!([192, 192, 192, 255]) },
+	CubeVertex { position: cvmath::Vec3(X_MIN, Y_MIN, Z_MAX), tex_coord: cvmath::Vec2(1.0, 1.0), color: shade::norm!([128, 128, 128, 255]) },
 ];
 
 static INDICES: [u8; 36] = [
@@ -73,52 +73,118 @@ static INDICES: [u8; 36] = [
 ];
 
 
-//----------------------------------------------------------------
-// Shader and uniforms
-
-const FRAGMENT_SHADER: &str = r#"
+const CUBE_FS: &str = r#"\
 #version 330 core
-out vec4 FragColor;
 
-in vec4 VertexColor;
-in vec2 TexCoord;
+layout(location = 0) out vec4 o_fragColor;
 
-uniform sampler2D tex;
+in vec4 v_color;
+in vec2 v_uv;
+
+uniform sampler2D u_texture;
 
 void main() {
-	FragColor = texture(tex, TexCoord) * VertexColor;
+	o_fragColor = texture(u_texture, v_uv) * v_color;
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
+const CUBE_VS: &str = r#"\
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoord;
-layout (location = 2) in vec4 aColor;
 
-out vec4 VertexColor;
-out vec2 TexCoord;
+in vec3 a_pos;
+in vec2 a_uv;
+in vec4 a_color;
 
-uniform mat4x4 transform;
+out vec4 v_color;
+out vec2 v_uv;
+
+uniform mat4 u_transform;
 
 void main()
 {
-	VertexColor = aColor + vec4(0.5, 0.5, 0.5, 0.0);
-	TexCoord = aTexCoord;
-	gl_Position = transform * vec4(aPos, 1.0);
+	v_color = a_color + vec4(0.5, 0.5, 0.5, 0.0);
+	v_uv = a_uv;
+	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
 "#;
 
 #[derive(Clone, Debug)]
-struct MyUniform3 {
+struct CubeUniforms {
 	transform: cvmath::Mat4f,
 	texture: shade::Texture2D,
 }
 
-impl shade::UniformVisitor for MyUniform3 {
+impl shade::UniformVisitor for CubeUniforms {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("transform", &self.transform);
-		set.value("tex", &self.texture);
+		set.value("u_transform", &self.transform);
+		set.value("u_texture", &self.texture);
+	}
+}
+
+//----------------------------------------------------------------
+// Model and instance
+
+struct CubeInstance {
+	model: cvmath::Transform3f,
+}
+
+struct CubeModel {
+	shader: shade::Shader,
+	texture: shade::Texture2D,
+	vertices: shade::VertexBuffer,
+	vertices_len: u32,
+	indices: shade::IndexBuffer,
+	indices_len: u32,
+}
+
+impl CubeModel {
+	fn create(g: &mut shade::Graphics) -> CubeModel {
+		// Load the texture
+		let texture = shade::image::png::load_file(g, Some("brick 24"), "examples/textures/brick 24 - 256x256.png", &shade::image::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::ClampEdge,
+			wrap_v: shade::TextureWrap::ClampEdge,
+		}, None).unwrap();
+
+		// Create the vertex and index buffers
+		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static).unwrap();
+		let vertices_len = VERTICES.len() as u32;
+		let indices = g.index_buffer(None, &INDICES, shade::BufferUsage::Static).unwrap();
+		let indices_len = INDICES.len() as u32;
+
+		// Create the shader
+		let shader = g.shader_create(None, CUBE_VS, CUBE_FS).unwrap();
+
+		CubeModel { shader, texture, vertices, vertices_len, indices, indices_len }
+	}
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &CubeInstance) {
+		let transform = camera.view_proj * instance.model;
+		let uniforms = CubeUniforms { transform, texture: self.texture };
+
+		// Draw the cube
+		g.draw_indexed(&shade::DrawIndexedArgs {
+			surface: camera.surface,
+			viewport: camera.viewport,
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: Some(shade::DepthTest::Less),
+			cull_mode: None,
+			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
+			prim_type: shade::PrimType::Triangles,
+			shader: self.shader,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: self.vertices,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			indices: self.indices,
+			uniforms: &[&uniforms],
+			vertex_start: 0,
+			vertex_end: self.vertices_len,
+			index_start: 0,
+			index_end: self.indices_len,
+			instances: -1,
+		}).unwrap();
 	}
 }
 
@@ -140,25 +206,13 @@ fn main() {
 	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
 
 	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
+	let ref mut g = shade::gl::GlGraphics::new();
 
-	// Load the texture
-	let texture = shade::image::png::load_file(&mut g, Some("brick 24"), "examples/textures/brick 24 - 256x256.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::ClampEdge,
-		wrap_v: shade::TextureWrap::ClampEdge,
-	}, None).unwrap();
-
-	// Create the vertex and index buffers
-	let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static).unwrap();
-	let ib = g.index_buffer(None, &INDICES, shade::BufferUsage::Static).unwrap();
-
-	// Create the shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+	// Create the cube model
+	let cube = CubeModel::create(g);
 
 	// Model matrix to rotate the cube
-	let mut model = cvmath::Mat4::scale(1.0);
+	let mut model = cvmath::Transform3::scale(1.0);
 
 	// Main loop
 	let mut quit = false;
@@ -200,39 +254,26 @@ fn main() {
 		}).unwrap();
 
 		// Rotate the cube
-		model = model * cvmath::Mat4::rotate(cvmath::Deg(1.0), cvmath::Vec3(0.8, 0.6, 0.1));
+		model = model * cvmath::Transform3::rotate(cvmath::Vec3(0.8, 0.6, 0.1), cvmath::Deg(1.0));
 
-		// Update the transformation matrices
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 100.0, (cvmath::Hand::RH, cvmath::Clip::NO));
-		let view = cvmath::Mat4::look_at(cvmath::Vec3(0.0, 0.0, 4.0), cvmath::Vec3::ZERO, cvmath::Vec3(0.0, 1.0, 0.0), cvmath::Hand::RH);
-		let transform = projection * view * model;
-
-		// Update the uniform buffer with the new transformation matrix
-		let uniforms = MyUniform3 { transform, texture };
+		// Camera setup
+		let camera = {
+			let surface = shade::Surface::BACK_BUFFER;
+			let viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
+			let aspect_ratio = size.width as f32 / size.height as f32;
+			let position = cvmath::Vec3(0.0, 0.0, 4.0);
+			let target = cvmath::Vec3::ZERO;
+			let view = cvmath::Transform3f::look_at(position, target, cvmath::Vec3::Y, cvmath::Hand::RH);
+			let (near, far) = (0.1, 100.0);
+			let fov_y = cvmath::Deg(45.0);
+			let projection = cvmath::Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (cvmath::Hand::RH, cvmath::Clip::NO));
+			let view_proj = projection * view;
+			let inv_view_proj = view_proj.inverse();
+			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: cvmath::Clip::NO }
+		};
 
 		// Draw the cube
-		g.draw_indexed(&shade::DrawIndexedArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32),
-			scissor: None,
-			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::Less),
-			cull_mode: None,
-			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
-			prim_type: shade::PrimType::Triangles,
-			shader,
-			vertices: &[shade::DrawVertexBuffer {
-				buffer: vb,
-				divisor: shade::VertexDivisor::PerVertex,
-			}],
-			indices: ib,
-			uniforms: &[&uniforms],
-			vertex_start: 0,
-			vertex_end: VERTICES.len() as u32,
-			index_start: 0,
-			index_end: INDICES.len() as u32,
-			instances: -1,
-		}).unwrap();
+		cube.draw(g, &camera, &CubeInstance { model });
 
 		// Finish the frame
 		g.end().unwrap();

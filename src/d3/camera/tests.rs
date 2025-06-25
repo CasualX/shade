@@ -5,29 +5,30 @@ fn test_camera_setup() {
 	let viewport = Bounds2::new(Vec2i(0, 0), Vec2i(100, 100));
 	let aspect_ratio = 1.0;
 	let fov_y = Rad::quarter();
-	let near = 1.0;
-	let far = 10.0;
+	let (near, far) = (1.0, 10.0);
 
 	let position = Vec3::new(5.0, 0.0, 0.0);
 	let target = Vec3::ZERO;
+	let forward = (target - position).normalize();
 	let up = Vec3::Y;
 
-	println!("Viewport: {:?}", viewport);
-	println!("Aspect ratio: {}", aspect_ratio);
-	println!("FOV (Y): {:?}", fov_y);
-	println!("Near: {}", near);
-	println!("Far: {}", far);
-	println!("Camera position: {:?}", position);
-	println!("Camera target: {:?}", target);
-	println!("Camera forward = {:?}", (target - position).normalize());
-	println!("Camera up: {:?}", up);
+	println!("Viewport: {viewport:?}");
+	println!("Aspect ratio: {aspect_ratio}");
+	println!("FOV (Y): {fov_y}");
+	println!("Near: {near}");
+	println!("Far: {far}");
+	println!("Camera position: {position:?}");
+	println!("Camera target: {target:?}");
+	println!("Camera forward: {forward:?}");
+	println!("Camera up: {up:?}");
 
-	let view = Mat4::look_at(position, target, up, Hand::RH);
+	let view = Transform3f::look_at(position, target, up, Hand::RH);
 	let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (Hand::RH, Clip::NO));
 	let view_proj = projection * view;
 	let inv_view_proj = view_proj.inverse();
 
 	let cam = CameraSetup {
+		surface: Surface::INVALID,
 		viewport,
 		aspect_ratio,
 		position,
@@ -37,7 +38,7 @@ fn test_camera_setup() {
 		projection,
 		view_proj,
 		inv_view_proj,
-		clip: Clip::NO, // Assuming NDC z = -1..1
+		clip: Clip::NO,
 	};
 
 	println!("View: {:?}", cam.view);

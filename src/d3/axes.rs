@@ -1,44 +1,14 @@
 use super::*;
 
-#[derive(Copy, Clone, Debug, Default, dataview::Pod)]
-#[repr(C)]
-pub struct AxesVertex {
-	pub position: Vec3f,
-	pub color: [u8; 4],
-}
-
-unsafe impl TVertex for AxesVertex {
-	const LAYOUT: &'static VertexLayout = &VertexLayout {
-		size: mem::size_of::<AxesVertex>() as u16,
-		alignment: mem::align_of::<AxesVertex>() as u16,
-		attributes: &[
-			VertexAttribute { name: "a_pos", format: VertexAttributeFormat::F32v3, offset: dataview::offset_of!(AxesVertex.position) as u16 },
-			VertexAttribute { name: "a_color", format: VertexAttributeFormat::U8Normv4, offset: dataview::offset_of!(AxesVertex.color) as u16 },
-		],
-	};
-}
+use color3d::*;
 
 #[derive(Clone, Debug)]
 pub struct AxesInstance {
-	pub local: Mat4f,
+	pub local: Transform3f,
+	pub depth_test: Option<DepthTest>,
 }
 
-impl UniformVisitor for AxesInstance {
-	fn visit(&self, set: &mut dyn UniformSetter) {
-		set.value("u_local", &self.local);
-	}
-}
-
-impl UniformVisitor for (&camera::CameraSetup, &AxesInstance) {
-	fn visit(&self, set: &mut dyn UniformSetter) {
-		let (camera, instance) = self;
-		camera.visit(set);
-		instance.visit(set);
-		let transform = camera.view_proj * instance.local;
-		set.value("u_transform", &transform);
-	}
-}
-
+#[derive(Debug)]
 pub struct AxesModel {
 	pub shader: Shader,
 	pub vertices: VertexBuffer,
@@ -58,12 +28,18 @@ impl AxesModel {
 	}
 
 	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &AxesInstance) {
+		let uniforms = Uniforms {
+			transform: camera.view_proj * instance.local,
+			color: Vec4f::ONE,
+			add_color: Vec4f::ZERO,
+		};
+
 		g.draw_indexed(&DrawIndexedArgs {
-			surface: Surface::BACK_BUFFER,
+			surface: camera.surface,
 			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: BlendMode::Solid,
-			depth_test: None,
+			depth_test: instance.depth_test,
 			cull_mode: None,
 			mask: DrawMask::ALL,
 			prim_type: PrimType::Lines,
@@ -72,11 +48,11 @@ impl AxesModel {
 				buffer: self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			uniforms: &[&(camera, instance)],
+			uniforms: &[&uniforms],
 			indices: self.indices,
-			index_start: 0,
 			vertex_start: 0,
 			vertex_end: self.vertices_len,
+			index_start: 0,
 			index_end: self.indices_len,
 			instances: -1,
 		}).unwrap();
@@ -87,42 +63,42 @@ const RED: [u8; 4] = [245, 59, 39, 255];
 const GREEN: [u8; 4] = [181, 255, 104, 255];
 const BLUE: [u8; 4] = [7, 111, 255, 255];
 
-static VERTICES: [AxesVertex; 27] = [
+static VERTICES: [Vertex; 27] = [
 	// X axis [0]
-	AxesVertex { position: Vec3f::new(0.0, 0.0, 0.0), color: RED },
-	AxesVertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
-	AxesVertex { position: Vec3f::new(0.9, 0.05, 0.0), color: RED },
-	AxesVertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
-	AxesVertex { position: Vec3f::new(0.9, -0.05, 0.0), color: RED },
-	AxesVertex { position: Vec3f::new(1.1, 0.04, 0.04), color: RED },
-	AxesVertex { position: Vec3f::new(1.1, -0.04, -0.04), color: RED },
-	AxesVertex { position: Vec3f::new(1.1, 0.04, -0.04), color: RED },
-	AxesVertex { position: Vec3f::new(1.1, -0.04, 0.04), color: RED },
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(0.9, 0.05, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	Vertex { position: Vec3f::new(0.9, -0.05, 0.0), color: RED },
+	Vertex { position: Vec3f::new(1.1, 0.04, 0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, -0.04, -0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, 0.04, -0.04), color: RED },
+	Vertex { position: Vec3f::new(1.1, -0.04, 0.04), color: RED },
 
 	// Y axis [9]
-	AxesVertex { position: Vec3f::new(0.0, 0.0, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.05, 0.9, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(-0.05, 0.9, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.03, 1.1, 0.04), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.0, 1.1, 0.0), color: GREEN },
-	AxesVertex { position: Vec3f::new(-0.03, 1.1, 0.04), color: GREEN },
-	AxesVertex { position: Vec3f::new(0.0, 1.1, -0.04), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.05, 0.9, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(-0.05, 0.9, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(0.03, 1.1, 0.04), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.1, 0.0), color: GREEN },
+	Vertex { position: Vec3f::new(-0.03, 1.1, 0.04), color: GREEN },
+	Vertex { position: Vec3f::new(0.0, 1.1, -0.04), color: GREEN },
 
 	// Z axis [18]
-	AxesVertex { position: Vec3f::new(0.0, 0.0, 0.0), color: BLUE },
-	AxesVertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
-	AxesVertex { position: Vec3f::new(0.05, 0.0, 0.9), color: BLUE },
-	AxesVertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
-	AxesVertex { position: Vec3f::new(-0.05, 0.0, 0.9), color: BLUE },
-	AxesVertex { position: Vec3f::new(-0.04, 0.04, 1.1), color: BLUE },
-	AxesVertex { position: Vec3f::new(0.04, 0.04, 1.1), color: BLUE },
-	AxesVertex { position: Vec3f::new(-0.04, -0.04, 1.1), color: BLUE },
-	AxesVertex { position: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: BLUE },
+	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	Vertex { position: Vec3f::new(0.05, 0.0, 0.9), color: BLUE },
+	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	Vertex { position: Vec3f::new(-0.05, 0.0, 0.9), color: BLUE },
+	Vertex { position: Vec3f::new(-0.04, 0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(0.04, 0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(-0.04, -0.04, 1.1), color: BLUE },
+	Vertex { position: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
 ];
 
-static INDICES: [u16; 34] = [
+static INDICES: [u8; 34] = [
 	// X axis
 	0, 1,       // axis line
 	2, 3, 3, 4, // arrowhead lines

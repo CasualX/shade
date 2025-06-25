@@ -38,7 +38,7 @@ impl FirstPersonCamera {
 
 		let forward = self.forward;
 		let right = forward.cross(self.up).normalize();
-		let rotation = Mat3f::rotate(yaw, self.up) * Mat3f::rotate(pitch, right);
+		let rotation = Mat3f::rotate(self.up, yaw) * Mat3f::rotate(right, pitch);
 
 		self.forward = (rotation * forward).normalize();
 	}
@@ -56,7 +56,7 @@ impl FirstPersonCamera {
 	}
 
 	/// Returns the view matrix using the given handedness.
-	pub fn view_matrix(&self, hand: Hand) -> Mat4f {
-		Mat4f::look_at(self.position, self.position + self.forward, self.up, hand)
+	pub fn view_matrix(&self, hand: Hand) -> Transform3f {
+		Transform3f::look_at(self.position, self.position + self.forward, self.up, hand)
 	}
 }

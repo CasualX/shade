@@ -23,15 +23,15 @@ pub struct ArcballCamera {
 }
 
 impl ArcballCamera {
-	/// Creates a new camera from a world position, pivot point, and up axis.
+	/// Creates a new camera from a world position, pivot point, and reference up axis.
 	///
 	/// The distance between `position` and `pivot` must be greater than zero,
-	/// and the view direction must not be aligned with the `up` axis.
-	pub fn new(position: Vec3f, pivot: Vec3f, up: Vec3f) -> ArcballCamera {
+	/// and the view direction must not be aligned with the `ref_up` axis.
+	pub fn new(position: Vec3f, pivot: Vec3f, ref_up: Vec3f) -> ArcballCamera {
 		let offset = position - pivot;
 		let (forward, radius) = offset.normalize_len();
 
-		let yaw_axis = up.normalize();
+		let yaw_axis = ref_up.normalize();
 		let pitch_axis = yaw_axis.cross(forward).normalize();
 
 		let yaw = Rad(0.0); // Relative to the pitch axis
@@ -45,13 +45,13 @@ impl ArcballCamera {
 		self.yaw += Rad(dx * ROTATE_SPEED);
 		self.pitch += Rad(dy * ROTATE_SPEED);
 
-		// Unclamped pitch can work, but the view_matrix() code below needs to be patched to use proper up vector
+		// Clamp pitch for UX reasons
 		self.pitch = self.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
 	}
 
 	/// Pans the camera parallel to the view plane.
 	pub fn pan(&mut self, dx: f32, dy: f32) {
-		let rotation = Mat3f::rotate(self.yaw, self.yaw_axis) * Mat3f::rotate(self.pitch, self.pitch_axis);
+		let rotation = Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch);
 		let right = rotation * self.pitch_axis;
 		let up = rotation * self.yaw_axis;
 
@@ -63,7 +63,7 @@ impl ArcballCamera {
 	/// Zooms the camera based on the scale factor.
 	pub fn zoom(&mut self, scale: f32) {
 		self.radius *= 1.0 - scale * ZOOM_SPEED;
-		self.radius = f32::max(self.radius, 0.01);
+		// self.radius = f32::max(self.radius, 0.01);
 	}
 
 	/// Returns the current camera position.
@@ -74,14 +74,14 @@ impl ArcballCamera {
 	/// Returns the view direction vector from the camera to the pivot point.
 	pub fn view_dir(&self) -> Vec3f {
 		let forward = self.yaw_axis.cross(self.pitch_axis).normalize();
-		Mat3f::rotate(self.yaw, self.yaw_axis) * Mat3f::rotate(self.pitch, self.pitch_axis) * forward
+		Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch) * forward
 	}
 
 	/// Returns the view matrix using the given handedness.
-	pub fn view_matrix(&self, hand: Hand) -> Mat4f {
-		// let up = self.yaw_axis; // Use the yaw axis as the up vector
-		let rotation = Mat3f::rotate(self.yaw, self.yaw_axis) * Mat3f::rotate(self.pitch, self.pitch_axis);
-		let up = rotation * self.yaw_axis;
-		Mat4f::look_at(self.position(), self.pivot, up, hand)
+	pub fn view_matrix(&self, hand: Hand) -> Transform3f {
+		// Compute the proper up vector based on the yaw and pitch axes
+		// It's cheaper to just use the yaw axis, but this breaks when looking straight up or down
+		let up = Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch) * self.yaw_axis;
+		Transform3f::look_at(self.position(), self.pivot, up, hand)
 	}
 }

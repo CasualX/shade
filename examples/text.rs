@@ -30,7 +30,7 @@ fn main() {
 		}, None).unwrap();
 
 		// Compile the shader
-		let shader = g.shader_create(None, shade::gl::MTSDF_VS, shade::gl::MTSDF_FS).unwrap();
+		let shader = g.shader_create(None, shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS).unwrap();
 
 		shade::d2::FontResource { font, texture, shader }
 	};
@@ -62,7 +62,7 @@ fn main() {
 				cv.blend_mode = shade::BlendMode::Alpha;
 				cv.viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
 				cv.push_uniform(shade::d2::TextUniform {
-					transform: cvmath::Transform2::remap(cvmath::Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32), cvmath::Bounds2::c(-1.0, 1.0, 1.0, -1.0)),
+					transform: cvmath::Transform2::ortho(cvmath::Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32)),
 					texture: font.texture,
 					outline_width_relative: 0.125,
 					..Default::default()

@@ -1,10 +1,10 @@
-#version 330 core
+// WebGL GLSL ES 1.00
 
-in vec2 v_texcoord;
-in vec4 v_color;
-in vec4 v_outline;
+precision mediump float;
 
-layout(location = 0) out vec4 o_fragcolor;
+varying vec2 v_texcoord;
+varying vec4 v_color;
+varying vec4 v_outline;
 
 uniform sampler2D u_texture;
 uniform vec2 u_unit_range;
@@ -25,7 +25,7 @@ float screen_px_range() {
 }
 
 void main() {
-	vec4 distances = texture(u_texture, v_texcoord);
+	vec4 distances = texture2D(u_texture, v_texcoord);
 	float d_sdf = median(distances.rgb);
 
 	float width = screen_px_range();
@@ -36,5 +36,5 @@ void main() {
 	outer = clamp(outer, 0.0, 1.0);
 
 	vec4 color = v_color * inner + v_outline * (outer - inner);
-	o_fragcolor = pow(color, vec4(1.0 / u_gamma));
+	gl_FragColor = pow(color, vec4(1.0 / u_gamma));
 }

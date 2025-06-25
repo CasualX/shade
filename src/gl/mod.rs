@@ -8,9 +8,6 @@ use std::{mem, ops, ptr, slice};
 pub use gl as capi;
 use gl::types::*;
 
-pub const MTSDF_FS: &str = include_str!("shaders/mtsdf.fs.glsl");
-pub const MTSDF_VS: &str = include_str!("shaders/mtsdf.vs.glsl");
-
 use crate::resources::{Resource, ResourceMap};
 use crate::handle::Handle;
 
@@ -32,6 +29,8 @@ macro_rules! gl_check {
 
 mod draw;
 mod shader;
+
+pub mod shaders;
 
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 	(match wrap {

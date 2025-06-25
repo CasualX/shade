@@ -27,7 +27,6 @@ pub mod d2;
 pub mod d3;
 
 pub mod image;
-pub mod camera;
 
 #[cfg(feature = "gl")]
 pub mod gl;

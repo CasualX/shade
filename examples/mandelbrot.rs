@@ -221,7 +221,7 @@ fn main() {
 			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::MouseInput { state, button, .. }, .. } => {
 				if matches!(button, winit::event::MouseButton::Left) {
 					if matches!(state, winit::event::ElementState::Pressed) {
-						stack.zoom(cursor, Vec2::new(size.width as f32, size.height as f32), 0.8);
+						stack.zoom(cursor, Vec2::new(size.width as f32, size.height as f32), 0.5);
 						// request redraw
 						context.window().request_redraw();
 					}

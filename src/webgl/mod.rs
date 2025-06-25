@@ -4,6 +4,8 @@ mod api;
 mod draw;
 mod shader;
 
+pub mod shaders;
+
 use crate::resources::{Resource, ResourceMap};
 use api::types::*;
 

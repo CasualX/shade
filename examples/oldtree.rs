@@ -20,21 +20,22 @@ unsafe impl shade::TVertex for Vertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"
+const FRAGMENT_SHADER: &str = r#"\
 #version 330 core
-out vec4 FragColor;
+
+out vec4 o_fragColor;
 
 in vec3 v_normal;
 in vec2 v_uv;
-in vec3 v_fragpos;
+in vec3 v_fragPos;
 
 uniform sampler2D u_diffuse;
 uniform vec3 u_position;
-uniform vec3 lightPos;
+uniform vec3 u_lightPos;
 
 void main() {
 	// Define light direction (normalized)
-	vec3 lightDir = normalize(lightPos - v_fragpos);
+	vec3 lightDir = normalize(u_lightPos - v_fragPos);
 
 	// Calculate diffuse lighting
 	vec3 norm = normalize(v_normal);
@@ -50,63 +51,64 @@ void main() {
 	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 
-	vec3 viewDir = normalize(u_position - v_fragpos);
+	vec3 viewDir = normalize(u_position - v_fragPos);
 	float rim = 1.0 - max(dot(viewDir, norm), 0.0);
 	rim = smoothstep(0.5, 0.6, rim);
 	finalColor += vec3(1.0, 0.8, 0.5) * rim * 0.2;  // warm rim glow
 
-	FragColor = vec4(finalColor, texColor.a);
+	o_fragColor = vec4(finalColor, texColor.a);
 
-	// FragColor = vec4(norm * 0.5 + 0.5, 1.0);
+	// o_fragColor = vec4(norm * 0.5 + 0.5, 1.0);
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
+const VERTEX_SHADER: &str = r#"\
 #version 330 core
+
 in vec3 a_pos;
 in vec3 a_normal;
 in vec2 a_uv;
 
-out vec3 v_fragpos;
+out vec3 v_fragPos;
 out vec3 v_normal;
 out vec2 v_uv;
 
-uniform mat4 u_model;
-uniform mat4 u_view;
-uniform mat4 u_projection;
+uniform mat4x3 u_model;
+
+uniform mat4 u_view_proj;
 
 void main()
 {
 	// Calculate world position of the vertex
-	v_fragpos = vec3(u_model * vec4(a_pos, 1.0));
+	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
 
 	// Transform the normal properly (especially for scaling)
-	v_normal = mat3(transpose(inverse(u_model))) * a_normal;
+	v_normal = transpose(inverse(mat3(u_model))) * a_normal;
 
 	// Pass through UV
 	v_uv = a_uv;
 
 	// Final position for rasterization
-	gl_Position = u_projection * u_view * vec4(v_fragpos, 1.0);
+	gl_Position = u_view_proj * vec4(v_fragPos, 1.0);
 }
 "#;
 
 
 const PARALLAX_SHADER: &str = r#"
 #version 330 core
-out vec4 FragColor;
+out vec4 o_fragColor;
 
 in vec2 v_uv;
 in vec3 v_normal;
-in vec3 v_fragpos;
+in vec3 v_fragPos;
 
 uniform sampler2D u_diffuse;
-uniform sampler2D u_normalmap;
-uniform sampler2D u_heightmap;
+uniform sampler2D u_normalMap;
+uniform sampler2D u_heightMap;
 uniform vec3 u_position;
-uniform vec3 lightPos;
+uniform vec3 u_lightPos;
 
-uniform float u_heightscale;
+uniform float u_heightScale;
 
 // Construct TBN matrix using derivatives (quad assumed)
 mat3 computeTBN(vec3 normal, vec3 pos, vec2 uv) {
@@ -129,18 +131,18 @@ vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent) {
 	float angle = dot(vec3(0.0, 0.0, 1.0), viewDirTangent);
 	float num = mix(maxLayers, minLayers, abs(angle));
 	float layerDepth = 1.0 / num;
-	vec2 P = viewDirTangent.xy * u_heightscale;
+	vec2 P = viewDirTangent.xy * u_heightScale;
 	vec2 deltaUV = -P / num;
 
 	vec2 currUV = uv;
 	float currDepth = 0.0;
-	float heightFromMap = texture(u_heightmap, currUV).r;
+	float heightFromMap = texture(u_heightMap, currUV).r;
 
 	// Step until depth of map is below current layer
 	while (currDepth < heightFromMap && num > 0.0) {
 		currUV += deltaUV;
 		currDepth += layerDepth;
-		heightFromMap = texture(u_heightmap, currUV).r;
+		heightFromMap = texture(u_heightMap, currUV).r;
 	}
 
 	return currUV;
@@ -148,8 +150,8 @@ vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent) {
 
 void main() {
 	// Compute TBN matrix
-	mat3 TBN = computeTBN(normalize(v_normal), v_fragpos, v_uv);
-	vec3 viewDir = normalize(u_position - v_fragpos);
+	mat3 TBN = computeTBN(normalize(v_normal), v_fragPos, v_uv);
+	vec3 viewDir = normalize(u_position - v_fragPos);
 	vec3 viewDirTangent = TBN * viewDir;
 
 	// Perform Parallax Occlusion Mapping
@@ -165,32 +167,32 @@ void main() {
 		discard;
 
 	// Sample and decode the normal map (assumed in [0,1] range)
-	vec3 normalTangent = texture(u_normalmap, displacedUV).rgb * 2.0 - 1.0;
+	vec3 normalTangent = texture(u_normalMap, displacedUV).rgb * 2.0 - 1.0;
 
 	// Transform to world space
 	vec3 perturbedNormal = normalize(TBN * normalTangent);
 
 	// Lighting
-	vec3 lightDir = normalize(lightPos - v_fragpos);
+	vec3 lightDir = normalize(u_lightPos - v_fragPos);
 	float diffLight = max(dot(perturbedNormal, lightDir), 0.0);
 
 	// Final color
 	vec3 finalColor = texColor.rgb * (0.6 + diffLight * 0.4);
-	FragColor = vec4(finalColor, texColor.a);
+	o_fragColor = vec4(finalColor, texColor.a);
 }
 "#;
 
 //----------------------------------------------------------------
 
 struct OldTreeInstance {
-	model: cvmath::Mat4f,
+	model: cvmath::Transform3f,
 	light_pos: cvmath::Vec3f,
 }
 
 impl shade::UniformVisitor for OldTreeInstance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_model", &self.model);
-		set.value("lightPos", &self.light_pos);
+		set.value("u_lightPos", &self.light_pos);
 	}
 }
 
@@ -199,6 +201,7 @@ struct OldTreeModel {
 	vertices: shade::VertexBuffer,
 	vertices_len: u32,
 	texture: shade::Texture2D,
+	bounds: cvmath::Bounds3<f32>,
 }
 
 impl shade::UniformVisitor for OldTreeModel {
@@ -208,9 +211,36 @@ impl shade::UniformVisitor for OldTreeModel {
 }
 
 impl OldTreeModel {
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::camera::CameraSetup, instance: &OldTreeInstance) {
+	fn create(g: &mut shade::Graphics) -> OldTreeModel {
+		let vertices = fs::read("examples/oldtree/vertices.bin").unwrap();
+		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
+		let vertices_len = vertices.len() as u32;
+
+		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
+		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		for v in vertices {
+			mins = mins.min(v.position);
+			maxs = maxs.max(v.position);
+			// println!("Vertex {}: {:?}", i, v);
+		}
+		let bounds = cvmath::Bounds3(mins, maxs);
+
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+
+		let texture = shade::image::png::load_file(g, None, "examples/oldtree/texture.png", &shade::image::TextureProps {
+			filter_min: shade::TextureFilter::Nearest,
+			filter_mag: shade::TextureFilter::Nearest,
+			wrap_u: shade::TextureWrap::ClampEdge,
+			wrap_v: shade::TextureWrap::ClampEdge,
+		}, None).unwrap();
+
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+
+		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
+	}
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &OldTreeInstance) {
 		g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
+			surface: camera.surface,
 			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -242,14 +272,14 @@ impl OldTreeModel {
 //----------------------------------------------------------------
 
 struct ParallaxInstance {
-	model: cvmath::Mat4f,
+	model: cvmath::Transform3f,
 	light_pos: cvmath::Vec3f,
 }
 
 impl shade::UniformVisitor for ParallaxInstance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_model", &self.model);
-		set.value("lightPos", &self.light_pos);
+		set.value("u_lightPos", &self.light_pos);
 	}
 }
 
@@ -264,14 +294,39 @@ struct ParallaxModel {
 impl shade::UniformVisitor for ParallaxModel {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_diffuse", &self.diffuse);
-		set.value("u_normalmap", &self.normal_map);
-		set.value("u_heightmap", &self.height_map);
-		set.value("u_heightscale", &self.height_scale);
+		set.value("u_normalMap", &self.normal_map);
+		set.value("u_heightMap", &self.height_map);
+		set.value("u_heightScale", &self.height_scale);
 	}
 }
 
 impl ParallaxModel {
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::camera::CameraSetup, instance: &ParallaxInstance) {
+	fn create(g: &mut shade::Graphics) -> ParallaxModel {
+		let diffuse = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.diffuse.png", &shade::image::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+		}, None).unwrap();
+
+		let normal_map = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.normal.png", &shade::image::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+		}, None).unwrap();
+
+		let height_map = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.height.png", &shade::image::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+		}, None).unwrap();
+
+		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER).unwrap();
+		ParallaxModel { shader, diffuse, normal_map, height_map, height_scale: 0.04 }
+	}
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ParallaxInstance) {
 		let vertices = [
 			Vertex { position: cvmath::Vec3f(-5.0, -5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(0.0, 2.0) },
 			Vertex { position: cvmath::Vec3f(5.0, -5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(2.0, 2.0) },
@@ -282,7 +337,7 @@ impl ParallaxModel {
 		let vertices = indices.map(|i| vertices[i]);
 		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
 		g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
+			surface: camera.surface,
 			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -323,13 +378,38 @@ impl ProjectionType {
 struct Scene {
 	screen_size: cvmath::Vec2<i32>,
 	projection_type: ProjectionType,
-	camera: shade::camera::ArcballCamera,
+	camera: shade::d3::ArcballCamera,
 	tree: OldTreeModel,
 	floor: ParallaxModel,
 	axes: shade::d3::axes::AxesModel,
+	frustum: shade::d3::frustum::FrustumModel,
+	view: cvmath::Transform3f,
 }
 
 impl Scene {
+	fn create(g: &mut shade::Graphics, screen_size: cvmath::Vec2<i32>) -> Scene {
+		let tree = OldTreeModel::create(g);
+
+		let floor = ParallaxModel::create(g);
+
+		let (axes, frustum) = {
+			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
+			(shade::d3::axes::AxesModel::create(g, shader), shade::d3::frustum::FrustumModel::create(g, shader))
+		};
+
+		let camera = {
+			let pivot = tree.bounds.center().set_x(0.0).set_y(0.0);
+			let position = pivot + cvmath::Vec3::<f32>::X * tree.bounds.size().xy().vmax();
+
+			shade::d3::ArcballCamera::new(position, pivot, cvmath::Vec3::Z)
+		};
+
+		let view = camera.view_matrix(cvmath::Hand::RH);
+
+		let projection_type = ProjectionType::Perspective;
+
+		Scene { screen_size, projection_type, camera, tree, floor, axes, frustum, view }
+	}
 	fn draw(&mut self, g: &mut shade::Graphics, time: f32) {
 		// Render the frame
 		g.begin().unwrap();
@@ -342,22 +422,27 @@ impl Scene {
 			..Default::default()
 		}).unwrap();
 
+		let frustum_view_proj;
+
 		// Camera setup
-		let viewport = cvmath::Bounds2::vec(self.screen_size);
-		let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
-		let position = self.camera.position();
-		let hand = cvmath::Hand::RH;
-		let clip = cvmath::Clip::NO;
-		let near = 0.1;
-		let far = 40.0;
-		let view = self.camera.view_matrix(hand);
-		let projection = match self.projection_type {
-			ProjectionType::Perspective => cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
-			ProjectionType::Orthographic => cvmath::Mat4::ortho_3d(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
+		let camera = {
+			let surface = shade::Surface::BACK_BUFFER;
+			let viewport = cvmath::Bounds2::vec(self.screen_size);
+			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
+			let position = self.camera.position();
+			let hand = cvmath::Hand::RH;
+			let view = self.camera.view_matrix(hand);
+			let clip = cvmath::Clip::NO;
+			let (near, far) = (0.1, 40.0);
+			let projection = match self.projection_type {
+				ProjectionType::Perspective => cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
+				ProjectionType::Orthographic => cvmath::Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
+			};
+			let view_proj = projection * view;
+			frustum_view_proj = projection * self.view;
+			let inv_view_proj = view_proj.inverse();
+			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
-		let view_proj = projection * view;
-		let inv_view_proj = view_proj.inverse();
-		let camera = shade::camera::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip };
 
 		let radius = 5000.0;
 		let angle = time * 2.0; // Adjust speed here
@@ -369,23 +454,31 @@ impl Scene {
 
 		// Draw the models
 		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: cvmath::Mat4::IDENTITY,
+			model: cvmath::Transform3f::IDENTITY,
 			light_pos,
 		});
 
 		self.floor.draw(g, &camera, &ParallaxInstance {
-			model: cvmath::Mat4::IDENTITY,
+			model: cvmath::Transform3f::IDENTITY,
 			light_pos,
 		});
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: cvmath::Mat4::scale(position.len() * 0.2),
+			local: cvmath::Transform3f::scale(camera.position.len() * 0.2),
+			depth_test: None,
+		});
+
+		self.frustum.draw(g, &camera, &shade::d3::frustum::FrustumInstance {
+			view_proj: frustum_view_proj,
+			clip: camera.clip,
 		});
 
 		// Finish the frame
 		g.end().unwrap();
 	}
 }
+
+//----------------------------------------------------------------
 
 fn main() {
 	let mut size = winit::dpi::PhysicalSize::new(800, 600);
@@ -403,85 +496,9 @@ fn main() {
 	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
 
 	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
+	let ref mut g = shade::gl::GlGraphics::new();
 
-	let (vb, vb_len, mut mins, mut maxs); {
-		let vertices = fs::read("examples/oldtree/vertices.bin").unwrap();
-		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
-		vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
-		vb_len = vertices.len() as u32;
-		mins = cvmath::Vec3::dup(f32::INFINITY);
-		maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
-		for v in vertices {
-			mins = mins.min(v.position);
-			maxs = maxs.max(v.position);
-			// println!("Vertex {}: {:?}", i, v);
-		}
-	}
-
-	let extent = maxs - mins;
-	let target = cvmath::Vec3f(0.0, 0.0, (maxs.z + mins.z) * 0.5);
-	let camera_position = target + cvmath::Vec3::<f32>::X * f32::max(extent.x, extent.y);
-
-	let texture = shade::image::png::load_file(&mut g, None, "examples/oldtree/texture.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Nearest,
-		filter_mag: shade::TextureFilter::Nearest,
-		wrap_u: shade::TextureWrap::ClampEdge,
-		wrap_v: shade::TextureWrap::ClampEdge,
-	}, None).unwrap();
-
-	let floor_texture = shade::image::png::load_file(&mut g, None, "examples/textures/stonefloor-512.diffuse.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::Repeat,
-		wrap_v: shade::TextureWrap::Repeat,
-	}, None).unwrap();
-
-	let normal_texture = shade::image::png::load_file(&mut g, None, "examples/textures/stonefloor-512.normal.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::Repeat,
-		wrap_v: shade::TextureWrap::Repeat,
-	}, None).unwrap();
-
-	let height_texture = shade::image::png::load_file(&mut g, None, "examples/textures/stonefloor-512.height.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::Repeat,
-		wrap_v: shade::TextureWrap::Repeat,
-	}, None).unwrap();
-
-	let tree = {
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
-		OldTreeModel {
-			shader,
-			vertices: vb,
-			vertices_len: vb_len,
-			texture,
-		}
-	};
-
-	let floor = {
-		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER).unwrap();
-		ParallaxModel {
-			shader,
-			diffuse: floor_texture,
-			normal_map: normal_texture,
-			height_map: height_texture,
-			height_scale: 0.08,
-		}
-	};
-
-	let axes = {
-		let shader = g.shader_create(None, include_str!("../src/gl/shaders/gizmo.axes.vs.glsl"), include_str!("../src/gl/shaders/gizmo.axes.fs.glsl")).unwrap();
-		shade::d3::axes::AxesModel::create(&mut g, shader)
-	};
-
-	let camera = shade::camera::ArcballCamera::new(camera_position, target, cvmath::Vec3::Z);
-
-	let screen_size = cvmath::Vec2(size.width as i32, size.height as i32);
-	let projection_type = ProjectionType::Perspective;
-	let mut scene = Scene { screen_size, projection_type, camera, tree, floor, axes };
+	let mut scene = Scene::create(g, cvmath::Vec2(size.width as i32, size.height as i32));
 
 	let mut left_click = false;
 	let mut right_click = false;
@@ -519,7 +536,7 @@ fn main() {
 					let dy = position.y as f32 - cursor_position.y as f32;
 					if left_click {
 						auto_rotate = false;
-						scene.camera.rotate(dx, dy);
+						scene.camera.rotate(-dx, -dy);
 					}
 					if right_click {
 						auto_rotate = false;
@@ -555,11 +572,11 @@ fn main() {
 		});
 
 		if auto_rotate {
-			scene.camera.rotate(1.0, 0.0);
+			scene.camera.rotate(-1.0, 0.0);
 		}
 
 		let time = epoch.elapsed().as_secs_f32();
-		scene.draw(&mut g, time);
+		scene.draw(g, time);
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();

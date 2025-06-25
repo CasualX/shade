@@ -5,8 +5,8 @@
 use cvmath::*;
 use super::*;
 
-mod arcballv2;
-pub use self::arcballv2::ArcballCamera;
+mod arcball;
+pub use self::arcball::ArcballCamera;
 
 mod firstperson;
 pub use self::firstperson::FirstPersonCamera;
@@ -14,12 +14,13 @@ pub use self::firstperson::FirstPersonCamera;
 /// Contains camera matrices and parameters.
 #[derive(Clone, Debug)]
 pub struct CameraSetup {
+	pub surface: Surface,
 	pub viewport: Bounds2<i32>,
 	pub aspect_ratio: f32,
 	pub position: Vec3f,
+	pub view: Transform3f,
 	pub near: f32,
 	pub far: f32,
-	pub view: Mat4f,
 	pub projection: Mat4f,
 	pub view_proj: Mat4f,
 	pub inv_view_proj: Mat4f,
@@ -33,7 +34,7 @@ impl CameraSetup {
 		let clip = self.view_proj * pt.vec4(1.0);
 
 		// Reject points behind the camera
-		if clip.w.abs() < f32::EPSILON {
+		if clip.w < f32::EPSILON {
 			return None;
 		}
 
@@ -80,7 +81,7 @@ impl UniformVisitor for CameraSetup {
 		set.value("u_view_proj", &self.view_proj);
 		set.value("u_inv_view_proj", &self.inv_view_proj);
 
-		let ndc_near = match self.clip { Clip::NO => -1.0, Clip::ZO => 0.0 };
+		let ndc_near: f32 = match self.clip { Clip::NO => -1.0, Clip::ZO => 0.0 };
 		set.value("u_ndc_near", &ndc_near);
 	}
 }
