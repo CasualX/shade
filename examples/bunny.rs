@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 use std::{fs, mem, thread, time};
 
+use shade::cvmath::*;
+
 //----------------------------------------------------------------
 // Geometry, uniforms and shader
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct BunnyVertex {
-	position: cvmath::Vec3f,
-	normal: cvmath::Vec3f,
+	position: Vec3f,
+	normal: Vec3f,
 }
 
 unsafe impl shade::TVertex for BunnyVertex {
@@ -16,16 +18,16 @@ unsafe impl shade::TVertex for BunnyVertex {
 		size: mem::size_of::<BunnyVertex>() as u16,
 		alignment: mem::align_of::<BunnyVertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(BunnyVertex.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_normal", dataview::offset_of!(BunnyVertex.normal)),
+			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(BunnyVertex.position)),
+			shade::VertexAttribute::with::<Vec3f>("a_normal", dataview::offset_of!(BunnyVertex.normal)),
 		],
 	};
 }
 
 #[derive(Clone, Debug)]
 struct BunnyUniforms {
-	transform: cvmath::Mat4f,
-	light_dir: cvmath::Vec3f,
+	transform: Mat4f,
+	light_dir: Vec3f,
 }
 
 impl shade::UniformVisitor for BunnyUniforms {
@@ -71,15 +73,15 @@ void main()
 // Model and instance
 
 struct BunnyInstance {
-	model: cvmath::Transform3f,
-	light_dir: cvmath::Vec3f,
+	model: Transform3f,
+	light_dir: Vec3f,
 }
 
 struct BunnyModel {
 	shader: shade::Shader,
 	vertices: shade::VertexBuffer,
 	vertices_len: u32,
-	bounds: cvmath::Bounds3<f32>,
+	bounds: Bounds3<f32>,
 }
 
 impl BunnyModel {
@@ -87,8 +89,8 @@ impl BunnyModel {
 		let mut bunny_file = fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
 		let bunny_stl = stl::read_stl(&mut bunny_file).unwrap();
 
-		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
-		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		let mut mins = Vec3::dup(f32::INFINITY);
+		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		let mut vertices = Vec::new();
 		for triangle in bunny_stl.triangles.iter() {
 			vertices.push(BunnyVertex {
@@ -106,7 +108,7 @@ impl BunnyModel {
 			mins = mins.min(triangle.v1.into()).min(triangle.v2.into()).min(triangle.v3.into());
 			maxs = maxs.max(triangle.v1.into()).max(triangle.v2.into()).max(triangle.v3.into());
 		}
-		let bounds = cvmath::Bounds(mins, maxs);
+		let bounds = Bounds(mins, maxs);
 
 		// Smooth the normals
 		let mut map = HashMap::new();
@@ -115,7 +117,7 @@ impl BunnyModel {
 		}
 		for v in &mut vertices {
 			let normals = map.get(&v.position.map(f32::to_bits)).unwrap();
-			let mut normal = cvmath::Vec3::ZERO;
+			let mut normal = Vec3::ZERO;
 			for n in normals.iter() {
 				normal += *n;
 			}
@@ -192,7 +194,7 @@ fn main() {
 	};
 
 	// Bunny model transform
-	let mut bunny_rotation = cvmath::Transform3::IDENTITY;
+	let mut bunny_rotation = Transform3::IDENTITY;
 
 	// Main loop
 	let mut quit = false;
@@ -228,7 +230,7 @@ fn main() {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.5, 0.2, 0.2, 1.0)),
+			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		}).unwrap();
@@ -236,30 +238,30 @@ fn main() {
 		// Camera setup
 		let camera = {
 			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
+			let viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 			let aspect_ratio = size.width as f32 / size.height as f32;
-			let position = cvmath::Vec3(100.0, 100.0, bunny.bounds.height());
-			let target = cvmath::Vec3::ZERO;
-			let view = cvmath::Transform3f::look_at(position, target, cvmath::Vec3::Z, cvmath::Hand::RH);
+			let position = Vec3(100.0, 100.0, bunny.bounds.height());
+			let target = Vec3::ZERO;
+			let view = Transform3f::look_at(position, target, Vec3::Z, Hand::RH);
 			let (near, far) = (0.1,1000.0);
-			let fov_y = cvmath::Deg(45.0);
-			let projection = cvmath::Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (cvmath::Hand::RH, cvmath::Clip::NO));
+			let fov_y = Deg(45.0);
+			let projection = Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (Hand::RH, Clip::NO));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: cvmath::Clip::NO }
+			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Rotate the bunny
-		bunny_rotation *= cvmath::Transform3::rotate(cvmath::Vec3::Z, cvmath::Deg(1.0));
+		bunny_rotation *= Transform3::rotate(Vec3::Z, Deg(1.0));
 
 		// Draw the bunny
-		let model = bunny_rotation * cvmath::Transform3::translate(-bunny.bounds.center());
-		let light_dir = cvmath::Vec3::new(1.0, -1.0, 1.0).normalize();
+		let model = bunny_rotation * Transform3::translate(-bunny.bounds.center());
+		let light_dir = Vec3::new(1.0, -1.0, 1.0).normalize();
 		bunny.draw(g, &camera, &BunnyInstance { model, light_dir });
 
 		// Draw the axes gizmo
 		axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: cvmath::Transform3f::scale(camera.position.len() * 0.32),
+			local: Transform3f::scale(camera.position.len() * 0.32),
 			depth_test: Some(shade::DepthTest::Less),
 		});
 

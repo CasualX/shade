@@ -29,6 +29,11 @@ void main() {
 	float d_sdf = median(distances.rgb);
 
 	float width = screen_px_range();
+
+	// Discard fragments outside the glyph's encoded distance field (fully transparent areas)
+	if (d_sdf <= 0.0)
+		discard;
+
 	float inner = width * (d_sdf - u_threshold) + 0.5 + u_out_bias;
 	float outer = width * (d_sdf - u_threshold + u_outline_width_relative) + 0.5 + u_out_bias + u_outline_width_absolute;
 

@@ -7,8 +7,6 @@ pub(super) struct Command {
 	blend_mode: BlendMode,
 	scissor_test: Option<Bounds2<i32>>,
 	shader: Shader,
-	vertex_start: u32,
-	vertex_end: u32,
 	index_start: u32,
 	index_end: u32,
 	uniform_index: u32,
@@ -64,7 +62,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 	/// Draws the command buffer.
 	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
 		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let indices = g.index_buffer(None, &self.indices, BufferUsage::Static)?;
+		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as u16, BufferUsage::Static)?;
 
 		for cmd in &self.commands {
 			let uniforms = &self.uniforms[cmd.uniform_index as usize];
@@ -78,14 +76,12 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 				mask: DrawMask::COLOR | DrawMask::DEPTH,
 				prim_type: cmd.prim_type,
 				shader: cmd.shader,
+				uniforms: &[uniforms],
 				vertices: &[DrawVertexBuffer {
 					buffer: vertices,
 					divisor: VertexDivisor::PerVertex,
 				}],
 				indices,
-				uniforms: &[uniforms],
-				vertex_start: cmd.vertex_start,
-				vertex_end: cmd.vertex_end,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
@@ -138,7 +134,6 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 				last.scissor_test == self.scissor_test &&
 				last.uniform_index + 1 == self.uniforms.len() as u32;
 			if compatible {
-				last.vertex_end += nverts as u32;
 				last.index_end += nindices as u32;
 				new_cmd = false;
 			}
@@ -149,12 +144,10 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 			let blend_mode = self.blend_mode;
 			let scissor_test = self.scissor_test;
 			let shader = self.shader;
-			let vertex_start = self.vertices.len() as u32;
-			let vertex_end = vertex_start + nverts as u32;
 			let index_start = self.indices.len() as u32;
 			let index_end = index_start + nindices as u32;
 			let uniform_index = self.uniforms.len() as u32 - 1;
-			self.commands.push(Command { prim_type, blend_mode, scissor_test, shader, vertex_start, vertex_end, index_start, index_end, uniform_index });
+			self.commands.push(Command { prim_type, blend_mode, scissor_test, shader, index_start, index_end, uniform_index });
 		}
 
 		let vertex_start = self.vertices.len();

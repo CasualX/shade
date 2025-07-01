@@ -1,5 +1,5 @@
 use std::mem;
-use cvmath::*;
+use shade::cvmath::*;
 
 const FRAGMENT_SHADER: &str = r#"
 #version 330

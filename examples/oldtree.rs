@@ -1,11 +1,12 @@
 use std::{fs, mem, slice, thread, time};
+use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct Vertex {
-	position: cvmath::Vec3f,
-	normal: cvmath::Vec3f,
-	uv: cvmath::Vec2f,
+	position: Vec3f,
+	normal: Vec3f,
+	uv: Vec2f,
 }
 
 unsafe impl shade::TVertex for Vertex {
@@ -13,9 +14,9 @@ unsafe impl shade::TVertex for Vertex {
 		size: mem::size_of::<Vertex>() as u16,
 		alignment: mem::align_of::<Vertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
-			shade::VertexAttribute::with::<cvmath::Vec2f>("a_uv", dataview::offset_of!(Vertex.uv)),
+			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
+			shade::VertexAttribute::with::<Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
+			shade::VertexAttribute::with::<Vec2f>("a_uv", dataview::offset_of!(Vertex.uv)),
 		],
 	};
 }
@@ -185,8 +186,8 @@ void main() {
 //----------------------------------------------------------------
 
 struct OldTreeInstance {
-	model: cvmath::Transform3f,
-	light_pos: cvmath::Vec3f,
+	model: Transform3f,
+	light_pos: Vec3f,
 }
 
 impl shade::UniformVisitor for OldTreeInstance {
@@ -201,7 +202,7 @@ struct OldTreeModel {
 	vertices: shade::VertexBuffer,
 	vertices_len: u32,
 	texture: shade::Texture2D,
-	bounds: cvmath::Bounds3<f32>,
+	bounds: Bounds3<f32>,
 }
 
 impl shade::UniformVisitor for OldTreeModel {
@@ -216,14 +217,14 @@ impl OldTreeModel {
 		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
 		let vertices_len = vertices.len() as u32;
 
-		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
-		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		let mut mins = Vec3::dup(f32::INFINITY);
+		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {
 			mins = mins.min(v.position);
 			maxs = maxs.max(v.position);
 			// println!("Vertex {}: {:?}", i, v);
 		}
-		let bounds = cvmath::Bounds3(mins, maxs);
+		let bounds = Bounds3(mins, maxs);
 
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
 
@@ -272,8 +273,8 @@ impl OldTreeModel {
 //----------------------------------------------------------------
 
 struct ParallaxInstance {
-	model: cvmath::Transform3f,
-	light_pos: cvmath::Vec3f,
+	model: Transform3f,
+	light_pos: Vec3f,
 }
 
 impl shade::UniformVisitor for ParallaxInstance {
@@ -328,10 +329,10 @@ impl ParallaxModel {
 	}
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ParallaxInstance) {
 		let vertices = [
-			Vertex { position: cvmath::Vec3f(-5.0, -5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(0.0, 2.0) },
-			Vertex { position: cvmath::Vec3f(5.0, -5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(2.0, 2.0) },
-			Vertex { position: cvmath::Vec3f(5.0, 5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(2.0, 0.0) },
-			Vertex { position: cvmath::Vec3f(-5.0, 5.0, 0.0), normal: cvmath::Vec3f(0.0, 0.0, 1.0), uv: cvmath::Vec2f(0.0, 0.0) },
+			Vertex { position: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
+			Vertex { position: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
+			Vertex { position: Vec3f(5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 0.0) },
+			Vertex { position: Vec3f(-5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 0.0) },
 		];
 		let indices = [0, 1, 2, 0, 2, 3];
 		let vertices = indices.map(|i| vertices[i]);
@@ -376,35 +377,35 @@ impl ProjectionType {
 }
 
 struct Scene {
-	screen_size: cvmath::Vec2<i32>,
+	screen_size: Vec2i,
 	projection_type: ProjectionType,
 	camera: shade::d3::ArcballCamera,
 	tree: OldTreeModel,
 	floor: ParallaxModel,
 	axes: shade::d3::axes::AxesModel,
 	frustum: shade::d3::frustum::FrustumModel,
-	view: cvmath::Transform3f,
+	view: Transform3f,
 }
 
 impl Scene {
-	fn create(g: &mut shade::Graphics, screen_size: cvmath::Vec2<i32>) -> Scene {
+	fn create(g: &mut shade::Graphics, screen_size: Vec2i) -> Scene {
 		let tree = OldTreeModel::create(g);
 
 		let floor = ParallaxModel::create(g);
 
 		let (axes, frustum) = {
 			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
-			(shade::d3::axes::AxesModel::create(g, shader), shade::d3::frustum::FrustumModel::create(g, shader))
+			(shade::d3::axes::AxesModel::create(g, shader), shade::d3::frustum::FrustumModel::create(g, shader, Clip::NO))
 		};
 
 		let camera = {
 			let pivot = tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + cvmath::Vec3::<f32>::X * tree.bounds.size().xy().vmax();
+			let position = pivot + Vec3::<f32>::X * tree.bounds.size().xy().vmax();
 
-			shade::d3::ArcballCamera::new(position, pivot, cvmath::Vec3::Z)
+			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
-		let view = camera.view_matrix(cvmath::Hand::RH);
+		let view = camera.view_matrix(Hand::RH);
 
 		let projection_type = ProjectionType::Perspective;
 
@@ -417,7 +418,7 @@ impl Scene {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.5, 0.2, 0.2, 1.0)),
+			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		}).unwrap();
@@ -427,16 +428,16 @@ impl Scene {
 		// Camera setup
 		let camera = {
 			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = cvmath::Bounds2::vec(self.screen_size);
+			let viewport = Bounds2::vec(self.screen_size);
 			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
 			let position = self.camera.position();
-			let hand = cvmath::Hand::RH;
+			let hand = Hand::RH;
 			let view = self.camera.view_matrix(hand);
-			let clip = cvmath::Clip::NO;
+			let clip = Clip::NO;
 			let (near, far) = (0.1, 40.0);
 			let projection = match self.projection_type {
-				ProjectionType::Perspective => cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
-				ProjectionType::Orthographic => cvmath::Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
+				ProjectionType::Perspective => Mat4::perspective_fov(Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
+				ProjectionType::Orthographic => Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
 			};
 			let view_proj = projection * view;
 			frustum_view_proj = projection * self.view;
@@ -446,7 +447,7 @@ impl Scene {
 
 		let radius = 5000.0;
 		let angle = time * 2.0; // Adjust speed here
-		let light_pos = cvmath::Vec3f::new(
+		let light_pos = Vec3f::new(
 			radius * angle.cos(),
 			radius * angle.sin(),
 			40.0, // Fixed elevation, adjust if needed
@@ -454,23 +455,22 @@ impl Scene {
 
 		// Draw the models
 		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: cvmath::Transform3f::IDENTITY,
+			model: Transform3f::IDENTITY,
 			light_pos,
 		});
 
 		self.floor.draw(g, &camera, &ParallaxInstance {
-			model: cvmath::Transform3f::IDENTITY,
+			model: Transform3f::IDENTITY,
 			light_pos,
 		});
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: cvmath::Transform3f::scale(camera.position.len() * 0.2),
+			local: Transform3f::scale(camera.position.len() * 0.2),
 			depth_test: None,
 		});
 
 		self.frustum.draw(g, &camera, &shade::d3::frustum::FrustumInstance {
 			view_proj: frustum_view_proj,
-			clip: camera.clip,
 		});
 
 		// Finish the frame
@@ -498,7 +498,7 @@ fn main() {
 	// Create the graphics context
 	let ref mut g = shade::gl::GlGraphics::new();
 
-	let mut scene = Scene::create(g, cvmath::Vec2(size.width as i32, size.height as i32));
+	let mut scene = Scene::create(g, Vec2(size.width as i32, size.height as i32));
 
 	let mut left_click = false;
 	let mut right_click = false;

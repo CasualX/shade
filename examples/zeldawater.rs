@@ -1,10 +1,11 @@
 use std::{mem, thread, time};
+use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct Vertex {
-	position: cvmath::Vec2f,
-	uv: cvmath::Vec2f,
+	position: Vec2f,
+	uv: Vec2f,
 }
 
 unsafe impl shade::TVertex for Vertex {
@@ -115,16 +116,16 @@ fn main() {
 
 	// Create the full screen quad vertex buffer
 	let vb = g.vertex_buffer(None, &[
-		Vertex { position: cvmath::Vec2f(-1.0, -1.0), uv: cvmath::Vec2f(0.0, 0.0) },
-		Vertex { position: cvmath::Vec2f(1.0, -1.0), uv: cvmath::Vec2f(1.0, 0.0) },
-		Vertex { position: cvmath::Vec2f(-1.0, 1.0), uv: cvmath::Vec2f(0.0, 1.0) },
-		Vertex { position: cvmath::Vec2f(1.0, 1.0), uv: cvmath::Vec2f(1.0, 1.0) },
+		Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+		Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+		Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
+		Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
 	], shade::BufferUsage::Static).unwrap();
 
 	let ib = g.index_buffer(None, &[
 		0u16, 1, 2,
 		1, 3, 2,
-	], shade::BufferUsage::Static).unwrap();
+	], 4, shade::BufferUsage::Static).unwrap();
 
 	// Load the texture
 	let texture = shade::image::png::load_file(&mut g, None, "examples/zeldawater/water.png", &shade::image::TextureProps {
@@ -182,7 +183,7 @@ fn main() {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.2, 0.5, 0.2, 1.0)),
+			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		}).unwrap();
 
@@ -193,7 +194,7 @@ fn main() {
 		// Draw the quad
 		g.draw_indexed(&shade::DrawIndexedArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32),
+			viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
@@ -209,8 +210,6 @@ fn main() {
 			index_start: 0,
 			index_end: 6,
 			uniforms: &[&uniform],
-			vertex_start: 0,
-			vertex_end: 4,
 			instances: -1,
 		}).unwrap();
 

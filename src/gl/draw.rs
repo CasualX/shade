@@ -162,73 +162,49 @@ struct GlUniformSetter<'a> {
 	textures: &'a GlTextures,
 }
 impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
-	fn d1v(&mut self, name: &str, data: &[f64]) {
-		if let Some(u) = self.shader.get_uniform(name) {
-			debug_assert_eq!(u.ty, gl::DOUBLE, "Uniform {name:?} expected `double` type in shader");
-			gl_check!(gl::Uniform1dv(u.location, data.len() as i32, data.as_ptr()));
-		}
-	}
-	fn d2v(&mut self, name: &str, data: &[[f64; 2]]) {
-		if let Some(u) = self.shader.get_uniform(name) {
-			debug_assert_eq!(u.ty, gl::DOUBLE_VEC2, "Uniform {name:?} expected `dvec2` type in shader");
-			gl_check!(gl::Uniform2dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
-		}
-	}
-	fn d3v(&mut self, name: &str, data: &[[f64; 3]]) {
-		if let Some(u) = self.shader.get_uniform(name) {
-			debug_assert_eq!(u.ty, gl::DOUBLE_VEC3, "Uniform {name:?} expected `dvec3` type in shader");
-			gl_check!(gl::Uniform3dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
-		}
-	}
-	fn d4v(&mut self, name: &str, data: &[[f64; 4]]) {
-		if let Some(u) = self.shader.get_uniform(name) {
-			debug_assert_eq!(u.ty, gl::DOUBLE_VEC4, "Uniform {name:?} expected `dvec4` type in shader");
-			gl_check!(gl::Uniform4dv(u.location, data.len() as i32, data.as_ptr() as *const f64));
-		}
-	}
-	fn f1v(&mut self, name: &str, data: &[f32]) {
+	fn float(&mut self, name: &str, data: &[f32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT, "Uniform {name:?} expected `float` type in shader");
 			gl_check!(gl::Uniform1fv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
-	fn f2v(&mut self, name: &str, data: &[[f32; 2]]) {
+	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
 			gl_check!(gl::Uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
-	fn f3v(&mut self, name: &str, data: &[[f32; 3]]) {
+	fn vec3(&mut self, name: &str, data: &[cvmath::Vec3<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
 			gl_check!(gl::Uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
-	fn f4v(&mut self, name: &str, data: &[[f32; 4]]) {
+	fn vec4(&mut self, name: &str, data: &[cvmath::Vec4<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
 			gl_check!(gl::Uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
-	fn i1v(&mut self, name: &str, data: &[i32]) {
+	fn int(&mut self, name: &str, data: &[i32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::INT, "Uniform {name:?} expected `int` type in shader");
 			gl_check!(gl::Uniform1iv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
-	fn i2v(&mut self, name: &str, data: &[[i32; 2]]) {
+	fn ivec2(&mut self, name: &str, data: &[cvmath::Vec2<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
 			gl_check!(gl::Uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
-	fn i3v(&mut self, name: &str, data: &[[i32; 3]]) {
+	fn ivec3(&mut self, name: &str, data: &[cvmath::Vec3<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
 			gl_check!(gl::Uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
-	fn i4v(&mut self, name: &str, data: &[[i32; 4]]) {
+	fn ivec4(&mut self, name: &str, data: &[cvmath::Vec4<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
 			gl_check!(gl::Uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
@@ -397,7 +373,7 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) -> Result<(
 	let Some(ib) = this.ibuffers.get(args.indices) else { return Err(crate::GfxError::InvalidHandle) };
 	let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
 
-	if args.index_end < args.index_start || args.vertex_end < args.vertex_start {
+	if args.index_end < args.index_start {
 		return Err(crate::GfxError::IndexOutOfBounds);
 	}
 	if args.index_start == args.index_end {

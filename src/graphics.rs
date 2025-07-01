@@ -75,10 +75,10 @@ pub struct DrawArgs<'a> {
 	pub prim_type: PrimType,
 	/// Shader used.
 	pub shader: Shader,
-	/// Vertex buffers.
-	pub vertices: &'a [DrawVertexBuffer],
 	/// Uniforms.
 	pub uniforms: &'a [&'a dyn UniformVisitor],
+	/// Vertex buffers.
+	pub vertices: &'a [DrawVertexBuffer],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
@@ -109,16 +109,12 @@ pub struct DrawIndexedArgs<'a> {
 	pub prim_type: PrimType,
 	/// Shader used.
 	pub shader: Shader,
+	/// Uniforms.
+	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Vertices.
 	pub vertices: &'a [DrawVertexBuffer],
 	/// Indices.
 	pub indices: IndexBuffer,
-	/// Uniforms.
-	pub uniforms: &'a [&'a dyn UniformVisitor],
-	/// Index of the first vertex.
-	pub vertex_start: u32,
-	/// Index of one past the last vertex.
-	pub vertex_end: u32,
 	/// Index of the first index.
 	pub index_start: u32,
 	/// Index of one past the last index.
@@ -264,7 +260,15 @@ impl Graphics {
 	}
 	/// Create and assign data to an index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
+	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], nverts: T, usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
+		#[cfg(debug_assertions)]
+		if nverts != Default::default() {
+			for i in 0..data.len() {
+				if data[i] >= nverts {
+					return Err(GfxError::IndexOutOfBounds);
+				}
+			}
+		}
 		let this = &mut **self;
 		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage)?;
 		if let Err(err) = this.index_buffer_set_data(id, dataview::bytes(data)) {

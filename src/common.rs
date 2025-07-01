@@ -16,7 +16,7 @@ impl IndexType {
 }
 
 /// Trait for index types.
-pub trait TIndex: Copy + dataview::Pod {
+pub trait TIndex: Copy + Ord + Default + dataview::Pod {
 	const TYPE: IndexType;
 }
 

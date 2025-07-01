@@ -1,4 +1,5 @@
 use std::{mem, thread, time};
+use shade::cvmath::*;
 
 //----------------------------------------------------------------
 // Vertex
@@ -6,8 +7,8 @@ use std::{mem, thread, time};
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct MyVertex3 {
-	position: cvmath::Vec3f,
-	tex_coord: cvmath::Vec2f,
+	position: Vec3f,
+	tex_coord: Vec2f,
 	color: [shade::Norm<u8>; 4],
 }
 
@@ -16,8 +17,8 @@ unsafe impl shade::TVertex for MyVertex3 {
 		size: mem::size_of::<MyVertex3>() as u16,
 		alignment: mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
-			shade::VertexAttribute::with::<cvmath::Vec2f>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
+			shade::VertexAttribute::with::<Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
+			shade::VertexAttribute::with::<Vec2f>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
 			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("aColor", dataview::offset_of!(MyVertex3.color)),
 		],
 	};
@@ -67,14 +68,14 @@ void main()
 
 #[derive(Clone, Debug)]
 struct MyUniform3 {
-	transform: cvmath::Mat4f,
+	transform: Mat4f,
 	texture: shade::Texture2D,
 }
 
 impl Default for MyUniform3 {
 	fn default() -> Self {
 		MyUniform3 {
-			transform: cvmath::Mat4::IDENTITY,
+			transform: Mat4::IDENTITY,
 			texture: shade::Texture2D::INVALID,
 		}
 	}
@@ -154,7 +155,7 @@ fn main() {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.2, 0.2, 0.5, 1.0)),
+			color: Some(Vec4(0.2, 0.2, 0.5, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		}).unwrap();
@@ -162,19 +163,19 @@ fn main() {
 		let curtime = time::Instant::now().duration_since(time_base).as_secs_f32();
 
 		// Update the camera
-		let projection = cvmath::Mat4::perspective_fov(cvmath::Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (cvmath::Hand::RH, cvmath::Clip::NO));
+		let projection = Mat4::perspective_fov(Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (Hand::RH, Clip::NO));
 		let view = {
-			let eye = cvmath::Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
-			let target = cvmath::Vec3(96.0 * 0.5, 0.0, 32.0);
-			let up = cvmath::Vec3(0.0, 1.0, 0.0);
-			cvmath::Transform3f::look_at(eye, target, up, cvmath::Hand::RH)
+			let eye = Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
+			let target = Vec3(96.0 * 0.5, 0.0, 32.0);
+			let up = Vec3(0.0, 1.0, 0.0);
+			Transform3f::look_at(eye, target, up, Hand::RH)
 		};
 		let transform = projection * view;
 
 		let mut cv = shade::d2::CommandBuffer::<MyVertex3, MyUniform3>::new();
 		cv.shader = shader;
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
+		cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 		cv.depth_test = Some(shade::DepthTest::Less);
 		cv.push_uniform(MyUniform3 { transform, texture });
 		floor_tile(&mut cv, 0, 0, &GRASS);
@@ -214,23 +215,23 @@ fn floor_tile(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32, 
 	let mut cv = cv.begin(shade::PrimType::Triangles, 4, 2);
 	cv.add_indices_quad();
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0, 0.0, y as f32 * 32.0),
-		tex_coord: cvmath::Vec2(sprite.left, sprite.down),
+		position: Vec3(x as f32 * 32.0, 0.0, y as f32 * 32.0),
+		tex_coord: Vec2(sprite.left, sprite.down),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
-		tex_coord: cvmath::Vec2(sprite.left, sprite.up),
+		position: Vec3(x as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
+		tex_coord: Vec2(sprite.left, sprite.up),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3((x + 1) as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
-		tex_coord: cvmath::Vec2(sprite.right, sprite.up),
+		position: Vec3((x + 1) as f32 * 32.0, 0.0, (y + 1) as f32 * 32.0),
+		tex_coord: Vec2(sprite.right, sprite.up),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3((x + 1) as f32 * 32.0, 0.0, y as f32 * 32.0),
-		tex_coord: cvmath::Vec2(sprite.right, sprite.down),
+		position: Vec3((x + 1) as f32 * 32.0, 0.0, y as f32 * 32.0),
+		tex_coord: Vec2(sprite.right, sprite.down),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 }
@@ -244,23 +245,23 @@ fn floor_thing(cv: &mut shade::d2::CommandBuffer<MyVertex3, MyUniform3>, x: i32,
 	let height = sprite.down - sprite.up;
 	cv.add_indices_quad();
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
-		tex_coord: cvmath::Vec2(sprite.left, sprite.down),
+		position: Vec3(x as f32 * 32.0, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
+		tex_coord: Vec2(sprite.left, sprite.down),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0, height + yoffs, y as f32 * 32.0 + zoffs2),
-		tex_coord: cvmath::Vec2(sprite.left, sprite.up),
+		position: Vec3(x as f32 * 32.0, height + yoffs, y as f32 * 32.0 + zoffs2),
+		tex_coord: Vec2(sprite.left, sprite.up),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0 + width, height + yoffs, y as f32 * 32.0 + zoffs2),
-		tex_coord: cvmath::Vec2(sprite.right, sprite.up),
+		position: Vec3(x as f32 * 32.0 + width, height + yoffs, y as f32 * 32.0 + zoffs2),
+		tex_coord: Vec2(sprite.right, sprite.up),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 	cv.add_vertex(MyVertex3 {
-		position: cvmath::Vec3(x as f32 * 32.0 + width, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
-		tex_coord: cvmath::Vec2(sprite.right, sprite.down),
+		position: Vec3(x as f32 * 32.0 + width, 0.0 + yoffs, y as f32 * 32.0 + zoffs1),
+		tex_coord: Vec2(sprite.right, sprite.down),
 		color: shade::norm!([255, 255, 255, 255]),
 	});
 }

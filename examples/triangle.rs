@@ -1,4 +1,5 @@
 use std::mem;
+use shade::cvmath::*;
 
 //----------------------------------------------------------------
 // The triangle's vertex
@@ -6,7 +7,7 @@ use std::mem;
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct TriangleVertex {
-	position: cvmath::Vec2f,
+	position: Vec2f,
 	color: [u8; 4],
 }
 
@@ -31,26 +32,30 @@ unsafe impl shade::TVertex for TriangleVertex {
 
 const FRAGMENT_SHADER: &str = r#"
 #version 330 core
-out vec4 FragColor;
 
-in vec4 VertexColor;
+in vec4 v_color;
+
+out vec4 o_fragColor;
 
 void main()
 {
-	FragColor = pow(VertexColor, 1.0 / vec4(2.2, 2.2, 2.2, 1.0));
+	float levels = 10.0;
+	vec3 qColor = floor(v_color.rgb * levels) / (levels - 1.0);
+	o_fragColor = vec4(pow(qColor, 1.0 / vec3(2.2, 2.2, 2.2)), v_color.a);
 }
 "#;
 
 const VERTEX_SHADER: &str = r#"
 #version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec4 aColor;
 
-out vec4 VertexColor;
+in vec2 aPos;
+in vec4 aColor;
+
+out vec4 v_color;
 
 void main()
 {
-	VertexColor = pow(aColor, vec4(2.2, 2.2, 2.2, 1.0));
+	v_color = pow(aColor, vec4(2.2, 2.2, 2.2, 1.0));
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
 "#;
@@ -77,9 +82,9 @@ fn main() {
 
 	// Create the triangle vertex buffer
 	let vb = g.vertex_buffer(None, &[
-		TriangleVertex { position: cvmath::Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
-		TriangleVertex { position: cvmath::Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
-		TriangleVertex { position: cvmath::Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
+		TriangleVertex { position: Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
+		TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
+		TriangleVertex { position: Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
 	], shade::BufferUsage::Static).unwrap();
 
 	// Create the triangle shader
@@ -102,14 +107,14 @@ fn main() {
 				// Clear the screen
 				g.clear(&shade::ClearArgs {
 					surface: shade::Surface::BACK_BUFFER,
-					color: Some(cvmath::Vec4(0.2, 0.5, 0.2, 1.0)),
+					color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 					..Default::default()
 				}).unwrap();
 
 				// Draw the triangle
 				g.draw(&shade::DrawArgs {
 					surface: shade::Surface::BACK_BUFFER,
-					viewport: cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32),
+					viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
 					scissor: None,
 					blend_mode: shade::BlendMode::Solid,
 					depth_test: None,

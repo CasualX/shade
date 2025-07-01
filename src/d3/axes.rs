@@ -21,7 +21,7 @@ impl AxesModel {
 	pub fn create(g: &mut Graphics, shader: Shader) -> AxesModel {
 		let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static).unwrap();
 		let vertices_len = VERTICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, BufferUsage::Static).unwrap();
+		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static).unwrap();
 		let indices_len = INDICES.len() as u32;
 
 		AxesModel { shader, vertices, vertices_len, indices, indices_len }
@@ -44,14 +44,12 @@ impl AxesModel {
 			mask: DrawMask::ALL,
 			prim_type: PrimType::Lines,
 			shader: self.shader,
+			uniforms: &[&uniforms],
 			vertices: &[DrawVertexBuffer {
 				buffer: self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			uniforms: &[&uniforms],
 			indices: self.indices,
-			vertex_start: 0,
-			vertex_end: self.vertices_len,
 			index_start: 0,
 			index_end: self.indices_len,
 			instances: -1,

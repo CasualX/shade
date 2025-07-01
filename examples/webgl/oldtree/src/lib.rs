@@ -1,13 +1,14 @@
 use std::{io, mem, slice};
+use shade::cvmath::*;
 
 mod api;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct Vertex {
-	position: cvmath::Vec3f,
-	normal: cvmath::Vec3f,
-	uv: cvmath::Vec2f,
+	position: Vec3f,
+	normal: Vec3f,
+	uv: Vec2f,
 }
 
 unsafe impl shade::TVertex for Vertex {
@@ -15,9 +16,9 @@ unsafe impl shade::TVertex for Vertex {
 		size: mem::size_of::<Vertex>() as u16,
 		alignment: mem::align_of::<Vertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aPos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("aNormal", dataview::offset_of!(Vertex.normal)),
-			shade::VertexAttribute::with::<cvmath::Vec2f>("aUV", dataview::offset_of!(Vertex.uv)),
+			shade::VertexAttribute::with::<Vec3f>("aPos", dataview::offset_of!(Vertex.position)),
+			shade::VertexAttribute::with::<Vec3f>("aNormal", dataview::offset_of!(Vertex.normal)),
+			shade::VertexAttribute::with::<Vec2f>("aUV", dataview::offset_of!(Vertex.uv)),
 		],
 	};
 }
@@ -96,8 +97,8 @@ void main()
 //----------------------------------------------------------------
 
 struct OldTreeInstance {
-	model: cvmath::Transform3f,
-	light_pos: cvmath::Vec3f,
+	model: Transform3f,
+	light_pos: Vec3f,
 }
 
 impl shade::UniformVisitor for OldTreeInstance {
@@ -114,7 +115,7 @@ struct OldTreeModel {
 	vertices: shade::VertexBuffer,
 	vertices_len: u32,
 	texture: shade::Texture2D,
-	bounds: cvmath::Bounds3<f32>,
+	bounds: Bounds3<f32>,
 }
 
 impl shade::UniformVisitor for OldTreeModel {
@@ -129,14 +130,14 @@ impl OldTreeModel {
 	fn create(g: &mut shade::Graphics) -> OldTreeModel {
 		let vertices = unsafe { slice::from_raw_parts(VERTICES_DATA.1.as_ptr() as *const Vertex, VERTICES_DATA.1.len() / mem::size_of::<Vertex>()) };
 
-		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
-		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		let mut mins = Vec3::dup(f32::INFINITY);
+		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {
 			mins = mins.min(v.position);
 			maxs = maxs.max(v.position);
 			// println!("Vertex {}: {:?}", i, v);
 		}
-		let bounds = cvmath::Bounds3(mins, maxs);
+		let bounds = Bounds3(mins, maxs);
 
 		let vertices_len = vertices.len() as u32;
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
@@ -206,7 +207,7 @@ impl ProjectionType {
 
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
-	screen_size: cvmath::Vec2<i32>,
+	screen_size: Vec2i,
 	projection_type: ProjectionType,
 	camera: shade::d3::ArcballCamera,
 	tree: OldTreeModel,
@@ -225,14 +226,14 @@ impl Context {
 
 		let camera = {
 			let pivot = tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + cvmath::Vec3::<f32>::X * tree.bounds.size().xy().vmax();
+			let position = pivot + Vec3::<f32>::X * tree.bounds.size().xy().vmax();
 
-			shade::d3::ArcballCamera::new(position, pivot, cvmath::Vec3::Z)
+			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
 		Context {
 			webgl,
-			screen_size: cvmath::Vec2::ZERO,
+			screen_size: Vec2::ZERO,
 			projection_type: ProjectionType::Perspective,
 			camera,
 			tree,
@@ -241,7 +242,7 @@ impl Context {
 	}
 
 	pub fn resize(&mut self, width: i32, height: i32) {
-		self.screen_size = cvmath::Vec2(width, height);
+		self.screen_size = Vec2(width, height);
 	}
 
 	pub fn draw(&mut self, _time: f64) {
@@ -253,7 +254,7 @@ impl Context {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.5, 0.2, 0.2, 1.0)),
+			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		}).unwrap();
@@ -264,16 +265,16 @@ impl Context {
 
 		let camera = {
 			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = cvmath::Bounds2::vec(self.screen_size);
+			let viewport = Bounds2::vec(self.screen_size);
 			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
 			let position = self.camera.position();
-			let hand = cvmath::Hand::RH;
+			let hand = Hand::RH;
 			let view = self.camera.view_matrix(hand);
-			let clip = cvmath::Clip::NO;
+			let clip = Clip::NO;
 			let (near, far) = (0.1, 40.0);
 			let projection = match self.projection_type {
-				ProjectionType::Perspective => cvmath::Mat4::perspective_fov(cvmath::Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
-				ProjectionType::Orthographic => cvmath::Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
+				ProjectionType::Perspective => Mat4::perspective_fov(Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
+				ProjectionType::Orthographic => Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
 			};
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
@@ -281,8 +282,8 @@ impl Context {
 		};
 
 		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: cvmath::Transform3f::IDENTITY,
-			light_pos: cvmath::Vec3(4.0, 0.0, -230.0),
+			model: Transform3f::IDENTITY,
+			light_pos: Vec3(4.0, 0.0, -230.0),
 		});
 
 		// Finish the frame

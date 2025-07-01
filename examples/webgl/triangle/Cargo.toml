@@ -8,5 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dataview = "1.0"
-cvmath.workspace = true
 shade = { path = "../../..", features = ["webgl"] }

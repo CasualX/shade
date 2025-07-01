@@ -6,9 +6,6 @@ members = [
 	"examples/webgl/zeldawater",
 ]
 
-[workspace.dependencies]
-cvmath = { git = "https://github.com/CasualX/cvmath", features = ["dataview"] }
-
 [package]
 name = "shade"
 version = "0.0.3"
@@ -27,10 +24,14 @@ categories = ["rendering", "graphics", "game-development", "gui"]
 default = ["gl", "png", "gif", "msdfgen"]
 webgl = []
 msdfgen = ["serde"]
+serde = [
+	"dep:serde",
+	"cvmath/serde",
+]
 
 [dependencies]
 dataview = "1.0"
-cvmath.workspace = true
+cvmath = { git = "https://github.com/CasualX/cvmath", features = ["dataview"] }
 gl = { version = "0.14", optional = true }
 png = { version = "0.17", optional = true }
 gif = { version = "0.13", optional = true }

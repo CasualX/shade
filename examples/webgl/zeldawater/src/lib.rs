@@ -1,12 +1,13 @@
 use std::{io, mem};
+use shade::cvmath::*;
 
 mod api;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct Vertex {
-	position: cvmath::Vec2f,
-	uv: cvmath::Vec2f,
+	position: Vec2f,
+	uv: Vec2f,
 }
 
 unsafe impl shade::TVertex for Vertex {
@@ -83,9 +84,9 @@ struct Uniform {
 	time: f32,
 	texture: shade::Texture2D,
 	distortion: shade::Texture2D,
-	waterbase: cvmath::Vec3f,
-	wavehighlight: cvmath::Vec3f,
-	waveshadow: cvmath::Vec3f,
+	waterbase: Vec3f,
+	wavehighlight: Vec3f,
+	waveshadow: Vec3f,
 }
 
 impl shade::UniformVisitor for Uniform {
@@ -103,7 +104,7 @@ impl shade::UniformVisitor for Uniform {
 
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
-	screen_size: cvmath::Vec2<i32>,
+	screen_size: Vec2i,
 	shader: shade::Shader,
 	texture: shade::Texture2D,
 	distortion: shade::Texture2D,
@@ -140,23 +141,23 @@ impl Context {
 
 		// Create the full screen quad vertex buffer
 		let vb = g.vertex_buffer(None, &[
-			Vertex { position: cvmath::Vec2f(-1.0, -1.0), uv: cvmath::Vec2f(0.0, 0.0) },
-			Vertex { position: cvmath::Vec2f(1.0, -1.0), uv: cvmath::Vec2f(1.0, 0.0) },
-			Vertex { position: cvmath::Vec2f(-1.0, 1.0), uv: cvmath::Vec2f(0.0, 1.0) },
-			Vertex { position: cvmath::Vec2f(1.0, 1.0), uv: cvmath::Vec2f(1.0, 1.0) },
+			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
+			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
 		], shade::BufferUsage::Static).unwrap();
 
 		let ib = g.index_buffer(None, &[
 			0u16, 1, 2,
 			1, 3, 2,
-		], shade::BufferUsage::Static).unwrap();
+		], 4, shade::BufferUsage::Static).unwrap();
 
-		let screen_size = cvmath::Vec2::ZERO;
+		let screen_size = Vec2::ZERO;
 		Context { webgl, screen_size, shader, texture, distortion, vb, ib }
 	}
 
 	pub fn resize(&mut self, width: i32, height: i32) {
-		self.screen_size = cvmath::Vec2(width, height);
+		self.screen_size = Vec2(width, height);
 	}
 
 	pub fn draw(&mut self, time: f64) {
@@ -167,22 +168,22 @@ impl Context {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.2, 0.5, 0.2, 1.0)),
+			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		}).unwrap();
 
 		let time = time as f32;
 		let texture = self.texture;
 		let distortion = self.distortion;
-		let waterbase = cvmath::Vec3f(0.0, 0.0, 0.5);
-		let wavehighlight = cvmath::Vec3f(0.5, 0.8, 1.0);
-		let waveshadow = cvmath::Vec3f(0.1, 0.2, 0.3);
+		let waterbase = Vec3f(0.0, 0.0, 0.5);
+		let wavehighlight = Vec3f(0.5, 0.8, 1.0);
+		let waveshadow = Vec3f(0.1, 0.2, 0.3);
 		let uniform = Uniform { time, texture, distortion, waterbase, wavehighlight, waveshadow };
 
 		// Draw the quad
 		g.draw_indexed(&shade::DrawIndexedArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: cvmath::Bounds2::vec(self.screen_size),
+			viewport: Bounds2::vec(self.screen_size),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
@@ -195,11 +196,9 @@ impl Context {
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			indices: self.ib,
+			uniforms: &[&uniform],
 			index_start: 0,
 			index_end: 6,
-			uniforms: &[&uniform],
-			vertex_start: 0,
-			vertex_end: 4,
 			instances: -1,
 		}).unwrap();
 

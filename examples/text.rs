@@ -1,3 +1,4 @@
+use shade::cvmath::*;
 
 fn main() {
 	let mut size = winit::dpi::PhysicalSize::new(800, 600);
@@ -52,7 +53,7 @@ fn main() {
 				// Clear the screen
 				g.clear(&shade::ClearArgs {
 					surface: shade::Surface::BACK_BUFFER,
-					color: Some(cvmath::Vec4(0.4, 0.4, 0.7, 1.0)),
+					color: Some(Vec4(0.4, 0.4, 0.7, 1.0)),
 					depth: Some(1.0),
 					..Default::default()
 				}).unwrap();
@@ -60,15 +61,15 @@ fn main() {
 				let mut cv = shade::d2::TextBuffer::new();
 				cv.shader = font.shader;
 				cv.blend_mode = shade::BlendMode::Alpha;
-				cv.viewport = cvmath::Bounds2::c(0, 0, size.width as i32, size.height as i32);
+				cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 				cv.push_uniform(shade::d2::TextUniform {
-					transform: cvmath::Transform2::ortho(cvmath::Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32)),
+					transform: Transform2::ortho(Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32)),
 					texture: font.texture,
 					outline_width_relative: 0.125,
 					..Default::default()
 				});
 
-				let mut pos = cvmath::Vec2(0.0, 0.0);
+				let mut pos = Vec2(0.0, 0.0);
 				let mut scribe = shade::d2::Scribe {
 					font_size: 64.0,
 					line_height: 64.0 * 1.5,
@@ -83,13 +84,13 @@ fn main() {
 				scribe.font_size = 32.0;
 				scribe.line_height = 32.0;
 				scribe.font_width_scale = 1.0;
-				scribe.color = cvmath::Vec4(255, 255, 0, 255);
-				cv.text_box(&font, &scribe, &cvmath::Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32), shade::d2::BoxAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
+				scribe.color = Vec4(255, 255, 0, 255);
+				cv.text_box(&font, &scribe, &Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32), shade::d2::BoxAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
 
 				scribe.top_skew = 8.0;
 				let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";
-				let rainbow_width = scribe.text_width(&mut {cvmath::Vec2::ZERO}, &font.font, rainbow);
-				let mut pos = cvmath::Vec2f((size.width as f32 - rainbow_width) * 0.5, size.height as f32 - scribe.font_size);
+				let rainbow_width = scribe.text_width(&mut {Vec2::ZERO}, &font.font, rainbow);
+				let mut pos = Vec2f((size.width as f32 - rainbow_width) * 0.5, size.height as f32 - scribe.font_size);
 				cv.text_write(&font, &mut scribe, &mut pos, rainbow);
 
 				cv.draw(&mut g, shade::Surface::BACK_BUFFER).unwrap();

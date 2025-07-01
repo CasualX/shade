@@ -1,10 +1,11 @@
 use std::{fs, mem, slice, thread, time};
+use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
 struct Vertex {
-	position: cvmath::Vec3f,
-	normal: cvmath::Vec3f,
+	position: Vec3f,
+	normal: Vec3f,
 	color: [shade::Norm<u8>; 4],
 }
 
@@ -13,8 +14,8 @@ unsafe impl shade::TVertex for Vertex {
 		size: mem::size_of::<Vertex>() as u16,
 		alignment: mem::align_of::<Vertex>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<cvmath::Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
+			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
+			shade::VertexAttribute::with::<Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
 			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("a_color", dataview::offset_of!(Vertex.color)),
 		],
 	};
@@ -65,8 +66,8 @@ void main()
 //----------------------------------------------------------------
 
 struct ColorTreeInstance {
-	model: cvmath::Transform3f,
-	light_pos: cvmath::Vec3f,
+	model: Transform3f,
+	light_pos: Vec3f,
 }
 
 impl shade::UniformVisitor for ColorTreeInstance {
@@ -80,7 +81,7 @@ struct ColorTreeModel {
 	shader: shade::Shader,
 	vertices: shade::VertexBuffer,
 	vertices_len: u32,
-	bounds: cvmath::Bounds3<f32>,
+	bounds: Bounds3<f32>,
 }
 
 impl shade::UniformVisitor for ColorTreeModel {
@@ -93,14 +94,14 @@ impl ColorTreeModel {
 	fn create(g: &mut shade::Graphics) -> ColorTreeModel {
 		let vertices = fs::read("examples/colortree/vertices.bin").unwrap();
 		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
-		let mut mins = cvmath::Vec3::dup(f32::INFINITY);
-		let mut maxs = cvmath::Vec3::dup(f32::NEG_INFINITY);
+		let mut mins = Vec3::dup(f32::INFINITY);
+		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {
 			mins = mins.min(v.position);
 			maxs = maxs.max(v.position);
 			// println!("Vertex {}: {:?}", i, v);
 		}
-		let bounds = cvmath::Bounds3(mins, maxs);
+		let bounds = Bounds3(mins, maxs);
 
 		let vertices_len = vertices.len() as u32;
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
@@ -137,7 +138,7 @@ impl ColorTreeModel {
 //----------------------------------------------------------------
 
 struct Scene {
-	screen_size: cvmath::Vec2<i32>,
+	screen_size: Vec2i,
 	camera: shade::d3::ArcballCamera,
 	color_tree: ColorTreeModel,
 	axes: shade::d3::axes::AxesModel,
@@ -151,7 +152,7 @@ impl Scene {
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			color: Some(cvmath::Vec4(0.5, 0.2, 0.2, 1.0)),
+			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		}).unwrap();
@@ -159,30 +160,30 @@ impl Scene {
 		// Camera setup
 		let camera = {
 			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = cvmath::Bounds2::vec(self.screen_size);
+			let viewport = Bounds2::vec(self.screen_size);
 			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
 			let position = self.camera.position();
-			let hand = cvmath::Hand::RH;
+			let hand = Hand::RH;
 			let view = self.camera.view_matrix(hand);
-			let clip = cvmath::Clip::NO;
+			let clip = Clip::NO;
 			let (near, far) = (10.0, 10000.0);
-			let fov_y = cvmath::Deg(90.0);
-			let projection = cvmath::Mat4::perspective_fov(fov_y, self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip));
+			let fov_y = Deg(90.0);
+			let projection = Mat4::perspective_fov(fov_y, self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
 			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		let light_pos = cvmath::Vec3f::new(10000.0, 10000.0, 10000.0);
+		let light_pos = Vec3f::new(10000.0, 10000.0, 10000.0);
 
 		// Draw the model
 		self.color_tree.draw(g, &camera, &ColorTreeInstance {
-			model: cvmath::Transform3f::IDENTITY,
+			model: Transform3f::IDENTITY,
 			light_pos,
 		});
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: cvmath::Transform3f::scale(camera.position.len() * 0.2),
+			local: Transform3f::scale(camera.position.len() * 0.2),
 			depth_test: None,
 		});
 
@@ -220,12 +221,12 @@ fn main() {
 
 		let camera = {
 			let pivot = color_tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + cvmath::Vec3::<f32>::X * color_tree.bounds.size().xy().vmax() * 1.0;
+			let position = pivot + Vec3::<f32>::X * color_tree.bounds.size().xy().vmax() * 1.0;
 
-			shade::d3::ArcballCamera::new(position, pivot, cvmath::Vec3::Z)
+			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
-		let screen_size = cvmath::Vec2::new(size.width as i32, size.height as i32);
+		let screen_size = Vec2::new(size.width as i32, size.height as i32);
 
 		Scene { screen_size, camera, color_tree, axes }
 	};

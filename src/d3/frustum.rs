@@ -6,8 +6,6 @@ use color3d::*;
 pub struct FrustumInstance {
 	/// The view-projection matrix defining the camera frustum to visualize.
 	pub view_proj: Mat4f,
-	/// The clipping convention used by the camera.
-	pub clip: Clip,
 }
 
 #[derive(Debug)]
@@ -20,11 +18,17 @@ pub struct FrustumModel {
 }
 
 impl FrustumModel {
-	pub fn create(g: &mut Graphics, shader: Shader) -> FrustumModel {
-		let vertices_len = VERTICES.len() as u32;
-		let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static).unwrap();
+	pub fn create(g: &mut Graphics, shader: Shader, clip: Clip) -> FrustumModel {
+		// There's no BaseVertex support in WebGL!
+		// To keep compatibility the vertices are selected when the frustum is created
+		let vertices = match clip {
+			Clip::NO => &VERTICES[..8],
+			Clip::ZO => &VERTICES[8..],
+		};
+		let vertices_len = vertices.len() as u32;
+		let vertices = g.vertex_buffer(None, vertices, BufferUsage::Static).unwrap();
 		let indices_len = INDICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, BufferUsage::Static).unwrap();
+		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static).unwrap();
 
 		FrustumModel { shader, vertices, vertices_len, indices, indices_len }
 	}
@@ -36,9 +40,6 @@ impl FrustumModel {
 			add_color: Vec4f::ZERO,
 		};
 
-		let vertex_start = match instance.clip { Clip::NO => 0, Clip::ZO => 8 };
-		let vertex_end = vertex_start + 8;
-
 		g.draw_indexed(&DrawIndexedArgs {
 			surface: camera.surface,
 			viewport: camera.viewport,
@@ -49,14 +50,12 @@ impl FrustumModel {
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Lines,
 			shader: self.shader,
+			uniforms: &[&uniforms],
 			vertices: &[DrawVertexBuffer {
 				buffer: self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			uniforms: &[&uniforms],
 			indices: self.indices,
-			vertex_start,
-			vertex_end,
 			index_start: LINES_INDEX_START,
 			index_end: LINES_INDEX_END,
 			instances: -1,
@@ -72,14 +71,12 @@ impl FrustumModel {
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Triangles,
 			shader: self.shader,
+			uniforms: &[&uniforms],
 			vertices: &[DrawVertexBuffer {
 				buffer: self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			uniforms: &[&uniforms],
 			indices: self.indices,
-			vertex_start,
-			vertex_end,
 			index_start: TRIANGLES_INDEX_START,
 			index_end: TRIANGLES_INDEX_END,
 			instances: -1,

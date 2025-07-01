@@ -148,64 +148,52 @@ struct WebGLUniformSetter<'a> {
 	textures: &'a WebGLTextures,
 }
 impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
-	fn d1v(&mut self, name: &str, _data: &[f64]) {
-		unimplemented!("WebGL does not support f64 uniforms: {name}");
-	}
-	fn d2v(&mut self, name: &str, _data: &[[f64; 2]]) {
-		unimplemented!("WebGL does not support f64 uniforms: {name}");
-	}
-	fn d3v(&mut self, name: &str, _data: &[[f64; 3]]) {
-		unimplemented!("WebGL does not support f64 uniforms: {name}");
-	}
-	fn d4v(&mut self, name: &str, _data: &[[f64; 4]]) {
-		unimplemented!("WebGL does not support f64 uniforms: {name}");
-	}
-	fn f1v(&mut self, name: &str, data: &[f32]) {
+	fn float(&mut self, name: &str, data: &[f32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::FLOAT, "Uniform {name:?} expected `float` type in shader");
 			unsafe { api::uniform1fv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
-	fn f2v(&mut self, name: &str, data: &[[f32; 2]]) {
+	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
-			unsafe { api::uniform2fv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 2]) };
 		}
 	}
-	fn f3v(&mut self, name: &str, data: &[[f32; 3]]) {
+	fn vec3(&mut self, name: &str, data: &[cvmath::Vec3<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
-			unsafe { api::uniform3fv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 3]) };
 		}
 	}
-	fn f4v(&mut self, name: &str, data: &[[f32; 4]]) {
+	fn vec4(&mut self, name: &str, data: &[cvmath::Vec4<f32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
-			unsafe { api::uniform4fv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 4]) };
 		}
 	}
-	fn i1v(&mut self, name: &str, data: &[i32]) {
+	fn int(&mut self, name: &str, data: &[i32]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::INT, "Uniform {name:?} expected `int` type in shader");
 			unsafe { api::uniform1iv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
-	fn i2v(&mut self, name: &str, data: &[[i32; 2]]) {
+	fn ivec2(&mut self, name: &str, data: &[cvmath::Vec2<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
-			unsafe { api::uniform2iv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 2]) };
 		}
 	}
-	fn i3v(&mut self, name: &str, data: &[[i32; 3]]) {
+	fn ivec3(&mut self, name: &str, data: &[cvmath::Vec3<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
-			unsafe { api::uniform3iv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 3]) };
 		}
 	}
-	fn i4v(&mut self, name: &str, data: &[[i32; 4]]) {
+	fn ivec4(&mut self, name: &str, data: &[cvmath::Vec4<i32>]) {
 		if let Some(u) = self.shader.get_uniform(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
-			unsafe { api::uniform4iv(u.location, data.len() as i32, data.as_ptr()) };
+			unsafe { api::uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 4]) };
 		}
 	}
 	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
@@ -392,7 +380,7 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Resul
 	let Some(ib) = this.ibuffers.get(args.indices) else { return Err(crate::GfxError::InvalidHandle) };
 	let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
 
-	if args.index_end < args.index_start || args.vertex_end < args.vertex_start {
+	if args.index_end < args.index_start {
 		return Err(crate::GfxError::IndexOutOfBounds);
 	}
 	if args.index_start == args.index_end {
