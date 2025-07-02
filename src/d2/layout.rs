@@ -1,5 +1,6 @@
-//! 2D layout utilities.
+//! Layout utilities.
 
+/// Specifies layout direction.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Orientation {
 	Horizontal,

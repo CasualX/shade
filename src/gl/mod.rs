@@ -244,11 +244,10 @@ impl crate::IGraphics for GlGraphics {
 		Ok(())
 	}
 
-	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(buf) = self.vbuffers.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(buf) = self.vbuffers.remove(id) else { return };
 		gl_check!(gl::DeleteBuffers(1, &buf.buffer));
-		Ok(())
 	}
 
 	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> Result<crate::IndexBuffer, crate::GfxError> {
@@ -277,11 +276,10 @@ impl crate::IGraphics for GlGraphics {
 		Ok(())
 	}
 
-	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(buf) = self.ibuffers.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(buf) = self.ibuffers.remove(id) else { return };
 		gl_check!(gl::DeleteBuffers(1, &buf.buffer));
-		Ok(())
 	}
 
 	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<crate::Shader, crate::GfxError> {
@@ -292,7 +290,7 @@ impl crate::IGraphics for GlGraphics {
 		shader::find(self, name)
 	}
 
-	fn shader_free(&mut self, id: crate::Shader) -> Result<(), crate::GfxError> {
+	fn shader_free(&mut self, id: crate::Shader) {
 		shader::delete(self, id)
 	}
 
@@ -332,11 +330,10 @@ impl crate::IGraphics for GlGraphics {
 		return Ok(texture.info);
 	}
 
-	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(texture) = self.textures.textures2d.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(texture) = self.textures.textures2d.remove(id) else { return };
 		gl_check!(gl::DeleteTextures(1, &texture.texture));
-		Ok(())
 	}
 
 	// fn texture2darray_create(&mut self, name: Option<&str>, info: &crate::Texture2DArrayInfo) -> Result<crate::Texture2DArray, crate::GfxError> {
@@ -448,11 +445,10 @@ impl crate::IGraphics for GlGraphics {
 		return Ok(surface.texture);
 	}
 
-	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(surface) = self.surfaces.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
-		self.texture2d_free(surface.texture, mode)?;
-		Ok(())
+		let Some(surface) = self.surfaces.remove(id) else { return };
+		self.texture2d_free(surface.texture, mode)
 	}
 }
 

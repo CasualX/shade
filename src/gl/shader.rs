@@ -99,8 +99,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	Ok(id)
 }
 
-pub fn delete(this: &mut GlGraphics, id: crate::Shader) -> Result<(), crate::GfxError> {
-	let Some(shader) = this.shaders.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+pub fn delete(this: &mut GlGraphics, id: crate::Shader) {
+	let Some(shader) = this.shaders.remove(id) else { return };
 	gl_check!(gl::DeleteProgram(shader.program));
-	Ok(())
 }

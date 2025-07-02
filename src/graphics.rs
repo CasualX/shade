@@ -16,6 +16,7 @@ pub struct ClearArgs {
 }
 
 /// Draw mask.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct DrawMask {
 	pub red: bool,
 	pub green: bool,
@@ -167,7 +168,7 @@ pub trait IGraphics {
 	/// Set the data of a vertex buffer.
 	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8]) -> Result<(), GfxError>;
 	/// Release the resources of a vertex buffer.
-	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode) -> Result<(), GfxError>;
+	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode);
 
 	/// Create a buffer.
 	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> Result<IndexBuffer, GfxError>;
@@ -176,14 +177,14 @@ pub trait IGraphics {
 	/// Set the data of a vertex buffer.
 	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u8]) -> Result<(), GfxError>;
 	/// Release the resources of a vertex buffer.
-	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode) -> Result<(), GfxError>;
+	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode);
 
 	/// Create and compile a shader.
 	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<Shader, GfxError>;
 	/// Find a shader by name.
 	fn shader_find(&mut self, name: &str) -> Result<Shader, GfxError>;
 	/// Release the resources of a shader.
-	fn shader_free(&mut self, id: Shader) -> Result<(), GfxError>;
+	fn shader_free(&mut self, id: Shader);
 
 	/// Create a 2D texture.
 	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Result<Texture2D, GfxError>;
@@ -194,7 +195,7 @@ pub trait IGraphics {
 	/// Get the info of a 2D texture.
 	fn texture2d_get_info(&mut self, id: Texture2D) -> Result<Texture2DInfo, GfxError>;
 	/// Release the resources of a 2D texture.
-	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode) -> Result<(), GfxError>;
+	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
 
 	/// Create a surface.
 	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Result<Surface, GfxError>;
@@ -207,7 +208,7 @@ pub trait IGraphics {
 	/// Get the texture of a surface.
 	fn surface_get_texture(&mut self, id: Surface) -> Result<Texture2D, GfxError>;
 	/// Release the resources of a surface.
-	fn surface_free(&mut self, id: Surface, mode: FreeMode) -> Result<(), GfxError>;
+	fn surface_free(&mut self, id: Surface, mode: FreeMode);
 }
 
 /// Graphics interface.

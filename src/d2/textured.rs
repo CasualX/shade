@@ -49,7 +49,7 @@ impl ToVertex<TexturedVertex> for TexturedTemplate {
 }
 
 /// Textured uniform.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TexturedUniform {
 	pub transform: Transform2f,
 	pub texture: Texture2D,
@@ -73,3 +73,6 @@ impl UniformVisitor for TexturedUniform {
 		set.value("u_colormod", &self.colormod);
 	}
 }
+
+/// DrawBuffer for textured graphics.
+pub type TexturedBuffer = DrawBuffer<TexturedVertex, TexturedUniform>;

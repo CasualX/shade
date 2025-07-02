@@ -1,17 +1,17 @@
 use super::*;
 
 
-/// Paint bucket fills shapes.
+/// Paint tool, fills shapes.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Paint<T> {
 	/// Vertex template.
 	pub template: T,
 }
 
-impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
+impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 	/// Fills a rectangle.
 	#[inline(never)]
-	pub fn fill_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>) {
+	pub fn fill_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f) {
 		let vertices = [
 			paint.template.to_vertex(rc.bottom_left(), 0),
 			paint.template.to_vertex(rc.top_left(), 1),
@@ -25,7 +25,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Fills a rectangle with an outline.
 	#[inline(never)]
-	pub fn fill_edge_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>, thickness: f32) {
+	pub fn fill_edge_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, thickness: f32) {
 		let vertices = [
 			paint.template.to_vertex(rc.top_left(), 1),
 			paint.template.to_vertex(rc.top_right(), 2),
@@ -48,7 +48,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Fills a rounded rectangle.
 	#[inline(never)]
-	pub fn fill_round_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>, sx: f32, sy: f32, _segments: i32) {
+	pub fn fill_round_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, sx: f32, sy: f32, _segments: i32) {
 		// Fixup parameters
 		let sx = if sx + sx > rc.width() { rc.width() * 0.5 } else { sx };
 		let sy = if sy + sy > rc.height() { rc.height() * 0.5 } else { sy };
@@ -117,7 +117,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Fills an ellipse.
 	#[inline(never)]
-	pub fn fill_ellipse<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>, segments: i32) {
+	pub fn fill_ellipse<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, segments: i32) {
 		// n + 1 vertices, n primitives, n * 3 indices
 		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 1, n);
@@ -149,7 +149,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Fills a pie slice.
 	#[inline(never)]
-	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
+	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 2, n);
@@ -183,7 +183,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Fills a ring.
 	#[inline(never)]
-	pub fn fill_ring<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2<f32>, thickness: f32, segments: i32) {
+	pub fn fill_ring<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, thickness: f32, segments: i32) {
 		// n * 2 vertices, n * 2 primitives, n * 6 indices
 		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n * 2, n * 2);

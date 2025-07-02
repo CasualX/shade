@@ -1,13 +1,13 @@
 use super::*;
 
-/// Pencil draws lines.
+/// Pen tool, draws lines.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pen<T> {
 	/// Vertex template.
 	pub template: T,
 }
 
-impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
+impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 	/// Draws a line from `a` to `b`.
 	#[inline(never)]
 	pub fn draw_line<T: ToVertex<V>>(&mut self, pen: &Pen<T>, a: Point2f, b: Point2f) {
@@ -34,7 +34,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Draws a rectangle with lines.
 	#[inline(never)]
-	pub fn draw_line_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2<f32>) {
+	pub fn draw_line_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f) {
 		let vertices = [
 			pen.template.to_vertex(rc.bottom_left(), 0),
 			pen.template.to_vertex(rc.top_left(), 1),
@@ -48,7 +48,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Draws a rounded rectangle with lines.
 	#[inline(never)]
-	pub fn draw_round_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2<f32>, sx: f32, sy: f32, _segments: i32) {
+	pub fn draw_round_rect<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f, sx: f32, sy: f32, _segments: i32) {
 		// Fixup parameters
 		let sx = if sx + sx > rc.width() { rc.width() * 0.5 } else { sx };
 		let sy = if sy + sy > rc.height() { rc.height() * 0.5 } else { sy };
@@ -107,7 +107,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Draws an ellipse.
 	#[inline(never)]
-	pub fn draw_ellipse<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2<f32>, segments: i32) {
+	pub fn draw_ellipse<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f, segments: i32) {
 		// n vertices, n primitives, n * 2 indices
 		let n = cmp::max(3, segments) as usize;
 		let mut cv = self.begin(PrimType::Lines, n, n);
@@ -137,7 +137,7 @@ impl<V: TVertex, U: UniformVisitor + Default> CommandBuffer<V, U> {
 
 	/// Draws an arc.
 	#[inline(never)]
-	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2<f32>, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
+	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
 		if sweep <= -Rad::turn() || sweep >= Rad::turn() {
 			return self.draw_ellipse(pen, rc, segments);
 		}

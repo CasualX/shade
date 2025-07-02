@@ -36,6 +36,9 @@ pub fn flex1d<const N: usize>(min: f32, max: f32, gap: Option<Unit>, justify: Ju
 	spans
 }
 
+/// Flexible layout in one dimension.
+///
+/// See [`flex1d`] for details.
 pub fn flex1d_slice(
 	min: f32,
 	max: f32,
@@ -132,20 +135,19 @@ pub fn flex1d_slice(
 
 use cvmath::Bounds2;
 
-pub fn flex2dv<const N: usize>(rect: Bounds2<f32>, gap: Option<Unit>, justify: Justify, template: &[Unit; N]) -> [Bounds2<f32>; N] {
-	let values = flex1d(rect.mins.y, rect.maxs.y, gap, justify, template);
+/// Flexible horizontal or vertical layout.
+#[inline]
+pub fn flex2d<const N: usize>(rect: Bounds2<f32>, orientation: Orientation, gap: Option<Unit>, justify: Justify, template: &[Unit; N]) -> [Bounds2<f32>; N] {
+	let values = match orientation {
+		Orientation::Vertical => flex1d(rect.mins.y, rect.maxs.y, gap, justify, template),
+		Orientation::Horizontal => flex1d(rect.mins.x, rect.maxs.x, gap, justify, template),
+	};
 	let mut rects = [Bounds2::ZERO; N];
-	for (i, &[top, bottom]) in values.iter().enumerate() {
-		rects[i] = Bounds2::c(rect.mins.x, top, rect.maxs.x, bottom);
-	}
-	rects
-}
-
-pub fn flex2dh<const N: usize>(rect: Bounds2<f32>, gap: Option<Unit>, justify: Justify, template: &[Unit; N]) -> [Bounds2<f32>; N] {
-	let values = flex1d(rect.mins.x, rect.maxs.x, gap, justify, template);
-	let mut rects = [Bounds2::ZERO; N];
-	for (i, &[left, right]) in values.iter().enumerate() {
-		rects[i] = Bounds2::c(left, rect.mins.y, right, rect.maxs.y);
+	for (i, &[begin, end]) in values.iter().enumerate() {
+		match orientation {
+			Orientation::Vertical => rects[i] = Bounds2::c(rect.mins.x, begin, rect.maxs.x, end),
+			Orientation::Horizontal => rects[i] = Bounds2::c(begin, rect.mins.y, end, rect.maxs.y),
+		}
 	}
 	rects
 }

@@ -141,7 +141,7 @@ impl Context {
 			instances: -1,
 		}).unwrap();
 
-		g.vertex_buffer_free(vertices, shade::FreeMode::Delete).unwrap();
+		g.vertex_buffer_free(vertices, shade::FreeMode::Delete);
 
 		g.end().unwrap();
 	}

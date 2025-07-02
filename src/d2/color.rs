@@ -5,7 +5,8 @@ use super::*;
 #[repr(C)]
 pub struct ColorVertex {
 	pub pos: Point2f,
-	pub color: Vec4<u8>,
+	pub color1: Vec4<u8>,
+	pub color2: Vec4<u8>,
 }
 
 unsafe impl TVertex for ColorVertex {
@@ -19,9 +20,14 @@ unsafe impl TVertex for ColorVertex {
 				offset: dataview::offset_of!(ColorVertex.pos) as u16,
 			},
 			VertexAttribute {
-				name: "a_color",
+				name: "a_color1",
 				format: VertexAttributeFormat::U8Normv4,
-				offset: dataview::offset_of!(ColorVertex.color) as u16,
+				offset: dataview::offset_of!(ColorVertex.color1) as u16,
+			},
+			VertexAttribute {
+				name: "a_color2",
+				format: VertexAttributeFormat::U8Normv4,
+				offset: dataview::offset_of!(ColorVertex.color2) as u16,
 			},
 		],
 	};
@@ -30,18 +36,19 @@ unsafe impl TVertex for ColorVertex {
 /// Color template.
 #[derive(Copy, Clone, Debug)]
 pub struct ColorTemplate {
-	pub color: Vec4<u8>,
+	pub color1: Vec4<u8>,
+	pub color2: Vec4<u8>,
 }
 
 impl ToVertex<ColorVertex> for ColorTemplate {
 	#[inline]
 	fn to_vertex(&self, pos: Vec2f, _index: usize) -> ColorVertex {
-		ColorVertex { pos, color: self.color }
+		ColorVertex { pos, color1: self.color1, color2: self.color2 }
 	}
 }
 
 /// Color uniform.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ColorUniform {
 	pub transform: Transform2f,
 	pub pattern: Transform2f,
@@ -55,3 +62,6 @@ impl UniformVisitor for ColorUniform {
 		set.value("u_colormod", &self.colormod);
 	}
 }
+
+/// DrawBuffer for color rendering.
+pub type ColorBuffer = DrawBuffer<ColorVertex, ColorUniform>;

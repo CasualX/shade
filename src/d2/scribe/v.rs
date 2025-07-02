@@ -39,7 +39,7 @@ unsafe impl TVertex for TextVertex {
 	};
 }
 
-// Text template.
+/// Text template.
 #[derive(Clone, Debug)]
 pub struct TextTemplate {
 	pub uv: Vec2f,
@@ -55,7 +55,7 @@ impl ToVertex<TextVertex> for TextTemplate {
 }
 
 /// Text uniform.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TextUniform {
 	pub transform: Transform2f,
 	pub texture: Texture2D,

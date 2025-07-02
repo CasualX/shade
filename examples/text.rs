@@ -59,15 +59,12 @@ fn main() {
 				}).unwrap();
 
 				let mut cv = shade::d2::TextBuffer::new();
-				cv.shader = font.shader;
-				cv.blend_mode = shade::BlendMode::Alpha;
 				cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
-				cv.push_uniform(shade::d2::TextUniform {
-					transform: Transform2::ortho(Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32)),
-					texture: font.texture,
-					outline_width_relative: 0.125,
-					..Default::default()
-				});
+				cv.blend_mode = shade::BlendMode::Alpha;
+				cv.shader = font.shader;
+				cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32));
+				cv.uniform.texture = font.texture;
+				cv.uniform.outline_width_relative = 0.125;
 
 				let mut pos = Vec2(0.0, 0.0);
 				let mut scribe = shade::d2::Scribe {

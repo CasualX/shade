@@ -80,8 +80,7 @@ pub fn find(this: &mut WebGLGraphics, name: &str) -> Result<crate::Shader, crate
 	this.shaders.find_id(name).ok_or(crate::GfxError::NameNotFound)
 }
 
-pub fn delete(this: &mut WebGLGraphics, id: crate::Shader) -> Result<(), crate::GfxError> {
-	let Some(shader) = this.shaders.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+pub fn delete(this: &mut WebGLGraphics, id: crate::Shader) {
+	let Some(shader) = this.shaders.remove(id) else { return };
 	unsafe { api::deleteProgram(shader.program) };
-	Ok(())
 }

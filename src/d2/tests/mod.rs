@@ -27,7 +27,7 @@ impl ToVertex<MockVertex> for () {
 	}
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 struct MockUniform {}
 
 impl UniformVisitor for MockUniform {
@@ -36,4 +36,4 @@ impl UniformVisitor for MockUniform {
 
 mod pen;
 mod paint;
-mod stamp;
+mod sprite;

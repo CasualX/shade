@@ -356,7 +356,7 @@ impl ParallaxModel {
 			vertex_end: vertices.len() as u32,
 			instances: -1,
 		}).unwrap();
-		g.vertex_buffer_free(vb, shade::FreeMode::Delete).unwrap();
+		g.vertex_buffer_free(vb, shade::FreeMode::Delete);
 	}
 }
 

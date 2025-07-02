@@ -5,7 +5,7 @@ pub trait TUniformValue {
 	fn set(&self, name: &str, set: &mut dyn UniformSetter);
 }
 
-/// Abstraction over a backend-specific uniform setter.
+/// Indirection over a backend-specific uniform setter.
 pub trait UniformSetter {
 	fn float(&mut self, name: &str, data: &[f32]);
 	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]);
@@ -35,11 +35,16 @@ impl<'a> dyn UniformSetter + 'a {
 	}
 }
 
+/// Marker trait for types containing uniform values.
+pub trait TUniform: Clone + PartialEq + Default + UniformVisitor {}
+
+impl<T: Clone + PartialEq + Default + UniformVisitor> TUniform for T {}
+
 /// Visiting an instance and pushing its uniforms.
 ///
 /// Useful for bulk uniform submission via a visitor.
 pub trait UniformVisitor {
-	fn visit(&self, f: &mut dyn UniformSetter);
+	fn visit(&self, set: &mut dyn UniformSetter);
 }
 
 impl<'a, T: TUniformValue + ?Sized> UniformVisitor for (&'a str, &'a T) {

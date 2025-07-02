@@ -238,11 +238,10 @@ impl crate::IGraphics for WebGLGraphics {
 		Ok(())
 	}
 
-	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(vb) = self.vbuffers.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(vb) = self.vbuffers.remove(id) else { return };
 		unsafe { api::deleteBuffer(vb.buffer) };
-		Ok(())
 	}
 
 	fn index_buffer_create(&mut self, name: Option<&str>, _size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> Result<crate::IndexBuffer, crate::GfxError> {
@@ -270,11 +269,10 @@ impl crate::IGraphics for WebGLGraphics {
 		Ok(())
 	}
 
-	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(vb) = self.ibuffers.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(vb) = self.ibuffers.remove(id) else { return };
 		unsafe { api::deleteBuffer(vb.buffer) };
-		Ok(())
 	}
 
 	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<crate::Shader, crate::GfxError> {
@@ -285,7 +283,7 @@ impl crate::IGraphics for WebGLGraphics {
 		shader::find(self, name)
 	}
 
-	fn shader_free(&mut self, id: crate::Shader) -> Result<(), crate::GfxError> {
+	fn shader_free(&mut self, id: crate::Shader) {
 		shader::delete(self, id)
 	}
 
@@ -324,11 +322,10 @@ impl crate::IGraphics for WebGLGraphics {
 		return Ok(texture.info);
 	}
 
-	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(texture) = self.textures.textures2d.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
+		let Some(texture) = self.textures.textures2d.remove(id) else { return };
 		unsafe { api::deleteTexture(texture.texture) };
-		Ok(())
 	}
 
 	fn surface_create(&mut self, name: Option<&str>, info: &crate::SurfaceInfo) -> Result<crate::Surface, crate::GfxError> {
@@ -351,7 +348,7 @@ impl crate::IGraphics for WebGLGraphics {
 		todo!()
 	}
 
-	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
+	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) {
 		todo!()
 	}
 

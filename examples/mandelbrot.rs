@@ -119,7 +119,7 @@ static DEFAULT_VIEW: ZoomView = ZoomView {
 };
 
 impl ZoomView {
-	fn to_bounds(&self, aspect_ratio: f32) -> Bounds2<f32> {
+	fn to_bounds(&self, aspect_ratio: f32) -> Bounds2f {
 		let width = self.height * aspect_ratio;
 		Bounds2::c(
 			self.center.x - width / 2.0,
