@@ -36,8 +36,8 @@ impl FrustumModel {
 	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &FrustumInstance) {
 		let uniforms = Uniforms {
 			transform: camera.view_proj * instance.view_proj.inverse(),
-			color: Vec4f::ONE,
-			add_color: Vec4f::ZERO,
+			colormod: Vec4f::ONE,
+			color_add: Vec4f::ZERO,
 		};
 
 		g.draw_indexed(&DrawIndexedArgs {

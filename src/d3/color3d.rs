@@ -21,14 +21,14 @@ unsafe impl TVertex for Vertex {
 #[derive(Clone, Debug)]
 pub struct Uniforms {
 	pub transform: Mat4f,
-	pub color: Vec4f,
-	pub add_color: Vec4f,
+	pub colormod: Vec4f,
+	pub color_add: Vec4f,
 }
 
 impl UniformVisitor for Uniforms {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_color", &self.color);
-		set.value("u_add_color", &self.add_color);
+		set.value("u_colormod", &self.colormod);
+		set.value("u_color_add", &self.color_add);
 	}
 }

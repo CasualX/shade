@@ -20,7 +20,7 @@ unsafe impl TVertex for TexturedVertex {
 				offset: dataview::offset_of!(TexturedVertex.pos) as u16,
 			},
 			VertexAttribute {
-				name: "a_texcoord",
+				name: "a_uv",
 				format: VertexAttributeFormat::F32v2,
 				offset: dataview::offset_of!(TexturedVertex.uv) as u16,
 			},
@@ -57,11 +57,12 @@ pub struct TexturedUniform {
 }
 
 impl Default for TexturedUniform {
+	#[inline]
 	fn default() -> Self {
 		TexturedUniform {
 			transform: Transform2::IDENTITY,
 			texture: Texture2D::INVALID,
-			colormod: Vec4::dup(1.0f32),
+			colormod: Vec4::ONE,
 		}
 	}
 }

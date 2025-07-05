@@ -21,7 +21,7 @@ unsafe impl TVertex for TextVertex {
 				offset: dataview::offset_of!(TextVertex.pos) as u16,
 			},
 			VertexAttribute {
-				name: "a_texcoord",
+				name: "a_uv",
 				format: VertexAttributeFormat::F32v2,
 				offset: dataview::offset_of!(TextVertex.uv) as u16,
 			},
@@ -68,6 +68,7 @@ pub struct TextUniform {
 }
 
 impl Default for TextUniform {
+	#[inline]
 	fn default() -> Self {
 		TextUniform {
 			transform: Transform2::IDENTITY,

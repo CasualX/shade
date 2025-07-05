@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec2 v_texcoord;
+in vec2 v_uv;
 in vec4 v_color;
 in vec4 v_outline;
 
@@ -20,12 +20,12 @@ float median(vec3 distances) {
 }
 
 float screen_px_range() {
-	vec2 screenTexSize = vec2(1.0) / fwidth(v_texcoord);
+	vec2 screenTexSize = vec2(1.0) / fwidth(v_uv);
 	return max(0.5 * dot(u_unit_range, screenTexSize), 1.0);
 }
 
 void main() {
-	vec4 distances = texture(u_texture, v_texcoord);
+	vec4 distances = texture(u_texture, v_uv);
 	float d_sdf = median(distances.rgb);
 
 	float width = screen_px_range();

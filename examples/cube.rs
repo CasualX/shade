@@ -195,6 +195,7 @@ fn main() {
 		.with_inner_size(size);
 
 	let window_context = glutin::ContextBuilder::new()
+		.with_multisampling(4)
 		.build_windowed(window, &event_loop)
 		.unwrap();
 
