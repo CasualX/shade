@@ -81,5 +81,5 @@ impl UniformVisitor for ColorUniform {
 	}
 }
 
-/// DrawBuffer for color rendering.
-pub type ColorBuffer = DrawBuffer<ColorVertex, ColorUniform>;
+/// DrawBuilder for color rendering.
+pub type ColorBuffer = DrawBuilder<ColorVertex, ColorUniform>;

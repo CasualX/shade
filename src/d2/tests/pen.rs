@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn draw_line() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -14,7 +14,7 @@ fn draw_line() {
 
 #[test]
 fn draw_lines() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -32,7 +32,7 @@ fn draw_lines() {
 
 #[test]
 fn draw_line_rect() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -45,7 +45,7 @@ fn draw_line_rect() {
 
 #[test]
 fn draw_poly_line() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -66,7 +66,7 @@ fn draw_poly_line() {
 
 #[test]
 fn draw_ellipse() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -78,7 +78,7 @@ fn draw_ellipse() {
 
 #[test]
 fn draw_arc() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -90,7 +90,7 @@ fn draw_arc() {
 
 #[test]
 fn draw_bezier2() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};
@@ -106,7 +106,7 @@ fn draw_bezier2() {
 
 #[test]
 fn draw_bezier3() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let pen = Pen {
 		template: (),
 	};

@@ -8,7 +8,7 @@ pub struct Paint<T> {
 	pub template: T,
 }
 
-impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
+impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 	/// Fills a rectangle.
 	#[inline(never)]
 	pub fn fill_rect<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f) {

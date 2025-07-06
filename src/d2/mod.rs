@@ -19,7 +19,7 @@ mod curve;
 
 pub mod layout;
 
-pub use self::drawbuf::{DrawBuffer, PrimBuilder};
+pub use self::drawbuf::{DrawCommand, DrawBuffer, DrawBuilder, PipelineState, PrimBuilder};
 pub use self::pool::DrawPool;
 pub use self::color::*;
 pub use self::textured::*;

@@ -9,8 +9,8 @@ pub use self::font::IFont;
 pub use self::resource::FontResource;
 pub use self::v::*;
 
-/// DrawBuffer for writing text.
-pub type TextBuffer = DrawBuffer<TextVertex, TextUniform>;
+/// DrawBuilder for writing text.
+pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
 
 /// Box alignment.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

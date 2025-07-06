@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn sprite_rect() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let stamp = Sprite {
 		bottom_left: (),
 		top_left: (),
@@ -18,7 +18,7 @@ fn sprite_rect() {
 
 #[test]
 fn sprite_quad() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let stamp = Sprite {
 		bottom_left: (),
 		top_left: (),

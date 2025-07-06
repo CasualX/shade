@@ -75,5 +75,5 @@ impl UniformVisitor for TexturedUniform {
 	}
 }
 
-/// DrawBuffer for textured graphics.
-pub type TexturedBuffer = DrawBuffer<TexturedVertex, TexturedUniform>;
+/// DrawBuilder for textured graphics.
+pub type TexturedBuffer = DrawBuilder<TexturedVertex, TexturedUniform>;

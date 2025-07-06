@@ -2,31 +2,140 @@ use super::*;
 
 type IndexT = u16;
 
+/// Pipeline state for a draw command.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PipelineState {
-	prim_type: PrimType,
-	viewport: Bounds2<i32>,
-	scissor: Option<Bounds2<i32>>,
-	blend_mode: BlendMode,
-	depth_test: Option<DepthTest>,
-	cull_mode: Option<CullMode>,
-	mask: DrawMask,
-	shader: Shader,
-	uniform_index: u32,
+	pub prim_type: PrimType,
+	pub viewport: Bounds2<i32>,
+	pub scissor: Option<Bounds2<i32>>,
+	pub blend_mode: BlendMode,
+	pub depth_test: Option<DepthTest>,
+	pub cull_mode: Option<CullMode>,
+	pub mask: DrawMask,
+	pub shader: Shader,
+	pub uniform_index: u32,
 }
 
-pub struct Command {
-	pipeline_state: PipelineState,
-	index_start: u32,
-	index_end: u32,
+/// Command for drawing a range of indexed vertices.
+pub struct DrawCommand {
+	pub pipeline_state: PipelineState,
+	pub index_start: u32,
+	pub index_end: u32,
 }
 
-/// Draw buffer.
+/// Buffer for drawing indexed geometry.
+pub struct DrawBuffer<U> {
+	pub vertices: VertexBuffer,
+	pub indices: IndexBuffer,
+	pub uniforms: Vec<U>,
+	pub commands: Vec<DrawCommand>,
+}
+
+impl<U: UniformVisitor> DrawBuffer<U> {
+	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+		for cmd in &self.commands {
+			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
+			g.draw_indexed(&DrawIndexedArgs {
+				surface,
+				viewport: cmd.pipeline_state.viewport,
+				scissor: cmd.pipeline_state.scissor,
+				blend_mode: cmd.pipeline_state.blend_mode,
+				depth_test: cmd.pipeline_state.depth_test,
+				cull_mode: cmd.pipeline_state.cull_mode,
+				mask: cmd.pipeline_state.mask,
+				prim_type: cmd.pipeline_state.prim_type,
+				shader: cmd.pipeline_state.shader,
+				uniforms: &[uniforms],
+				vertices: &[DrawVertexBuffer {
+					buffer: self.vertices,
+					divisor: VertexDivisor::PerVertex,
+				}],
+				indices: self.indices,
+				index_start: cmd.index_start,
+				index_end: cmd.index_end,
+				instances: -1,
+			})?;
+		}
+
+		Ok(())
+	}
+	pub fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>) -> Result<(), GfxError> {
+		for cmd in &self.commands[range] {
+			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
+			g.draw_indexed(&DrawIndexedArgs {
+				surface,
+				viewport: cmd.pipeline_state.viewport,
+				scissor: cmd.pipeline_state.scissor,
+				blend_mode: cmd.pipeline_state.blend_mode,
+				depth_test: cmd.pipeline_state.depth_test,
+				cull_mode: cmd.pipeline_state.cull_mode,
+				mask: cmd.pipeline_state.mask,
+				prim_type: cmd.pipeline_state.prim_type,
+				shader: cmd.pipeline_state.shader,
+				uniforms: &[uniforms],
+				vertices: &[DrawVertexBuffer {
+					buffer: self.vertices,
+					divisor: VertexDivisor::PerVertex,
+				}],
+				indices: self.indices,
+				index_start: cmd.index_start,
+				index_end: cmd.index_end,
+				instances: -1,
+			})?;
+		}
+
+		Ok(())
+	}
+
+	pub fn free(self, g: &mut Graphics) {
+		g.index_buffer_free(self.indices, FreeMode::Delete);
+		g.vertex_buffer_free(self.vertices, FreeMode::Delete);
+	}
+}
+
+struct DrawBufferRef<'a, U> {
+	vertices: VertexBuffer,
+	indices: IndexBuffer,
+	uniforms: &'a [U],
+	commands: &'a [DrawCommand],
+}
+
+impl<'a, U: TUniform> DrawBufferRef<'a, U> {
+	fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+		for cmd in self.commands {
+			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
+			g.draw_indexed(&DrawIndexedArgs {
+				surface,
+				viewport: cmd.pipeline_state.viewport,
+				scissor: cmd.pipeline_state.scissor,
+				blend_mode: cmd.pipeline_state.blend_mode,
+				depth_test: cmd.pipeline_state.depth_test,
+				cull_mode: cmd.pipeline_state.cull_mode,
+				mask: cmd.pipeline_state.mask,
+				prim_type: cmd.pipeline_state.prim_type,
+				shader: cmd.pipeline_state.shader,
+				uniforms: &[uniforms],
+				vertices: &[DrawVertexBuffer {
+					buffer: self.vertices,
+					divisor: VertexDivisor::PerVertex,
+				}],
+				indices: self.indices,
+				index_start: cmd.index_start,
+				index_end: cmd.index_end,
+				instances: -1,
+			})?;
+		}
+
+		Ok(())
+	}
+}
+
+/// Draw builder.
 ///
-/// A `DrawBuffer` collects geometry (vertices and indices) generated on the CPU, and prepares
+/// A `DrawBuilder` collects geometry (vertices and indices) generated on the CPU, and prepares
 /// it for rendering. It is the primary structure for immediate-mode drawing.
 ///
-/// See also: [`DrawPool`] allows mixing multiple `DrawBuffer` types with different vertex or uniform formats in a single pass.
+/// See also: [`DrawPool`] allows mixing multiple `DrawBuilder` types with different vertex or uniform formats in a single pass.
 ///
 /// ### Filling the buffer
 ///
@@ -54,18 +163,18 @@ pub struct Command {
 ///
 /// #### Reusing the buffer
 ///
-/// A `DrawBuffer` can be reused across frames to avoid repeated allocations. Simply call
+/// A `DrawBuilder` can be reused across frames to avoid repeated allocations. Simply call
 /// [`clear()`](Self::clear) to remove previously submitted geometry and start fresh.
 ///
 /// #### Drawing multiple times
 ///
-/// Once populated, a `DrawBuffer` can be drawn multiple times using [`draw()`](Self::draw).
+/// Once populated, a `DrawBuilder` can be drawn multiple times using [`draw()`](Self::draw).
 /// This is useful when the same content needs to be rendered to different surfaces or at
 /// different points in the frame. The buffer remains valid until cleared or modified.
 ///
 /// #### Cross-thread generation
 ///
-/// Geometry can be generated in a background thread by filling a `DrawBuffer`, then sending
+/// Geometry can be generated in a background thread by filling a `DrawBuilder`, then sending
 /// it to the main thread for rendering. This allows expensive CPU-side work (e.g., shape
 /// tessellation, layout) to be decoupled from real-time rendering.
 ///
@@ -81,8 +190,8 @@ pub struct Command {
 /// use shade::{cvmath, d2};
 ///
 /// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: shade::Shader) {
-/// 	// Construct a new draw buffer instance
-/// 	let mut cv = d2::DrawBuffer::<d2::ColorVertex, d2::ColorUniform>::new();
+/// 	// Construct a new DrawBuilder instance
+/// 	let mut cv = d2::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///
 /// 	// Adjust the shared properties
 /// 	cv.viewport = viewport;
@@ -108,11 +217,11 @@ pub struct Command {
 /// 	cv.draw(g, shade::Surface::BACK_BUFFER).unwrap();
 /// }
 /// ```
-pub struct DrawBuffer<V, U> {
+pub struct DrawBuilder<V, U> {
 	pub(super) vertices: Vec<V>,
 	pub(super) indices: Vec<IndexT>,
 	pub(super) uniforms: Vec<U>,
-	pub(super) commands: Vec<Command>,
+	pub(super) commands: Vec<DrawCommand>,
 	pub(super) auto_state_tracking: bool,
 
 	pub viewport: Bounds2<i32>,
@@ -125,17 +234,11 @@ pub struct DrawBuffer<V, U> {
 	pub uniform: U,
 }
 
-pub struct DrawBatch<'a> {
-	pub commands: &'a [Command],
-	pub vertices: VertexBuffer,
-	pub indices: IndexBuffer,
-}
-
-impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
-	/// Creates a new draw buffer.
+impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
+	/// Creates a new DrawBuilder.
 	#[inline]
 	pub fn new() -> Self {
-		DrawBuffer {
+		DrawBuilder {
 			vertices: Vec::new(),
 			indices: Vec::new(),
 			uniforms: Vec::new(),
@@ -153,7 +256,7 @@ impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 		}
 	}
 
-	/// Clears the draw buffer for reuse.
+	/// Clears the DrawBuilder for reuse.
 	#[inline]
 	pub fn clear(&mut self) {
 		self.vertices.clear();
@@ -172,49 +275,36 @@ impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 		self.uniform = Default::default();
 	}
 
-	/// Draws the draw buffer.
+	pub fn commit(self, g: &mut Graphics) -> Result<DrawBuffer<U>, GfxError> {
+		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
+		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Static)?;
+
+		Ok(DrawBuffer {
+			vertices,
+			indices,
+			uniforms: self.uniforms,
+			commands: self.commands,
+		})
+	}
+
+	/// Draws the buffer.
 	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
 		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
 		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Static)?;
-		let range = DrawBatch {
-			commands: &self.commands,
+
+		let draw_ref = DrawBufferRef {
 			vertices,
 			indices,
+			uniforms: &self.uniforms,
+			commands: &self.commands,
 		};
 
-		let result = self.draw_batch(g, surface, &range);
+		let result = draw_ref.draw(g, surface);
+
 		g.index_buffer_free(indices, FreeMode::Delete);
 		g.vertex_buffer_free(vertices, FreeMode::Delete);
+
 		result
-	}
-
-	/// Draws the specified commands from the buffer.
-	pub(super) fn draw_batch(&self, g: &mut Graphics, surface: Surface, batch: &DrawBatch) -> Result<(), GfxError> {
-		for cmd in batch.commands {
-			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
-			g.draw_indexed(&DrawIndexedArgs {
-				surface,
-				viewport: cmd.pipeline_state.viewport,
-				scissor: cmd.pipeline_state.scissor,
-				blend_mode: cmd.pipeline_state.blend_mode,
-				depth_test: cmd.pipeline_state.depth_test,
-				cull_mode: cmd.pipeline_state.cull_mode,
-				mask: cmd.pipeline_state.mask,
-				prim_type: cmd.pipeline_state.prim_type,
-				shader: cmd.pipeline_state.shader,
-				uniforms: &[uniforms],
-				vertices: &[DrawVertexBuffer {
-					buffer: batch.vertices,
-					divisor: VertexDivisor::PerVertex,
-				}],
-				indices: batch.indices,
-				index_start: cmd.index_start,
-				index_end: cmd.index_end,
-				instances: -1,
-			})?;
-		}
-
-		Ok(())
 	}
 
 	/// Checks if the uniforms have changed since last time.
@@ -231,7 +321,7 @@ impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 		}
 	}
 
-	/// Begins adding a new geometry to the draw buffer.
+	/// Begins adding a new geometry to the DrawBuilder.
 	pub fn begin<'a>(&'a mut self, prim_type: PrimType, nverts: usize, nprims: usize) -> PrimBuilder<'a, V> {
 		self.update_uniforms_if_changed();
 
@@ -267,7 +357,7 @@ impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 		if new_cmd {
 			let index_start = self.indices.len() as u32;
 			let index_end = index_start + nindices as u32;
-			self.commands.push(Command { pipeline_state, index_start, index_end });
+			self.commands.push(DrawCommand { pipeline_state, index_start, index_end });
 		}
 
 		let vertex_start = self.vertices.len();
@@ -287,7 +377,7 @@ impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
 	}
 }
 
-/// Builder for adding vertices and indices to a command buffer.
+/// Primitive builder.
 pub struct PrimBuilder<'a, V: TVertex> {
 	vertices: &'a mut [V],
 	indices: &'a mut [IndexT],
@@ -296,7 +386,7 @@ pub struct PrimBuilder<'a, V: TVertex> {
 }
 
 impl<'a, V: TVertex> PrimBuilder<'a, V> {
-	/// Adds a vertex index to the command buffer.
+	/// Adds a vertex index.
 	#[track_caller]
 	pub fn add_index(&mut self, vertex: u32) {
 		#[cfg(debug_assertions)] {
@@ -309,7 +399,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.indices = tail;
 	}
 
-	/// Adds two vertex indices to the command buffer.
+	/// Adds two vertex indices.
 	#[track_caller]
 	pub fn add_index2(&mut self, vertex1: u32, vertex2: u32) {
 		#[cfg(debug_assertions)] {
@@ -324,7 +414,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.indices = tail;
 	}
 
-	/// Adds three vertex indices to the command buffer.
+	/// Adds three vertex indices.
 	#[track_caller]
 	pub fn add_index3(&mut self, vertex1: u32, vertex2: u32, vertex3: u32) {
 		#[cfg(debug_assertions)] {
@@ -341,7 +431,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.indices = tail;
 	}
 
-	/// Adds vertex indices to the command buffer.
+	/// Adds vertex indices.
 	#[track_caller]
 	pub fn add_indices(&mut self, indices: &[IndexT]) {
 		#[cfg(debug_assertions)] {
@@ -358,7 +448,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.indices = tail;
 	}
 
-	/// Adds the vertex indices for a quad to the command buffer.
+	/// Adds the vertex indices for a quad.
 	///
 	/// ```text
 	/// 1---2
@@ -370,7 +460,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.add_indices(&[0, 1, 2, 0, 2, 3]);
 	}
 
-	/// Adds a vertex to the command buffer.
+	/// Adds a vertex.
 	#[track_caller]
 	pub fn add_vertex(&mut self, vertex: V) {
 		#[cfg(debug_assertions)] {
@@ -382,7 +472,7 @@ impl<'a, V: TVertex> PrimBuilder<'a, V> {
 		self.vertices = tail;
 	}
 
-	/// Adds vertices to the command buffer.
+	/// Adds vertices.
 	#[track_caller]
 	pub fn add_vertices(&mut self, vertices: &[V]) {
 		#[cfg(debug_assertions)] {

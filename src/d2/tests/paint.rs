@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn fill_rect() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -15,7 +15,7 @@ fn fill_rect() {
 
 #[test]
 fn fill_edge_rect() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -29,7 +29,7 @@ fn fill_edge_rect() {
 
 #[test]
 fn fill_convex() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -47,7 +47,7 @@ fn fill_convex() {
 
 #[test]
 fn fill_polygon() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -69,7 +69,7 @@ fn fill_polygon() {
 
 #[test]
 fn fill_quad() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -85,7 +85,7 @@ fn fill_quad() {
 
 #[test]
 fn fill_ellipse() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -98,7 +98,7 @@ fn fill_ellipse() {
 
 #[test]
 fn fill_pie() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -111,7 +111,7 @@ fn fill_pie() {
 
 #[test]
 fn fill_ring() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};
@@ -125,7 +125,7 @@ fn fill_ring() {
 
 #[test]
 fn fill_bezier2() {
-	let mut buf = DrawBuffer::<MockVertex, MockUniform>::new();
+	let mut buf = DrawBuilder::<MockVertex, MockUniform>::new();
 	let paint = Paint {
 		template: (),
 	};

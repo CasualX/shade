@@ -13,7 +13,7 @@ pub struct Sprite<T> {
 	pub bottom_right: T,
 }
 
-impl<V: TVertex, U: TUniform> DrawBuffer<V, U> {
+impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 	/// Draws a sprite inside the given rectangle.
 	#[inline(never)]
 	pub fn sprite_rect<T: ToVertex<V>>(&mut self, sprite: &Sprite<T>, rc: &Bounds2f) {
