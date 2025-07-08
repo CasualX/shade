@@ -12,10 +12,22 @@ pub use self::v::*;
 /// DrawBuilder for writing text.
 pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
 
-/// Box alignment.
+/// Text alignment within a rectangular box.
+///
+/// Specifies both vertical and horizontal alignment, determining where text is anchored inside a layout box.
+///
+/// - **Vertical position**:
+///   - `Top`: aligns to the top edge
+///   - `Middle`: aligns to the vertical center
+///   - `Bottom`: aligns to the bottom edge
+///
+/// - **Horizontal position**:
+///   - `Left`: aligns to the left edge
+///   - `Center`: aligns to the horizontal center
+///   - `Right`: aligns to the right edge
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(u8)]
-pub enum BoxAlign {
+pub enum TextAlign {
 	TopLeft = 0,
 	TopCenter = 1,
 	TopRight = 2,
@@ -116,7 +128,7 @@ impl TextBuffer {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: BoxAlign, lines: &[&dyn fmt::Display]) {
+	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
 		self.shader = font.shader;
 		text_lines(self, font.as_dyn().font, scribe, rect, align, lines);
 	}
@@ -127,7 +139,7 @@ impl TextBuffer {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: BoxAlign, text: &str) {
+	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
 		self.shader = font.shader;
 		text_box(self, font.as_dyn().font, scribe, rect, align, text);
 	}
@@ -150,13 +162,13 @@ fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, curso
 	let _ = fmt::write(&mut writer, format_args!("{}", text));
 }
 
-fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: BoxAlign, lines: &[&dyn fmt::Display]) {
+fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
 	let height = lines.len() as isize as i32 as f32 * scribe.line_height;
 
 	let mut y = match align {
-		BoxAlign::TopLeft | BoxAlign::TopCenter | BoxAlign::TopRight => rect.mins.y,
-		BoxAlign::MiddleLeft | BoxAlign::MiddleCenter | BoxAlign::MiddleRight => rect.mins.y + (rect.height() - height) * 0.5,
-		BoxAlign::BottomLeft | BoxAlign::BottomCenter | BoxAlign::BottomRight => rect.maxs.y - height,
+		TextAlign::TopLeft | TextAlign::TopCenter | TextAlign::TopRight => rect.mins.y,
+		TextAlign::MiddleLeft | TextAlign::MiddleCenter | TextAlign::MiddleRight => rect.mins.y + (rect.height() - height) * 0.5,
+		TextAlign::BottomLeft | TextAlign::BottomCenter | TextAlign::BottomRight => rect.maxs.y - height,
 	};
 
 	let mut scribe = scribe.clone();
@@ -172,9 +184,9 @@ fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bo
 		};
 
 		let x = match align {
-			BoxAlign::TopLeft | BoxAlign::MiddleLeft | BoxAlign::BottomLeft => rect.mins.x,
-			BoxAlign::TopCenter | BoxAlign::MiddleCenter | BoxAlign::BottomCenter => rect.mins.x + (rect.width() - text_width(args)) * 0.5,
-			BoxAlign::TopRight | BoxAlign::MiddleRight | BoxAlign::BottomRight => rect.maxs.x - text_width(args),
+			TextAlign::TopLeft | TextAlign::MiddleLeft | TextAlign::BottomLeft => rect.mins.x,
+			TextAlign::TopCenter | TextAlign::MiddleCenter | TextAlign::BottomCenter => rect.mins.x + (rect.width() - text_width(args)) * 0.5,
+			TextAlign::TopRight | TextAlign::MiddleRight | TextAlign::BottomRight => rect.maxs.x - text_width(args),
 		};
 
 		let mut cursor = Vec2(x, y);
@@ -188,19 +200,19 @@ fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bo
 	}
 }
 
-fn text_box(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: BoxAlign, text: &str) {
+fn text_box(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
 	let mut y = match align {
-		BoxAlign::TopLeft | BoxAlign::TopCenter | BoxAlign::TopRight => rect.mins.y,
-		BoxAlign::MiddleLeft | BoxAlign::MiddleCenter | BoxAlign::MiddleRight => rect.mins.y + (rect.height() - scribe.text_height(text)) * 0.5,
-		BoxAlign::BottomLeft | BoxAlign::BottomCenter | BoxAlign::BottomRight => rect.maxs.y - scribe.text_height(text),
+		TextAlign::TopLeft | TextAlign::TopCenter | TextAlign::TopRight => rect.mins.y,
+		TextAlign::MiddleLeft | TextAlign::MiddleCenter | TextAlign::MiddleRight => rect.mins.y + (rect.height() - scribe.text_height(text)) * 0.5,
+		TextAlign::BottomLeft | TextAlign::BottomCenter | TextAlign::BottomRight => rect.maxs.y - scribe.text_height(text),
 	};
 
 	let mut scribe = scribe.clone();
 	for line in text.lines() {
 		let x = match align {
-			BoxAlign::TopLeft | BoxAlign::MiddleLeft | BoxAlign::BottomLeft => rect.mins.x,
-			BoxAlign::TopCenter | BoxAlign::MiddleCenter | BoxAlign::BottomCenter => rect.mins.x + (rect.width() - scribe.text_width(&mut {Vec2::ZERO}, font, line)) * 0.5,
-			BoxAlign::TopRight | BoxAlign::MiddleRight | BoxAlign::BottomRight => rect.maxs.x - scribe.text_width(&mut {Vec2::ZERO}, font, line),
+			TextAlign::TopLeft | TextAlign::MiddleLeft | TextAlign::BottomLeft => rect.mins.x,
+			TextAlign::TopCenter | TextAlign::MiddleCenter | TextAlign::BottomCenter => rect.mins.x + (rect.width() - scribe.text_width(&mut {Vec2::ZERO}, font, line)) * 0.5,
+			TextAlign::TopRight | TextAlign::MiddleRight | TextAlign::BottomRight => rect.maxs.x - scribe.text_width(&mut {Vec2::ZERO}, font, line),
 		};
 		font.write_span(Some(buf), &mut scribe, &mut Vec2(x, y), line);
 		y += scribe.line_height;

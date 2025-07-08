@@ -125,9 +125,9 @@ fn process2_f32(seq: &str, key: &str, float: &mut f32) -> bool {
 
 	let value = match value.parse() {
 		Ok(value) => value,
-		Err(err) => {
+		Err(_err) => {
 			#[cfg(debug_assertions)]
-			panic!("Invalid number syntax: {}: {}", value, err);
+			panic!("Invalid number syntax: {}: {}", value, _err);
 			#[cfg(not(debug_assertions))]
 			return false;
 		},

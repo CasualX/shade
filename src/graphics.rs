@@ -261,11 +261,11 @@ impl Graphics {
 	}
 	/// Create and assign data to an index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], nverts: T, usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
+	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], _nverts: T, usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
 		#[cfg(debug_assertions)]
-		if nverts != Default::default() {
+		if _nverts != Default::default() {
 			for i in 0..data.len() {
-				if data[i] >= nverts {
+				if data[i] >= _nverts {
 					return Err(GfxError::IndexOutOfBounds);
 				}
 			}
