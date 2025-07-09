@@ -104,10 +104,10 @@ impl ColorTreeModel {
 		let bounds = Bounds3(mins, maxs);
 
 		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
 		// Create the shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		ColorTreeModel { shader, vertices, vertices_len, bounds }
 	}
@@ -131,7 +131,7 @@ impl ColorTreeModel {
 			vertex_start: 0,
 			vertex_end: self.vertices_len,
 			instances: -1,
-		}).unwrap();
+		});
 	}
 }
 
@@ -147,7 +147,7 @@ struct Scene {
 impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -155,7 +155,7 @@ impl Scene {
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		// Camera setup
 		let camera = {
@@ -188,7 +188,7 @@ impl Scene {
 		});
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 	}
 }
 
@@ -216,7 +216,7 @@ fn main() {
 		let color_tree = ColorTreeModel::create(g);
 
 		let axes = {
-			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
+			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 			shade::d3::axes::AxesModel::create(g, shader)
 		};
 

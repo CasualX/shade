@@ -121,7 +121,7 @@ impl Context {
 		let g = shade::Graphics(&mut webgl);
 
 		// Create the triangle shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let texture = include_bytes!("../../../zeldawater/water.png");
 		let texture = shade::image::png::load(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
@@ -145,12 +145,12 @@ impl Context {
 			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
 			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
 			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
-		], shade::BufferUsage::Static).unwrap();
+		], shade::BufferUsage::Static);
 
 		let ib = g.index_buffer(None, &[
 			0u16, 1, 2,
 			1, 3, 2,
-		], 4, shade::BufferUsage::Static).unwrap();
+		], 4, shade::BufferUsage::Static);
 
 		let screen_size = Vec2::ZERO;
 		Context { webgl, screen_size, shader, texture, distortion, vb, ib }
@@ -163,14 +163,14 @@ impl Context {
 	pub fn draw(&mut self, time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
-		}).unwrap();
+		});
 
 		let time = time as f32;
 		let texture = self.texture;
@@ -200,9 +200,9 @@ impl Context {
 			index_start: 0,
 			index_end: 6,
 			instances: -1,
-		}).unwrap();
+		});
 
 		// Finish rendering
-		g.end().unwrap();
+		g.end();
 	}
 }

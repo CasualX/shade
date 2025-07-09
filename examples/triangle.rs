@@ -85,10 +85,10 @@ fn main() {
 		TriangleVertex { position: Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
 		TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
 		TriangleVertex { position: Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
-	], shade::BufferUsage::Static).unwrap();
+	], shade::BufferUsage::Static);
 
 	// Create the triangle shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 	// Main loop
 	event_loop.run(move |event, _, control_flow| {
@@ -102,14 +102,14 @@ fn main() {
 			}
 			winit::event::Event::RedrawRequested(_) => {
 				// Render the frame
-				g.begin().unwrap();
+				g.begin();
 
 				// Clear the screen
 				g.clear(&shade::ClearArgs {
 					surface: shade::Surface::BACK_BUFFER,
 					color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 					..Default::default()
-				}).unwrap();
+				});
 
 				// Draw the triangle
 				g.draw(&shade::DrawArgs {
@@ -130,10 +130,10 @@ fn main() {
 					vertex_start: 0,
 					vertex_end: 3,
 					instances: -1,
-				}).unwrap();
+				});
 
 				// Finish rendering
-				g.end().unwrap();
+				g.end();
 
 				// Swap buffers
 				context.swap_buffers().unwrap();

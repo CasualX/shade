@@ -184,8 +184,8 @@ fn main() {
 	// Create the graphics context
 	let mut g = shade::gl::GlGraphics::new();
 
-	let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static).unwrap();
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+	let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 	let gradient = shade::image::png::load_file(&mut g, None, "examples/mandelbrot/gradient.png", &shade::image::TextureProps {
 		filter_min: shade::TextureFilter::Linear,
@@ -246,13 +246,13 @@ fn main() {
 			}
 			winit::event::Event::RedrawRequested(_) => {
 				// Render the frame
-				g.begin().unwrap();
+				g.begin();
 
 				g.clear(&shade::ClearArgs {
 					surface: shade::Surface::BACK_BUFFER,
 					color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 					..Default::default()
-				}).unwrap();
+				});
 
 				let aspect_ratio = size.width as f32 / size.height as f32;
 
@@ -281,9 +281,9 @@ fn main() {
 					vertex_start: 0,
 					vertex_end: 6,
 					instances: -1,
-				}).unwrap();
+				});
 
-				g.end().unwrap();
+				g.end();
 
 				// Swap buffers
 				context.swap_buffers().unwrap();

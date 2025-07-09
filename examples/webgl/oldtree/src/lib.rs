@@ -140,7 +140,7 @@ impl OldTreeModel {
 		let bounds = Bounds3(mins, maxs);
 
 		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
 		let texture = include_bytes!("../../../oldtree/texture.png");
 
@@ -152,7 +152,7 @@ impl OldTreeModel {
 		}, None).unwrap();
 
 		// Create the shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
 	}
@@ -184,8 +184,7 @@ impl OldTreeModel {
 			vertex_start: 0,
 			vertex_end: self.vertices_len,
 			instances: -1,
-		}).unwrap();
-
+		});
 	}
 }
 
@@ -196,6 +195,7 @@ enum ProjectionType {
 	Perspective,
 	Orthographic,
 }
+#[allow(dead_code)]
 impl ProjectionType {
 	fn toggle(&mut self) {
 		*self = match *self {
@@ -249,7 +249,7 @@ impl Context {
 		let g = shade::Graphics(&mut self.webgl);
 
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -257,7 +257,7 @@ impl Context {
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		if self.auto_rotate {
 			self.camera.rotate(-1.0, 0.0);
@@ -287,6 +287,6 @@ impl Context {
 		});
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 	}
 }

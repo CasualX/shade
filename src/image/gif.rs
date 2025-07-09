@@ -8,16 +8,9 @@ use super::{AnimatedImage, TextureProps};
 
 #[derive(Debug)]
 pub enum LoadError {
-	Gfx(crate::GfxError),
 	GIF(gif::DecodingError),
 }
 
-impl From<crate::GfxError> for LoadError {
-	#[inline]
-	fn from(e: crate::GfxError) -> Self {
-		LoadError::Gfx(e)
-	}
-}
 impl From<gif::DecodingError> for LoadError {
 	#[inline]
 	fn from(e: gif::DecodingError) -> Self {
@@ -77,8 +70,8 @@ fn _load_textures(
 		length_10ms += frame.delay as i32;
 		delay_10ms = u32::min(delay_10ms, frame.delay as u32);
 
-		let tex = g.texture2d_create(name, &info)?;
-		g.texture2d_set_data(tex, pixels)?;
+		let tex = g.texture2d_create(name, &info);
+		g.texture2d_set_data(tex, pixels);
 		frames.push(tex);
 	}
 

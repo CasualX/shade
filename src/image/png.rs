@@ -8,16 +8,9 @@ use super::{ImageSize, TextureProps};
 
 #[derive(Debug)]
 pub enum LoadError {
-	Gfx(crate::GfxError),
 	PNG(png::DecodingError),
 }
 
-impl From<crate::GfxError> for LoadError {
-	#[inline]
-	fn from(e: crate::GfxError) -> Self {
-		LoadError::Gfx(e)
-	}
-}
 impl From<png::DecodingError> for LoadError {
 	#[inline]
 	fn from(e: png::DecodingError) -> Self {
@@ -86,7 +79,7 @@ pub fn load(
 		wrap_u: props.wrap_u,
 		wrap_v: props.wrap_v,
 		border_color: [0, 0, 0, 0],
-	})?;
-	g.texture2d_set_data(tx, &pixels)?;
+	});
+	g.texture2d_set_data(tx, &pixels);
 	Ok(tx)
 }

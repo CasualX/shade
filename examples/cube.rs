@@ -148,12 +148,12 @@ impl CubeModel {
 		}, None).unwrap();
 
 		// Create the vertex and index buffers
-		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static).unwrap();
-		let indices = g.index_buffer(None, &INDICES, VERTICES.len() as u8, shade::BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+		let indices = g.index_buffer(None, &INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
 		// Create the shader
-		let shader = g.shader_create(None, CUBE_VS, CUBE_FS).unwrap();
+		let shader = g.shader_create(None, CUBE_VS, CUBE_FS);
 
 		CubeModel { shader, texture, vertices, indices, indices_len }
 	}
@@ -181,7 +181,7 @@ impl CubeModel {
 			index_start: 0,
 			index_end: self.indices_len,
 			instances: -1,
-		}).unwrap();
+		});
 	}
 }
 
@@ -241,7 +241,7 @@ fn main() {
 		});
 
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -249,7 +249,7 @@ fn main() {
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		// Rotate the cube
 		model = model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Deg(1.0));
@@ -274,7 +274,7 @@ fn main() {
 		cube.draw(g, &camera, &CubeInstance { model });
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();

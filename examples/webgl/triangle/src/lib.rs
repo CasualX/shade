@@ -89,7 +89,7 @@ impl Context {
 		let g = shade::Graphics(&mut webgl);
 
 		// Create the triangle shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let screen_size = Vec2::ZERO;
 		Context { webgl, screen_size, shader }
@@ -101,14 +101,14 @@ impl Context {
 
 	pub fn draw(&mut self, time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
-		g.begin().unwrap();
+		g.begin();
 
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.5, 0.2, 1.0, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		// Compute rotation matrix from time
 		let rotation = Mat2::rotate(Rad(time as f32));
@@ -118,7 +118,7 @@ impl Context {
 			TriangleVertex { position: rotation * Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
 			TriangleVertex { position: rotation * Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
 			TriangleVertex { position: rotation * Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
-		], shade::BufferUsage::Static).unwrap();
+		], shade::BufferUsage::Static);
 
 		// Draw the triangle
 		g.draw(&shade::DrawArgs {
@@ -139,10 +139,10 @@ impl Context {
 			vertex_start: 0,
 			vertex_end: 3,
 			instances: -1,
-		}).unwrap();
+		});
 
 		g.vertex_buffer_free(vertices, shade::FreeMode::Delete);
 
-		g.end().unwrap();
+		g.end();
 	}
 }

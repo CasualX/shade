@@ -126,17 +126,6 @@ pub struct DrawIndexedArgs<'a> {
 	pub instances: i32,
 }
 
-/// Graphics error.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum GfxError {
-	InvalidHandle,
-	IndexOutOfBounds,
-	InvalidDrawCallTime,
-	ShaderCompileError,
-	NameNotFound,
-	InternalError,
-}
-
 /// Free mode.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FreeMode {
@@ -151,62 +140,62 @@ pub enum FreeMode {
 /// See [`Graphics`](struct.Graphics.html) for a type-erased version.
 pub trait IGraphics {
 	/// Begin drawing.
-	fn begin(&mut self) -> Result<(), GfxError>;
+	fn begin(&mut self);
 	/// Clear the surface.
-	fn clear(&mut self, args: &ClearArgs) -> Result<(), GfxError>;
+	fn clear(&mut self, args: &ClearArgs);
 	/// Draw primitives.
-	fn draw(&mut self, args: &DrawArgs) -> Result<(), GfxError>;
+	fn draw(&mut self, args: &DrawArgs);
 	/// Draw indexed primitives.
-	fn draw_indexed(&mut self, args: &DrawIndexedArgs) -> Result<(), GfxError>;
+	fn draw_indexed(&mut self, args: &DrawIndexedArgs);
 	/// End drawing.
-	fn end(&mut self) -> Result<(), GfxError>;
+	fn end(&mut self);
 
 	/// Create a buffer.
-	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> Result<VertexBuffer, GfxError>;
+	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
 	/// Find a vertex buffer by name.
-	fn vertex_buffer_find(&mut self, name: &str) -> Result<VertexBuffer, GfxError>;
+	fn vertex_buffer_find(&mut self, name: &str) -> VertexBuffer;
 	/// Set the data of a vertex buffer.
-	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8]) -> Result<(), GfxError>;
+	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8]);
 	/// Release the resources of a vertex buffer.
 	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode);
 
 	/// Create a buffer.
-	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> Result<IndexBuffer, GfxError>;
+	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
 	/// Find a vertex buffer by name.
-	fn index_buffer_find(&mut self, name: &str) -> Result<IndexBuffer, GfxError>;
+	fn index_buffer_find(&mut self, name: &str) -> IndexBuffer;
 	/// Set the data of a vertex buffer.
-	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u8]) -> Result<(), GfxError>;
+	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u8]);
 	/// Release the resources of a vertex buffer.
 	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode);
 
 	/// Create and compile a shader.
-	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<Shader, GfxError>;
+	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Shader;
 	/// Find a shader by name.
-	fn shader_find(&mut self, name: &str) -> Result<Shader, GfxError>;
+	fn shader_find(&mut self, name: &str) -> Shader;
 	/// Release the resources of a shader.
 	fn shader_free(&mut self, id: Shader);
 
 	/// Create a 2D texture.
-	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Result<Texture2D, GfxError>;
+	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Texture2D;
 	/// Find a 2D texture by name.
-	fn texture2d_find(&mut self, name: &str) -> Result<Texture2D, GfxError>;
+	fn texture2d_find(&mut self, name: &str) -> Texture2D;
 	/// Set the data of a 2D texture.
-	fn texture2d_set_data(&mut self, id: Texture2D, data: &[u8]) -> Result<(), GfxError>;
+	fn texture2d_set_data(&mut self, id: Texture2D, data: &[u8]);
 	/// Get the info of a 2D texture.
-	fn texture2d_get_info(&mut self, id: Texture2D) -> Result<Texture2DInfo, GfxError>;
+	fn texture2d_get_info(&mut self, id: Texture2D) -> Texture2DInfo;
 	/// Release the resources of a 2D texture.
 	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
 
 	/// Create a surface.
-	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Result<Surface, GfxError>;
+	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Surface;
 	/// Find a surface by name.
-	fn surface_find(&mut self, name: &str) -> Result<Surface, GfxError>;
+	fn surface_find(&mut self, name: &str) -> Surface;
 	/// Get the info of a surface.
-	fn surface_get_info(&mut self, id: Surface) -> Result<SurfaceInfo, GfxError>;
+	fn surface_get_info(&mut self, id: Surface) -> SurfaceInfo;
 	/// Set the info of a surface.
-	fn surface_set_info(&mut self, id: Surface, info: &SurfaceInfo) -> Result<(), GfxError>;
+	fn surface_set_info(&mut self, id: Surface, info: &SurfaceInfo);
 	/// Get the texture of a surface.
-	fn surface_get_texture(&mut self, id: Surface) -> Result<Texture2D, GfxError>;
+	fn surface_get_texture(&mut self, id: Surface) -> Texture2D;
 	/// Release the resources of a surface.
 	fn surface_free(&mut self, id: Surface, mode: FreeMode);
 }
@@ -244,44 +233,36 @@ impl ops::DerefMut for Graphics {
 impl Graphics {
 	/// Create and assign data to a vertex buffer.
 	#[inline]
-	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> Result<VertexBuffer, GfxError> {
-		let this = &mut **self;
-		let id = this.vertex_buffer_create(name, mem::size_of_val(data), T::LAYOUT, usage)?;
-		if let Err(err) = this.vertex_buffer_set_data(id, dataview::bytes(data)) {
-			// If setting data fails, delete the buffer and return the error.
-			let _ = this.vertex_buffer_free(id, FreeMode::Delete);
-			return Err(err);
-		}
-		Ok(id)
+	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> VertexBuffer {
+		let this = &mut self.inner;
+		let id = this.vertex_buffer_create(name, mem::size_of_val(data), T::LAYOUT, usage);
+		this.vertex_buffer_set_data(id, dataview::bytes(data));
+		return id;
 	}
 	/// Set the data of a vertex buffer.
 	#[inline]
-	pub fn buffer_set_data<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) -> Result<(), GfxError> {
+	pub fn buffer_set_data<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) {
 		self.inner.vertex_buffer_set_data(id, dataview::bytes(data))
 	}
 	/// Create and assign data to an index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], _nverts: T, usage: BufferUsage) -> Result<IndexBuffer, GfxError> {
+	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], _nverts: T, usage: BufferUsage) -> IndexBuffer {
 		#[cfg(debug_assertions)]
 		if _nverts != Default::default() {
 			for i in 0..data.len() {
 				if data[i] >= _nverts {
-					return Err(GfxError::IndexOutOfBounds);
+					panic!("Index {:?} out of bounds for {:?} vertices", data[i], _nverts);
 				}
 			}
 		}
-		let this = &mut **self;
-		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage)?;
-		if let Err(err) = this.index_buffer_set_data(id, dataview::bytes(data)) {
-			// If setting data fails, delete the buffer and return the error.
-			let _ = this.index_buffer_free(id, FreeMode::Delete);
-			return Err(err);
-		}
-		Ok(id)
+		let this = &mut self.inner;
+		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage);
+		this.index_buffer_set_data(id, dataview::bytes(data));
+		return id;
 	}
 	/// Set the data of an index buffer.
 	#[inline]
-	pub fn index_buffer_set_data<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) -> Result<(), GfxError> {
+	pub fn index_buffer_set_data<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) {
 		self.inner.index_buffer_set_data(id, dataview::bytes(data))
 	}
 }

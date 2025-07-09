@@ -32,7 +32,7 @@ pub struct DrawBuffer<U> {
 }
 
 impl<U: UniformVisitor> DrawBuffer<U> {
-	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+	pub fn draw(&self, g: &mut Graphics, surface: Surface) {
 		for cmd in &self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -54,12 +54,10 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
-			})?;
+			});
 		}
-
-		Ok(())
 	}
-	pub fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>) -> Result<(), GfxError> {
+	pub fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>) {
 		for cmd in &self.commands[range] {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -81,10 +79,8 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
-			})?;
+			});
 		}
-
-		Ok(())
 	}
 
 	pub fn free(self, g: &mut Graphics) {
@@ -101,7 +97,7 @@ struct DrawBufferRef<'a, U> {
 }
 
 impl<'a, U: TUniform> DrawBufferRef<'a, U> {
-	fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+	fn draw(&self, g: &mut Graphics, surface: Surface) {
 		for cmd in self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -123,10 +119,8 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
-			})?;
+			});
 		}
-
-		Ok(())
 	}
 }
 
@@ -275,36 +269,33 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		self.uniform = Default::default();
 	}
 
-	pub fn commit(self, g: &mut Graphics) -> Result<DrawBuffer<U>, GfxError> {
-		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Static)?;
+	/// Commit the DrawBuilder to a DrawBuffer.
+	pub fn commit(self, g: &mut Graphics, usage: BufferUsage) -> DrawBuffer<U> {
+		let vertices = g.vertex_buffer(None, &self.vertices, usage);
+		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, usage);
 
-		Ok(DrawBuffer {
+		DrawBuffer {
 			vertices,
 			indices,
 			uniforms: self.uniforms,
 			commands: self.commands,
-		})
+		}
 	}
 
 	/// Draws the buffer.
-	pub fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
-		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Static)?;
+	pub fn draw(&self, g: &mut Graphics, surface: Surface) {
+		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Stream);
+		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Stream);
 
-		let draw_ref = DrawBufferRef {
+		DrawBufferRef {
 			vertices,
 			indices,
 			uniforms: &self.uniforms,
 			commands: &self.commands,
-		};
-
-		let result = draw_ref.draw(g, surface);
+		}.draw(g, surface);
 
 		g.index_buffer_free(indices, FreeMode::Delete);
 		g.vertex_buffer_free(vertices, FreeMode::Delete);
-
-		result
 	}
 
 	/// Checks if the uniforms have changed since last time.

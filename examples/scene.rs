@@ -117,7 +117,7 @@ fn main() {
 	}, None).unwrap();
 
 	// Create the shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 	let time_base = time::Instant::now();
 
@@ -150,7 +150,7 @@ fn main() {
 		});
 
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -158,7 +158,7 @@ fn main() {
 			color: Some(Vec4(0.2, 0.2, 0.5, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		let curtime = time::Instant::now().duration_since(time_base).as_secs_f32();
 
@@ -190,10 +190,10 @@ fn main() {
 		floor_thing(&mut cv, 2, 0, &DROP);
 		floor_thing(&mut cv, 1, 0, &BEAR);
 
-		cv.draw(&mut g, shade::Surface::BACK_BUFFER).unwrap();
+		cv.draw(&mut g, shade::Surface::BACK_BUFFER);
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();

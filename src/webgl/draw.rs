@@ -277,18 +277,17 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 }
 
-pub fn begin(this: &mut WebGLGraphics) -> Result<(), crate::GfxError> {
+pub fn begin(this: &mut WebGLGraphics) {
 	if this.drawing {
-		return Err(crate::GfxError::InvalidDrawCallTime);
+		panic!("{}: draw call already in progress", name_of(&begin));
 	}
 
 	this.drawing = true;
-	Ok(())
 }
 
-pub fn clear(this: &mut WebGLGraphics, args: &crate::ClearArgs) -> Result<(), crate::GfxError> {
+pub fn clear(this: &mut WebGLGraphics, args: &crate::ClearArgs) {
 	if !this.drawing {
-		return Err(crate::GfxError::InvalidDrawCallTime);
+		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
 
 	if let Some(scissor) = args.scissor {
@@ -316,25 +315,21 @@ pub fn clear(this: &mut WebGLGraphics, args: &crate::ClearArgs) -> Result<(), cr
 		mask |= api::STENCIL_BUFFER_BIT;
 	}
 	unsafe { api::clear(mask) };
-
-	Ok(())
 }
 
-pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) -> Result<(), crate::GfxError> {
+pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 	if !this.drawing {
-		return Err(crate::GfxError::InvalidDrawCallTime);
+		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
 
-	for data in args.vertices {
-		let Some(_) = this.vbuffers.get(data.buffer) else { return Err(crate::GfxError::InvalidHandle) };
+	for (i, data) in args.vertices.iter().enumerate() {
+		assert!(this.vbuffers.get(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
 	}
-	let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
+	let Some(shader) = this.shaders.get(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
 
-	if args.vertex_end < args.vertex_start {
-		return Err(crate::GfxError::IndexOutOfBounds);
-	}
+	assert!(args.vertex_end >= args.vertex_start, "{}: vertex_end ({}) < vertex_start ({})", name_of(&arrays), args.vertex_end, args.vertex_start);
 	if args.vertex_start == args.vertex_end {
-		return Ok(());
+		return;
 	}
 
 	gl_draw_mask(&args.mask);
@@ -365,26 +360,22 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) -> Result<(), cr
 
 	gl_attributes_disable(enabled_attribs);
 	unsafe { api::useProgram(0) };
-
-	Ok(())
 }
 
-pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Result<(), crate::GfxError> {
+pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 	if !this.drawing {
-		return Err(crate::GfxError::InvalidDrawCallTime);
+		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
 
-	for data in args.vertices {
-		let Some(_) = this.vbuffers.get(data.buffer) else { return Err(crate::GfxError::InvalidHandle) };
+	for (i, data) in args.vertices.iter().enumerate() {
+		assert!(this.vbuffers.get(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
 	}
-	let Some(ib) = this.ibuffers.get(args.indices) else { return Err(crate::GfxError::InvalidHandle) };
-	let Some(shader) = this.shaders.get(args.shader) else { return Err(crate::GfxError::InvalidHandle) };
+	let Some(ib) = this.ibuffers.get(args.indices) else { panic!("{}: invalid index buffer handle: {:?}", name_of(&arrays), args.indices); };
+	let Some(shader) = this.shaders.get(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
 
-	if args.index_end < args.index_start {
-		return Err(crate::GfxError::IndexOutOfBounds);
-	}
+	assert!(args.index_end >= args.index_start, "{}: index_end ({}) < index_start ({})", name_of(&indexed), args.index_end, args.index_start);
 	if args.index_start == args.index_end {
-		return Ok(());
+		return;
 	}
 
 	gl_draw_mask(&args.mask);
@@ -424,11 +415,8 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) -> Resul
 	gl_attributes_disable(enabled_attribs);
 	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
 	unsafe { api::useProgram(0) };
-
-	Ok(())
 }
 
-pub fn end(this: &mut WebGLGraphics) -> Result<(), crate::GfxError> {
+pub fn end(this: &mut WebGLGraphics) {
 	this.drawing = false;
-	Ok(())
 }

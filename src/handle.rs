@@ -21,6 +21,16 @@ macro_rules! define_handle {
 		impl $name {
 			/// Invalid handle.
 			pub const INVALID: $name = $name(0);
+
+			/// Asserts that the handle is valid.
+			#[inline]
+			#[track_caller]
+			pub fn assert(self) -> Self {
+				if self == Self::INVALID {
+					panic!("Invalid handle: {:?}", self);
+				}
+				return self;
+			}
 		}
 
 		impl crate::handle::Handle for $name {

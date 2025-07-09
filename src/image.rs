@@ -62,8 +62,6 @@ pub fn gutter(sprite_width: usize, sprite_height: usize) -> impl FnMut(&mut Vec<
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum LoadImageError {
-	/// An error occurred while loading the image.
-	Gfx(crate::GfxError),
 	#[cfg(feature = "png")]
 	/// An error occurred while decoding a PNG image.
 	PNG(::png::DecodingError),
@@ -74,19 +72,11 @@ pub enum LoadImageError {
 	UnsupportedFormat,
 }
 
-impl From<crate::GfxError> for LoadImageError {
-	#[inline]
-	fn from(e: crate::GfxError) -> Self {
-		LoadImageError::Gfx(e)
-	}
-}
-
 #[cfg(feature = "png")]
 impl From<png::LoadError> for LoadImageError {
 	#[inline]
 	fn from(e: png::LoadError) -> Self {
 		match e {
-			png::LoadError::Gfx(e) => LoadImageError::Gfx(e),
 			png::LoadError::PNG(e) => LoadImageError::PNG(e),
 		}
 	}
@@ -97,7 +87,6 @@ impl From<gif::LoadError> for LoadImageError {
 	#[inline]
 	fn from(e: gif::LoadError) -> Self {
 		match e {
-			gif::LoadError::Gfx(e) => LoadImageError::Gfx(e),
 			gif::LoadError::GIF(e) => LoadImageError::GIF(e),
 		}
 	}
@@ -147,7 +136,7 @@ impl AnimatedImage {
 		#[cfg(feature = "png")]
 		if path.extension().and_then(|s| s.to_str()) == Some("png") {
 			let tex = png::load_file(g, name, path, props, None)?;
-			let info = g.texture2d_get_info(tex)?;
+			let info = g.texture2d_get_info(tex);
 			return Ok(AnimatedImage {
 				width: info.width,
 				height: info.height,

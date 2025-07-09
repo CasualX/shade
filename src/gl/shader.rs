@@ -1,10 +1,10 @@
 use super::*;
 
-pub fn find(this: &mut GlGraphics, name: &str) -> Result<crate::Shader, crate::GfxError> {
-	this.shaders.find_id(name).ok_or(crate::GfxError::NameNotFound)
+pub fn find(this: &mut GlGraphics, name: &str) -> crate::Shader {
+	this.shaders.find_id(name).unwrap_or(crate::Shader::INVALID)
 }
 
-pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<crate::Shader, crate::GfxError> {
+pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> crate::Shader {
 	let mut success = true;
 	let mut status = 0;
 
@@ -37,7 +37,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	if !success {
 		gl_check!(gl::DeleteShader(vertex_shader));
 		gl_check!(gl::DeleteShader(fragment_shader));
-		return Err(crate::GfxError::ShaderCompileError);
+		return crate::Shader::INVALID;
 	}
 
 	let program = gl_check!(gl::CreateProgram());
@@ -56,7 +56,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		gl_check!(gl::GetProgramInfoLog(program, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		println!("# Program link log:\n{}", String::from_utf8_lossy(&log));
 		gl_check!(gl::DeleteProgram(program));
-		return Err(crate::GfxError::ShaderCompileError);
+		return crate::Shader::INVALID;
 	}
 
 	let mut nattribs = 0;
@@ -95,8 +95,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 
-	let id = this.shaders.insert(name, GlShader { program, attribs, uniforms });
-	Ok(id)
+	this.shaders.insert(name, GlShader { program, attribs, uniforms })
 }
 
 pub fn delete(this: &mut GlGraphics, id: crate::Shader) {

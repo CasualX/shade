@@ -26,9 +26,9 @@ impl FrustumModel {
 			Clip::ZO => &VERTICES[8..],
 		};
 		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, vertices, BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, vertices, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static).unwrap();
+		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static);
 
 		FrustumModel { shader, vertices, vertices_len, indices, indices_len }
 	}
@@ -59,7 +59,7 @@ impl FrustumModel {
 			index_start: LINES_INDEX_START,
 			index_end: LINES_INDEX_END,
 			instances: -1,
-		}).unwrap();
+		});
 
 		g.draw_indexed(&DrawIndexedArgs {
 			surface: camera.surface,
@@ -80,7 +80,7 @@ impl FrustumModel {
 			index_start: TRIANGLES_INDEX_START,
 			index_end: TRIANGLES_INDEX_END,
 			instances: -1,
-		}).unwrap();
+		});
 	}
 }
 

@@ -1,3 +1,5 @@
+use std::fmt;
+
 define_handle!(VertexBuffer);
 define_handle!(IndexBuffer);
 
@@ -16,7 +18,7 @@ impl IndexType {
 }
 
 /// Trait for index types.
-pub trait TIndex: Copy + Ord + Default + dataview::Pod {
+pub trait TIndex: Copy + Ord + Default + dataview::Pod + fmt::Debug {
 	const TYPE: IndexType;
 }
 

@@ -120,12 +120,12 @@ fn main() {
 		Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
 		Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
 		Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
-	], shade::BufferUsage::Static).unwrap();
+	], shade::BufferUsage::Static);
 
 	let ib = g.index_buffer(None, &[
 		0u16, 1, 2,
 		1, 3, 2,
-	], 4, shade::BufferUsage::Static).unwrap();
+	], 4, shade::BufferUsage::Static);
 
 	// Load the texture
 	let texture = shade::image::png::load_file(&mut g, None, "examples/zeldawater/water.png", &shade::image::TextureProps {
@@ -143,7 +143,7 @@ fn main() {
 	}, None).unwrap();
 
 	// Create the water shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 	let start_time = time::Instant::now();
 
@@ -178,14 +178,14 @@ fn main() {
 		});
 
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
-		}).unwrap();
+		});
 
 		let time = start_time.elapsed().as_secs_f32();
 
@@ -211,10 +211,10 @@ fn main() {
 			index_end: 6,
 			uniforms: &[&uniform],
 			instances: -1,
-		}).unwrap();
+		});
 
 		// Finish rendering
-		g.end().unwrap();
+		g.end();
 
 		// Swap buffers
 		context.swap_buffers().unwrap();

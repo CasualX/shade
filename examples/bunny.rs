@@ -126,13 +126,13 @@ impl BunnyModel {
 
 		// Create the vertex and index buffers
 		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
 		println!("Bunny # vertices: {vertices_len}");
 		println!("Bunny bounds: {bounds:#?}");
 
 		// Create the shader
-		let shader = g.shader_create(None, BUNNY_VS, BUNNY_FS).unwrap();
+		let shader = g.shader_create(None, BUNNY_VS, BUNNY_FS);
 
 		BunnyModel { shader, vertices, vertices_len, bounds }
 	}
@@ -160,7 +160,7 @@ impl BunnyModel {
 			vertex_start: 0,
 			vertex_end: self.vertices_len,
 			instances: -1,
-		}).unwrap();
+		});
 	}
 }
 
@@ -190,7 +190,7 @@ fn main() {
 
 	// Create the axes gizmo
 	let axes = {
-		let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
+		let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 		shade::d3::axes::AxesModel::create(g, shader)
 	};
 
@@ -226,7 +226,7 @@ fn main() {
 		});
 
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -234,7 +234,7 @@ fn main() {
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		// Camera setup
 		let camera = {
@@ -267,7 +267,7 @@ fn main() {
 		});
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 
 		// Swap the buffers and wait for the next frame
 		context.swap_buffers().unwrap();

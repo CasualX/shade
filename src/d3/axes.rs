@@ -19,9 +19,9 @@ pub struct AxesModel {
 
 impl AxesModel {
 	pub fn create(g: &mut Graphics, shader: Shader) -> AxesModel {
-		let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static);
 		let vertices_len = VERTICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static).unwrap();
+		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
 		AxesModel { shader, vertices, vertices_len, indices, indices_len }
@@ -53,7 +53,7 @@ impl AxesModel {
 			index_start: 0,
 			index_end: self.indices_len,
 			instances: -1,
-		}).unwrap();
+		});
 	}
 }
 

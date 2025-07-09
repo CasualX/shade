@@ -1,4 +1,5 @@
 use std::{fmt, mem, slice};
+use std::any::type_name_of_val as name_of;
 
 mod api;
 mod draw;
@@ -189,27 +190,27 @@ impl WebGLGraphics {
 }
 
 impl crate::IGraphics for WebGLGraphics {
-	fn begin(&mut self) -> Result<(), crate::GfxError> {
+	fn begin(&mut self) {
 		draw::begin(self)
 	}
 
-	fn clear(&mut self, args: &crate::ClearArgs) -> Result<(), crate::GfxError> {
+	fn clear(&mut self, args: &crate::ClearArgs) {
 		draw::clear(self, args)
 	}
 
-	fn draw(&mut self, args: &crate::DrawArgs) -> Result<(), crate::GfxError> {
+	fn draw(&mut self, args: &crate::DrawArgs) {
 		draw::arrays(self, args)
 	}
 
-	fn draw_indexed(&mut self, args: &crate::DrawIndexedArgs) -> Result<(), crate::GfxError> {
+	fn draw_indexed(&mut self, args: &crate::DrawIndexedArgs) {
 		draw::indexed(self, args)
 	}
 
-	fn end(&mut self) -> Result<(), crate::GfxError> {
+	fn end(&mut self) {
 		draw::end(self)
 	}
 
-	fn vertex_buffer_create(&mut self, name: Option<&str>, _size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> Result<crate::VertexBuffer, crate::GfxError> {
+	fn vertex_buffer_create(&mut self, name: Option<&str>, _size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
 		let buffer = unsafe { api::createBuffer() };
 
 		if layout.size >= 256 {
@@ -217,15 +218,16 @@ impl crate::IGraphics for WebGLGraphics {
 		}
 
 		let id = self.vbuffers.insert(name, WebGLVertexBuffer { buffer, _size, layout, usage });
-		return Ok(id);
+		return id;
 	}
 
-	fn vertex_buffer_find(&mut self, name: &str) -> Result<crate::VertexBuffer, crate::GfxError> {
-		self.vbuffers.find_id(name).ok_or(crate::GfxError::NameNotFound)
+	fn vertex_buffer_find(&mut self, name: &str) -> crate::VertexBuffer {
+		self.vbuffers.find_id(name).unwrap_or(crate::VertexBuffer::INVALID)
 	}
 
-	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(buf) = self.vbuffers.get_mut(id) else { return Err(crate::GfxError::InvalidHandle) };
+	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8]) {
+		let Some(buf) = self.vbuffers.get_mut(id) else { return };
+
 		let size = mem::size_of_val(data) as GLsizeiptr;
 		let usage = match buf.usage {
 			crate::BufferUsage::Static => api::STATIC_DRAW,
@@ -235,7 +237,6 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, buf.buffer) };
 		unsafe { api::bufferData(api::ARRAY_BUFFER, size, data.as_ptr(), usage) };
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, 0) };
-		Ok(())
 	}
 
 	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) {
@@ -244,19 +245,19 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::deleteBuffer(vb.buffer) };
 	}
 
-	fn index_buffer_create(&mut self, name: Option<&str>, _size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> Result<crate::IndexBuffer, crate::GfxError> {
+	fn index_buffer_create(&mut self, name: Option<&str>, _size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
 		let buffer = unsafe { api::createBuffer() };
 
 		let id = self.ibuffers.insert(name, WebGLIndexBuffer { buffer, _size, usage, ty });
-		return Ok(id);
+		return id;
 	}
 
-	fn index_buffer_find(&mut self, name: &str) -> Result<crate::IndexBuffer, crate::GfxError> {
-		self.ibuffers.find_id(name).ok_or(crate::GfxError::NameNotFound)
+	fn index_buffer_find(&mut self, name: &str) -> crate::IndexBuffer {
+		self.ibuffers.find_id(name).unwrap_or(crate::IndexBuffer::INVALID)
 	}
 
-	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(buf) = self.ibuffers.get_mut(id) else { return Err(crate::GfxError::InvalidHandle) };
+	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) {
+		let Some(buf) = self.ibuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data) as GLsizeiptr;
 		let usage = match buf.usage {
 			crate::BufferUsage::Static => api::STATIC_DRAW,
@@ -266,7 +267,6 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, buf.buffer) };
 		unsafe { api::bufferData(api::ELEMENT_ARRAY_BUFFER, size, data.as_ptr(), usage) };
 		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
-		Ok(())
 	}
 
 	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) {
@@ -275,11 +275,11 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::deleteBuffer(vb.buffer) };
 	}
 
-	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<crate::Shader, crate::GfxError> {
+	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> crate::Shader {
 		shader::create(self, name, vertex_source, fragment_source)
 	}
 
-	fn shader_find(&mut self, name: &str) -> Result<crate::Shader, crate::GfxError> {
+	fn shader_find(&mut self, name: &str) -> crate::Shader {
 		shader::find(self, name)
 	}
 
@@ -287,7 +287,7 @@ impl crate::IGraphics for WebGLGraphics {
 		shader::delete(self, id)
 	}
 
-	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> Result<crate::Texture2D, crate::GfxError> {
+	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
 		let texture = unsafe { api::createTexture() };
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
 		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.wrap_u)) };
@@ -296,15 +296,15 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter(info.filter_mag)) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 		let id = self.textures.textures2d.insert(name, WebGLTexture2D { texture, info: info.clone() });
-		return Ok(id);
+		return id;
 	}
 
-	fn texture2d_find(&mut self, name: &str) -> Result<crate::Texture2D, crate::GfxError> {
-		self.textures.textures2d.find_id(name).ok_or(crate::GfxError::NameNotFound)
+	fn texture2d_find(&mut self, name: &str) -> crate::Texture2D {
+		self.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
 	}
 
-	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) -> Result<(), crate::GfxError> {
-		let Some(texture) = self.textures.textures2d.get(id) else { return Err(crate::GfxError::InvalidHandle) };
+	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) {
+		let Some(texture) = self.textures.textures2d.get(id) else { return };
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
 		let format = match texture.info.format {
@@ -314,12 +314,11 @@ impl crate::IGraphics for WebGLGraphics {
 		};
 		unsafe { api::texImage2D(api::TEXTURE_2D, 0, format, texture.info.width, texture.info.height, 0, format, api::UNSIGNED_BYTE, data.as_ptr(), data.len()) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
-		Ok(())
 	}
 
-	fn texture2d_get_info(&mut self, id: crate::Texture2D) -> Result<crate::Texture2DInfo, crate::GfxError> {
-		let Some(texture) = self.textures.textures2d.get(id) else { return Err(crate::GfxError::InvalidHandle) };
-		return Ok(texture.info);
+	fn texture2d_get_info(&mut self, id: crate::Texture2D) -> crate::Texture2DInfo {
+		let Some(texture) = self.textures.textures2d.get(id) else { panic!("invalid texture handle: {:?}", id); };
+		return texture.info;
 	}
 
 	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) {
@@ -328,23 +327,23 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::deleteTexture(texture.texture) };
 	}
 
-	fn surface_create(&mut self, name: Option<&str>, info: &crate::SurfaceInfo) -> Result<crate::Surface, crate::GfxError> {
+	fn surface_create(&mut self, name: Option<&str>, info: &crate::SurfaceInfo) -> crate::Surface {
 		todo!()
 	}
 
-	fn surface_find(&mut self, name: &str) -> Result<crate::Surface, crate::GfxError> {
+	fn surface_find(&mut self, name: &str) -> crate::Surface {
 		todo!()
 	}
 
-	fn surface_get_info(&mut self, id: crate::Surface) -> Result<crate::SurfaceInfo, crate::GfxError> {
+	fn surface_get_info(&mut self, id: crate::Surface) -> crate::SurfaceInfo {
 		todo!()
 	}
 
-	fn surface_set_info(&mut self, id: crate::Surface, info: &crate::SurfaceInfo) -> Result<(), crate::GfxError> {
+	fn surface_set_info(&mut self, id: crate::Surface, info: &crate::SurfaceInfo) {
 		todo!()
 	}
 
-	fn surface_get_texture(&mut self, id: crate::Surface) -> Result<crate::Texture2D, crate::GfxError> {
+	fn surface_get_texture(&mut self, id: crate::Surface) -> crate::Texture2D {
 		todo!()
 	}
 

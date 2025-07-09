@@ -32,7 +32,7 @@ fn main() {
 		}, None).unwrap();
 
 		// Compile the shader
-		let shader = g.shader_create(None, shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS).unwrap();
+		let shader = g.shader_create(None, shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS);
 
 		d2::FontResource { font, texture, shader }
 	};
@@ -49,7 +49,7 @@ fn main() {
 			}
 			winit::event::Event::RedrawRequested(_) => {
 				// Render the frame
-				g.begin().unwrap();
+				g.begin();
 
 				// Clear the screen
 				g.clear(&shade::ClearArgs {
@@ -57,7 +57,7 @@ fn main() {
 					color: Some(Vec4(0.4, 0.4, 0.7, 1.0)),
 					depth: Some(1.0),
 					..Default::default()
-				}).unwrap();
+				});
 
 				let mut cv = d2::TextBuffer::new();
 				cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
@@ -91,10 +91,10 @@ fn main() {
 				let mut pos = Vec2f((size.width as f32 - rainbow_width) * 0.5, size.height as f32 - scribe.font_size);
 				cv.text_write(&font, &mut scribe, &mut pos, rainbow);
 
-				cv.draw(&mut g, shade::Surface::BACK_BUFFER).unwrap();
+				cv.draw(&mut g, shade::Surface::BACK_BUFFER);
 
 				// Finish rendering
-				g.end().unwrap();
+				g.end();
 
 				// Swap buffers
 				context.swap_buffers().unwrap();

@@ -226,7 +226,7 @@ impl OldTreeModel {
 		}
 		let bounds = Bounds3(mins, maxs);
 
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
 		let texture = shade::image::png::load_file(g, None, "examples/oldtree/texture.png", &shade::image::TextureProps {
 			filter_min: shade::TextureFilter::Nearest,
@@ -235,7 +235,7 @@ impl OldTreeModel {
 			wrap_v: shade::TextureWrap::ClampEdge,
 		}, None).unwrap();
 
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
 	}
@@ -265,7 +265,7 @@ impl OldTreeModel {
 			vertex_start: 0,
 			vertex_end: self.vertices_len,
 			instances: -1,
-		}).unwrap();
+		});
 
 	}
 }
@@ -324,7 +324,7 @@ impl ParallaxModel {
 			wrap_v: shade::TextureWrap::Repeat,
 		}, None).unwrap();
 
-		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER).unwrap();
+		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
 		ParallaxModel { shader, diffuse, normal_map, height_map, height_scale: 0.04 }
 	}
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ParallaxInstance) {
@@ -336,7 +336,7 @@ impl ParallaxModel {
 		];
 		let indices = [0, 1, 2, 0, 2, 3];
 		let vertices = indices.map(|i| vertices[i]);
-		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static).unwrap();
+		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 		g.draw(&shade::DrawArgs {
 			surface: camera.surface,
 			viewport: camera.viewport,
@@ -355,7 +355,7 @@ impl ParallaxModel {
 			vertex_start: 0,
 			vertex_end: vertices.len() as u32,
 			instances: -1,
-		}).unwrap();
+		});
 		g.vertex_buffer_free(vb, shade::FreeMode::Delete);
 	}
 }
@@ -394,7 +394,7 @@ impl Scene {
 		let floor = ParallaxModel::create(g);
 
 		let (axes, frustum) = {
-			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS).unwrap();
+			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 			(shade::d3::axes::AxesModel::create(g, shader), shade::d3::frustum::FrustumModel::create(g, shader, Clip::NO))
 		};
 
@@ -413,7 +413,7 @@ impl Scene {
 	}
 	fn draw(&mut self, g: &mut shade::Graphics, time: f32) {
 		// Render the frame
-		g.begin().unwrap();
+		g.begin();
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
@@ -421,7 +421,7 @@ impl Scene {
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
-		}).unwrap();
+		});
 
 		let frustum_view_proj;
 
@@ -474,7 +474,7 @@ impl Scene {
 		});
 
 		// Finish the frame
-		g.end().unwrap();
+		g.end();
 	}
 }
 

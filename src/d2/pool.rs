@@ -18,9 +18,9 @@ struct DrawData {
 
 trait IDrawBuffer: any::Any {
 	fn clear(&mut self);
-	fn data(&self, g: &mut Graphics) -> Result<DrawData, GfxError>;
-	fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError>;
-	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData) -> Result<(), GfxError>;
+	fn data(&self, g: &mut Graphics) -> DrawData;
+	fn draw(&self, g: &mut Graphics, surface: Surface);
+	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData);
 	fn commands_len(&self) -> usize;
 	fn shared_state(&self) -> SharedState;
 }
@@ -36,15 +36,15 @@ impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
 	fn clear(&mut self) {
 		self.clear();
 	}
-	fn data(&self, g: &mut Graphics) -> Result<DrawData, GfxError> {
-		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static)?;
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as u16, BufferUsage::Static)?;
-		Ok(DrawData { vertices, indices })
+	fn data(&self, g: &mut Graphics) -> DrawData {
+		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static);
+		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as u16, BufferUsage::Static);
+		DrawData { vertices, indices }
 	}
-	fn draw(&self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+	fn draw(&self, g: &mut Graphics, surface: Surface) {
 		draw(self, g, surface)
 	}
-	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData) -> Result<(), GfxError> {
+	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData) {
 		let batch = DrawBatch {
 			commands: &self.commands[range],
 			vertices: data.vertices,
@@ -74,23 +74,22 @@ pub struct DrawBatch<'a> {
 }
 
 /// Draws the DrawBuilder.
-fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
-	let vertices = g.vertex_buffer(None, &this.vertices, BufferUsage::Static)?;
-	let indices = g.index_buffer(None, &this.indices, this.vertices.len() as u16, BufferUsage::Static)?;
+fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface) {
+	let vertices = g.vertex_buffer(None, &this.vertices, BufferUsage::Static);
+	let indices = g.index_buffer(None, &this.indices, this.vertices.len() as u16, BufferUsage::Static);
 	let range = DrawBatch {
 		commands: &this.commands,
 		vertices,
 		indices,
 	};
 
-	let result = draw_range(this, g, surface, &range);
+	draw_range(this, g, surface, &range);
 	g.index_buffer_free(indices, FreeMode::Delete);
 	g.vertex_buffer_free(vertices, FreeMode::Delete);
-	result
 }
 
 /// Draws the specified commands from the buffer.
-fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface, batch: &DrawBatch) -> Result<(), GfxError> {
+fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface, batch: &DrawBatch) {
 	for cmd in batch.commands {
 		let uniforms = &this.uniforms[cmd.pipeline_state.uniform_index as usize];
 		g.draw_indexed(&DrawIndexedArgs {
@@ -112,10 +111,8 @@ fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphic
 			index_start: cmd.index_start,
 			index_end: cmd.index_end,
 			instances: -1,
-		})?;
+		});
 	}
-
-	Ok(())
 }
 
 
@@ -220,7 +217,7 @@ impl DrawPool {
 	}
 
 	/// Draws all commands in submission order.
-	pub fn draw(&mut self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+	pub fn draw(&mut self, g: &mut Graphics, surface: Surface) {
 		// Update the last submission range
 		if let Some(last) = self.subs.last_mut() {
 			if let Some(buf) = self.pool.get_mut(&last.id) {
@@ -229,15 +226,14 @@ impl DrawPool {
 		}
 
 		// Upload the buffers
-		let data: Result<HashMap<any::TypeId, DrawData>, _> = self.pool.iter().map(|(&id, buf)| {
-			buf.data(g).map(|data| (id, data))
+		let data: HashMap<any::TypeId, DrawData> = self.pool.iter().map(|(&id, buf)| {
+			(id, buf.data(g))
 		}).collect();
-		let data = data.unwrap();
 
 		for sub in &self.subs {
 			let buf = self.pool.get(&sub.id).unwrap();
 			let data = data.get(&sub.id).unwrap();
-			buf.draw_range(g, surface, sub.range.clone(), data)?;
+			buf.draw_range(g, surface, sub.range.clone(), data);
 		}
 
 		// Free the buffers
@@ -245,17 +241,14 @@ impl DrawPool {
 			g.index_buffer_free(data.indices, FreeMode::Delete);
 			g.vertex_buffer_free(data.vertices, FreeMode::Delete);
 		}
-
-		Ok(())
 	}
 
 	/// Draws all commands without preserving submission order.
 	///
 	/// This can be more efficient when the scene uses depth buffering and does not require blending.
-	pub fn draw_unordered(&mut self, g: &mut Graphics, surface: Surface) -> Result<(), GfxError> {
+	pub fn draw_unordered(&mut self, g: &mut Graphics, surface: Surface) {
 		for buf in self.pool.values() {
-			buf.draw(g, surface)?;
+			buf.draw(g, surface);
 		}
-		Ok(())
 	}
 }

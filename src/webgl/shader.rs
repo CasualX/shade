@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Result<crate::Shader, crate::GfxError> {
+pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> crate::Shader {
 	let mut success = true;
 
 	let vertex_shader = unsafe { api::createShader(api::VERTEX_SHADER) };
@@ -24,7 +24,7 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 	if !success {
 		unsafe { api::deleteShader(vertex_shader) };
 		unsafe { api::deleteShader(fragment_shader) };
-		return Err(crate::GfxError::ShaderCompileError);
+		return crate::Shader::INVALID;
 	}
 
 	let program = unsafe { api::createProgram() };
@@ -39,7 +39,7 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 	if status == 0 {
 		unsafe { api::getProgramInfoLog(program) };
 		unsafe { api::deleteProgram(program) };
-		return Err(crate::GfxError::ShaderCompileError);
+		return crate::Shader::INVALID;
 	}
 
 	let nattribs = unsafe { api::getProgramParameter(program, api::ACTIVE_ATTRIBUTES) };
@@ -72,12 +72,11 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 		uniforms.push(WebGLActiveUniform { location, size, ty, texture_unit, namelen, namebuf });
 	}
 
-	let id = this.shaders.insert(name, WebGLProgram { program, attribs, uniforms });
-	Ok(id)
+	return this.shaders.insert(name, WebGLProgram { program, attribs, uniforms });
 }
 
-pub fn find(this: &mut WebGLGraphics, name: &str) -> Result<crate::Shader, crate::GfxError> {
-	this.shaders.find_id(name).ok_or(crate::GfxError::NameNotFound)
+pub fn find(this: &mut WebGLGraphics, name: &str) -> crate::Shader {
+	this.shaders.find_id(name).unwrap_or(crate::Shader::INVALID)
 }
 
 pub fn delete(this: &mut WebGLGraphics, id: crate::Shader) {
