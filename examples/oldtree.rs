@@ -436,7 +436,7 @@ impl Scene {
 			let clip = Clip::NO;
 			let (near, far) = (0.1, 40.0);
 			let projection = match self.projection_type {
-				ProjectionType::Perspective => Mat4::perspective_fov(Deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
+				ProjectionType::Perspective => Mat4::perspective_fov(Angle::deg(90.0), self.screen_size.x as f32, self.screen_size.y as f32, near, far, (hand, clip)),
 				ProjectionType::Orthographic => Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
 			};
 			let view_proj = projection * view;
@@ -465,7 +465,7 @@ impl Scene {
 		});
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: Transform3f::scale(camera.position.len() * 0.2),
+			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),
 			depth_test: None,
 		});
 

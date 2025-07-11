@@ -163,7 +163,7 @@ fn main() {
 		let curtime = time::Instant::now().duration_since(time_base).as_secs_f32();
 
 		// Update the camera
-		let projection = Mat4::perspective_fov(Deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (Hand::RH, Clip::NO));
+		let projection = Mat4::perspective_fov(Angle::deg(45.0), size.width as f32, size.height as f32, 0.1, 1000.0, (Hand::RH, Clip::NO));
 		let view = {
 			let eye = Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
 			let target = Vec3(96.0 * 0.5, 0.0, 32.0);

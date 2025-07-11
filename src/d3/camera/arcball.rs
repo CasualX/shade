@@ -3,7 +3,7 @@ use super::*;
 const ROTATE_SPEED: f32 = 0.01;
 const PAN_SPEED: f32 = 0.001;
 const ZOOM_SPEED: f32 = 0.1;
-const PITCH_LIMIT: Rad<f32> = Rad(90.0_f32.to_radians());
+const PITCH_LIMIT: Angle<f32> = Angle(90.0_f32.to_radians());
 
 /// Arcball camera for 3D navigation.
 #[derive(Clone, Debug)]
@@ -13,9 +13,9 @@ pub struct ArcballCamera {
 	/// Distance from the camera to the pivot point.
 	pub radius: f32,
 	/// Pitch angle (up/down rotation).
-	pub pitch: Rad<f32>,
+	pub pitch: Angle<f32>,
 	/// Yaw angle (left/right rotation).
-	pub yaw: Rad<f32>,
+	pub yaw: Angle<f32>,
 	/// Axis used for pitch rotation.
 	pub pitch_axis: Vec3f,
 	/// Axis used for yaw rotation.
@@ -34,16 +34,16 @@ impl ArcballCamera {
 		let yaw_axis = ref_up.normalize();
 		let pitch_axis = yaw_axis.cross(forward).normalize();
 
-		let yaw = Rad(0.0); // Relative to the pitch axis
-		let pitch = Rad(forward.dot(yaw_axis).asin());
+		let yaw = Angle(0.0); // Relative to the pitch axis
+		let pitch = Angle(forward.dot(yaw_axis).asin());
 
 		ArcballCamera { pivot, radius, yaw, pitch, yaw_axis, pitch_axis }
 	}
 
 	/// Rotates the camera around the pivot based on mouse delta.
 	pub fn rotate(&mut self, dx: f32, dy: f32) {
-		self.yaw += Rad(dx * ROTATE_SPEED);
-		self.pitch += Rad(dy * ROTATE_SPEED);
+		self.yaw += Angle(dx * ROTATE_SPEED);
+		self.pitch += Angle(dy * ROTATE_SPEED);
 
 		// Clamp pitch for UX reasons
 		self.pitch = self.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);

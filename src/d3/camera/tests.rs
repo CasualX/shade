@@ -4,7 +4,7 @@ use super::*;
 fn test_camera_setup() {
 	let viewport = Bounds2::new(Vec2i(0, 0), Vec2i(100, 100));
 	let aspect_ratio = 1.0;
-	let fov_y = Rad::quarter();
+	let fov_y = Angle::deg(90.0);
 	let (near, far) = (1.0, 10.0);
 
 	let position = Vec3::new(5.0, 0.0, 0.0);

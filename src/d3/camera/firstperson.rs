@@ -33,8 +33,8 @@ impl FirstPersonCamera {
 
 	/// Rotates the camera based on mouse movement.
 	pub fn mouse(&mut self, dx: f32, dy: f32) {
-		let yaw = Rad(dx * SENSITIVITY);
-		let pitch = Rad(dy * SENSITIVITY);
+		let yaw = Angle(dx * SENSITIVITY);
+		let pitch = Angle(dy * SENSITIVITY);
 
 		let forward = self.forward;
 		let right = forward.cross(self.up).normalize();

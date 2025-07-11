@@ -119,7 +119,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		cv.add_index2((n - 1) as u32, 0);
 
 		// Precompute trigs
-		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
+		let (s, c) = (Angle::TURN / (n as i32 as f32)).sin_cos();
 		let radius = rc.size() * 0.5;
 		let center = rc.top_left() + radius;
 		let mut pt = Point2(1.0, 0.0);
@@ -137,8 +137,8 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 	/// Draws an arc.
 	#[inline(never)]
-	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
-		if sweep <= -Rad::turn() || sweep >= Rad::turn() {
+	pub fn draw_arc<T: ToVertex<V>>(&mut self, pen: &Pen<T>, rc: &Bounds2f, start: Angle<f32>, sweep: Angle<f32>, segments: i32) {
+		if sweep <= -Angle::TURN || sweep >= Angle::TURN {
 			return self.draw_ellipse(pen, rc, segments);
 		}
 

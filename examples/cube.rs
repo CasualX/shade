@@ -210,7 +210,7 @@ fn main() {
 	let cube = CubeModel::create(g);
 
 	// Model matrix to rotate the cube
-	let mut model = Transform3::scale(1.0);
+	let mut model = Transform3::IDENTITY;
 
 	// Main loop
 	let mut quit = false;
@@ -252,7 +252,7 @@ fn main() {
 		});
 
 		// Rotate the cube
-		model = model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Deg(1.0));
+		model = model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Angle::deg(1.0));
 
 		// Camera setup
 		let camera = {
@@ -263,7 +263,7 @@ fn main() {
 			let target = Vec3::ZERO;
 			let view = Transform3f::look_at(position, target, Vec3::Y, Hand::RH);
 			let (near, far) = (0.1, 100.0);
-			let fov_y = Deg(45.0);
+			let fov_y = Angle::deg(45.0);
 			let projection = Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (Hand::RH, Clip::NO));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();

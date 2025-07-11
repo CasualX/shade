@@ -111,7 +111,7 @@ impl Context {
 		});
 
 		// Compute rotation matrix from time
-		let rotation = Mat2::rotate(Rad(time as f32));
+		let rotation = Mat2::rotate(Angle(time as f32));
 
 		// Create the triangle vertices
 		let vertices = g.vertex_buffer(None, &[

@@ -123,7 +123,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		let mut cv = self.begin(PrimType::Triangles, n + 1, n);
 
 		// Precompute trigs
-		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
+		let (s, c) = (Angle::TURN / (n as i32 as f32)).sin_cos();
 		let radius = rc.size() * 0.5;
 		let center = rc.top_left() + radius;
 		let mut pt = Point2(1.0, 0.0);
@@ -149,7 +149,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 	/// Fills a pie slice.
 	#[inline(never)]
-	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, start: Rad<f32>, sweep: Rad<f32>, segments: i32) {
+	pub fn fill_pie<T: ToVertex<V>>(&mut self, paint: &Paint<T>, rc: &Bounds2f, start: Angle<f32>, sweep: Angle<f32>, segments: i32) {
 		// n + 2 vertices, n primitives, n * 3 indices
 		let n = cmp::max(2, segments) as usize;
 		let mut cv = self.begin(PrimType::Triangles, n + 2, n);
@@ -201,7 +201,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		}
 
 		// Precompute trigs
-		let (s, c) = (Rad::turn() / (n as i32 as f32)).sin_cos();
+		let (s, c) = (Angle::TURN / (n as i32 as f32)).sin_cos();
 		let radius = rc.size() * 0.5;
 		let width = radius - Point2::dup(thickness);
 		let center = rc.top_left() + radius;

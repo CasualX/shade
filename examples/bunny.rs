@@ -197,6 +197,8 @@ fn main() {
 	// Bunny model transform
 	let mut bunny_rotation = Transform3::IDENTITY;
 
+	let now = time::Instant::now();
+
 	// Main loop
 	let mut quit = false;
 	while !quit {
@@ -241,19 +243,25 @@ fn main() {
 			let surface = shade::Surface::BACK_BUFFER;
 			let viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 			let aspect_ratio = size.width as f32 / size.height as f32;
-			let position = Vec3(100.0, 100.0, bunny.bounds.height());
+			let position = Vec3(-50.0, -200.0, bunny.bounds.height() * 0.5);
 			let target = Vec3::ZERO;
 			let view = Transform3f::look_at(position, target, Vec3::Z, Hand::RH);
-			let (near, far) = (0.1,1000.0);
-			let fov_y = Deg(45.0);
-			let projection = Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (Hand::RH, Clip::NO));
+
+			let blend = (now.elapsed().as_secs_f32() * 0.5).fract() * 2.0;
+			let blend = if blend > 1.0 { 2.0 - blend } else { blend };
+			let focus_depth = position.distance(target);
+			let fov_y = Angle::deg(45.0);
+			let near = 0.1;
+			let far = 1000.0;
+			let projection = Mat4f::blend_ortho_perspective(blend, focus_depth, fov_y, aspect_ratio, near, far, (Hand::RH, Clip::NO));
+
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
 			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Rotate the bunny
-		bunny_rotation *= Transform3::rotate(Vec3::Z, Deg(1.0));
+		bunny_rotation *= Transform3::rotate(Vec3::Z, Angle::deg(1.0));
 
 		// Draw the bunny
 		let model = bunny_rotation * Transform3::translate(-bunny.bounds.center());
@@ -262,7 +270,7 @@ fn main() {
 
 		// Draw the axes gizmo
 		axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: Transform3f::scale(camera.position.len() * 0.32),
+			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.32)),
 			depth_test: Some(shade::DepthTest::Less),
 		});
 

@@ -82,7 +82,7 @@ fn draw_arc() {
 	let pen = Pen {
 		template: (),
 	};
-	buf.draw_arc(&pen, &Bounds2(Point2(0.0, 0.0), Point2(100.0, 100.0)), Rad(0.0), Rad(1.0), 128);
+	buf.draw_arc(&pen, &Bounds2(Point2(0.0, 0.0), Point2(100.0, 100.0)), Angle(0.0), Angle(1.0), 128);
 	assert_eq!(buf.commands.len(), 1);
 	assert_eq!(buf.vertices.len(), 129);
 	assert_eq!(buf.indices.len(), 128 * 2);
