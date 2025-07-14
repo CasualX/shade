@@ -1,4 +1,5 @@
 // WebGL GLSL ES 1.00
+#extension GL_OES_standard_derivatives : enable
 
 precision mediump float;
 

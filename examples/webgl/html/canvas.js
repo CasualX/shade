@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		alert("WebGL is not supported by your browser.");
 		return;
 	}
+	gl.getExtension('OES_standard_derivatives');
 	window.gl = gl;
 
 	let updatesize = null;
