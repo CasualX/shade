@@ -64,7 +64,7 @@ impl CameraSetup {
 		let far = (self.inv_view_proj * far_clip).hdiv();
 
 		// Create a ray from near to far
-		let direction = (far - near).normalize();
+		let direction = (far - near).norm();
 		Ray { origin: near, direction }
 	}
 }

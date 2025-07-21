@@ -121,7 +121,7 @@ impl BunnyModel {
 			for n in normals.iter() {
 				normal += *n;
 			}
-			v.normal = normal.normalize();
+			v.normal = normal.norm();
 		};
 
 		// Create the vertex and index buffers
@@ -265,7 +265,7 @@ fn main() {
 
 		// Draw the bunny
 		let model = bunny_rotation * Transform3::translate(-bunny.bounds.center());
-		let light_dir = Vec3::new(1.0, -1.0, 1.0).normalize();
+		let light_dir = Vec3::new(1.0, -1.0, 1.0).norm();
 		bunny.draw(g, &camera, &BunnyInstance { model, light_dir });
 
 		// Draw the axes gizmo
