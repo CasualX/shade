@@ -29,10 +29,10 @@ impl ArcballCamera {
 	/// and the view direction must not be aligned with the `ref_up` axis.
 	pub fn new(position: Vec3f, pivot: Vec3f, ref_up: Vec3f) -> ArcballCamera {
 		let offset = position - pivot;
-		let (forward, radius) = offset.normalize_len();
+		let (forward, radius) = offset.norm_len();
 
-		let yaw_axis = ref_up.normalize();
-		let pitch_axis = yaw_axis.cross(forward).normalize();
+		let yaw_axis = ref_up.norm();
+		let pitch_axis = yaw_axis.cross(forward).norm();
 
 		let yaw = Angle(0.0); // Relative to the pitch axis
 		let pitch = Angle(forward.dot(yaw_axis).asin());
@@ -73,7 +73,7 @@ impl ArcballCamera {
 
 	/// Returns the view direction vector from the camera to the pivot point.
 	pub fn view_dir(&self) -> Vec3f {
-		let forward = self.yaw_axis.cross(self.pitch_axis).normalize();
+		let forward = self.yaw_axis.cross(self.pitch_axis).norm();
 		Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch) * forward
 	}
 

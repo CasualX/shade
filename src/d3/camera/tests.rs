@@ -9,7 +9,7 @@ fn test_camera_setup() {
 
 	let position = Vec3::new(5.0, 0.0, 0.0);
 	let target = Vec3::ZERO;
-	let forward = (target - position).normalize();
+	let forward = (target - position).norm();
 	let up = Vec3::Y;
 
 	println!("Viewport: {viewport:?}");
@@ -55,14 +55,14 @@ fn test_camera_setup() {
 		Vec3::new(0.0, 0.0, -1.0),      // Back-Z
 	];
 
-	fn print_ray_stuff(ray: &Ray<f32>, position: Vec3f) {
+	fn print_ray_stuff(ray: &Ray3<f32>, position: Vec3f) {
 		println!("  Unprojected ray: origin = {:?}, dir = {:?}", ray.origin, ray.direction);
 		// Additional sanity checks:
 		let dist_near_to_cam = (ray.origin - position).len();
 		println!("  Distance camera to ray origin (near): {}", dist_near_to_cam);
 		// Additional sanity check (dot of direction to near, with direction to origin):
-		let direction_to_origin = (ray.origin - position).normalize();
-		let dot_product = ray.direction.normalize().dot(direction_to_origin);
+		let direction_to_origin = (ray.origin - position).norm();
+		let dot_product = ray.direction.norm().dot(direction_to_origin);
 		println!("  Dot product of ray direction and direction to origin: {}", dot_product);
 	}
 
