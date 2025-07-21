@@ -208,7 +208,7 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// 	cv.fill_ring(&paint, &cvmath::Bounds2::c(50.0, 50.0, 150.0, 150.0), 5.0, 19);
 ///
 /// 	// Draw to the back buffer
-/// 	cv.draw(g, shade::Surface::BACK_BUFFER).unwrap();
+/// 	cv.draw(g, shade::Surface::BACK_BUFFER);
 /// }
 /// ```
 pub struct DrawBuilder<V, U> {

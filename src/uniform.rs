@@ -98,7 +98,7 @@ impl_tuniform_value!(cvmath::Mat4f, mat4);
 impl_tuniform_value!(cvmath::Transform2f, transform2);
 impl_tuniform_value!(cvmath::Transform3f, transform3);
 
-impl TUniformValue for cvmath::Bounds<cvmath::Vec2<i32>> {
+impl TUniformValue for cvmath::Bounds2<i32> {
 	#[inline]
 	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
 		set.ivec2(name, AsRef::as_ref(self));

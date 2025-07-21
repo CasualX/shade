@@ -22,13 +22,13 @@ impl FirstPersonCamera {
 	///
 	/// The components of `dir` are treated as movement along (forward, right, up).
 	pub fn r#move(&mut self, dir: Vec3f) {
-		let right = self.forward.cross(self.up).normalize();
+		let right = self.forward.cross(self.up).norm();
 		self.position += self.forward * dir.x + right * dir.y + self.up * dir.z;
 	}
 
 	/// Reorients the camera to look at a target point.
 	pub fn look_at(&mut self, target: Vec3f) {
-		self.forward = (target - self.position).normalize();
+		self.forward = (target - self.position).norm();
 	}
 
 	/// Rotates the camera based on mouse movement.
@@ -37,10 +37,10 @@ impl FirstPersonCamera {
 		let pitch = Angle(dy * SENSITIVITY);
 
 		let forward = self.forward;
-		let right = forward.cross(self.up).normalize();
+		let right = forward.cross(self.up).norm();
 		let rotation = Mat3f::rotate(self.up, yaw) * Mat3f::rotate(right, pitch);
 
-		self.forward = (rotation * forward).normalize();
+		self.forward = (rotation * forward).norm();
 	}
 
 	/// Returns the current camera position.

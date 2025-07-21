@@ -264,7 +264,7 @@ fn main() {
 			let view = Transform3f::look_at(position, target, Vec3::Y, Hand::RH);
 			let (near, far) = (0.1, 100.0);
 			let fov_y = Angle::deg(45.0);
-			let projection = Mat4::perspective_fov(fov_y, size.width as f32, size.height as f32, near, far, (Hand::RH, Clip::NO));
+			let projection = Mat4::perspective(fov_y, size.width as f32 / size.height as f32, near, far, (Hand::RH, Clip::NO));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
 			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }

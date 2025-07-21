@@ -48,7 +48,7 @@ impl CameraSetup {
 	}
 
 	/// Generates a world-space ray from a 2D viewport-space pixel coordinate.
-	pub fn viewport_to_ray(&self, pt: Vec2i) -> Ray<f32> {
+	pub fn viewport_to_ray(&self, pt: Vec2i) -> Ray3<f32> {
 		// Convert screen pixel to normalized device coordinates (NDC)
 		let ndc_x = 2.0 * (pt.x - self.viewport.mins.x) as f32 / (self.viewport.width() as f32) - 1.0;
 		let ndc_y = 1.0 - 2.0 * (pt.y - self.viewport.mins.y) as f32 / (self.viewport.height() as f32); // Flip Y!
@@ -64,8 +64,8 @@ impl CameraSetup {
 		let far = (self.inv_view_proj * far_clip).hdiv();
 
 		// Create a ray from near to far
-		let direction = (far - near).normalize();
-		Ray { origin: near, direction }
+		let direction = (far - near).norm();
+		Ray3 { origin: near, direction, distance: cvmath::Interval(0.0, f32::INFINITY) }
 	}
 }
 

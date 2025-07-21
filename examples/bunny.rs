@@ -108,7 +108,7 @@ impl BunnyModel {
 			mins = mins.min(triangle.v1.into()).min(triangle.v2.into()).min(triangle.v3.into());
 			maxs = maxs.max(triangle.v1.into()).max(triangle.v2.into()).max(triangle.v3.into());
 		}
-		let bounds = Bounds(mins, maxs);
+		let bounds = Bounds3(mins, maxs);
 
 		// Smooth the normals
 		let mut map = HashMap::new();
@@ -121,7 +121,7 @@ impl BunnyModel {
 			for n in normals.iter() {
 				normal += *n;
 			}
-			v.normal = normal.normalize();
+			v.normal = normal.norm();
 		};
 
 		// Create the vertex and index buffers
@@ -265,7 +265,7 @@ fn main() {
 
 		// Draw the bunny
 		let model = bunny_rotation * Transform3::translate(-bunny.bounds.center());
-		let light_dir = Vec3::new(1.0, -1.0, 1.0).normalize();
+		let light_dir = Vec3::new(1.0, -1.0, 1.0).norm();
 		bunny.draw(g, &camera, &BunnyInstance { model, light_dir });
 
 		// Draw the axes gizmo

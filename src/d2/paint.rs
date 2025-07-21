@@ -31,10 +31,10 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			paint.template.to_vertex(rc.top_right(), 2),
 			paint.template.to_vertex(rc.bottom_right(), 3),
 			paint.template.to_vertex(rc.bottom_left(), 0),
-			paint.template.to_vertex(rc.top_left() + (thickness, thickness), 5),
-			paint.template.to_vertex(rc.top_right() + (-thickness, thickness), 6),
-			paint.template.to_vertex(rc.bottom_right() + (-thickness, -thickness), 7),
-			paint.template.to_vertex(rc.bottom_left() + (thickness, -thickness), 4)
+			paint.template.to_vertex(rc.top_left() + Vec2(thickness, thickness), 5),
+			paint.template.to_vertex(rc.top_right() + Vec2(-thickness, thickness), 6),
+			paint.template.to_vertex(rc.bottom_right() + Vec2(-thickness, -thickness), 7),
+			paint.template.to_vertex(rc.bottom_left() + Vec2(thickness, -thickness), 4)
 		];
 		let mut cv = self.begin(PrimType::Triangles, 8, 8);
 		cv.add_indices(&[
