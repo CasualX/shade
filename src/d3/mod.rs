@@ -1,3 +1,4 @@
+//! Graphics module 3D.
 
 use super::*;
 use cvmath::*;

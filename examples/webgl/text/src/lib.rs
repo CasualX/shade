@@ -1,4 +1,4 @@
-use std::{io, mem};
+use std::io;
 use shade::d2;
 use shade::cvmath::*;
 
@@ -45,7 +45,7 @@ impl Context {
 		self.screen_size = Vec2(width, height);
 	}
 
-	pub fn draw(&mut self, time: f64) {
+	pub fn draw(&mut self, _time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
 		let size = self.screen_size;
 		let font = &self.font;

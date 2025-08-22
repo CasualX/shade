@@ -1,3 +1,5 @@
+//! WebGL graphics backend.
+
 use std::{fmt, mem, slice};
 use std::any::type_name_of_val as name_of;
 

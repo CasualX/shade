@@ -133,6 +133,7 @@ impl AnimatedImage {
 		Self::_load(g, name, path.as_ref(), props)
 	}
 	fn _load(g: &mut crate::Graphics, name: Option<&str>, path: &path::Path, props: &TextureProps) -> Result<Self, LoadImageError> {
+		#![allow(unused_variables)]
 		#[cfg(feature = "png")]
 		if path.extension().and_then(|s| s.to_str()) == Some("png") {
 			let tex = png::load_file(g, name, path, props, None)?;
