@@ -135,6 +135,10 @@ impl d2::IFont for Font {
 			let advance = glyph.advance * scribe.font_size * scribe.font_width_scale + scribe.letter_spacing;
 			cursor.x += advance;
 
+			if !scribe.draw_mask {
+				continue;
+			}
+
 			if let Some(cv) = &mut cv {
 				let Some(plane_bounds) = &glyph.plane_bounds else { continue };
 				let Some(atlas_bounds) = &glyph.atlas_bounds else { continue };

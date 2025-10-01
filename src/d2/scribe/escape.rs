@@ -60,22 +60,13 @@ fn parse_hexcolor(s: &str) -> Option<Vec4<u8>> {
 	Some(color)
 }
 
-#[inline]
-fn split_cmp<'a>(seq: &'a str, key: &str) -> Option<&'a str> {
-	if !seq.starts_with(key) {
-		return None;
-	}
-	// SAFETY: key is a prefix of seq.
-	Some(unsafe { seq.get_unchecked(key.len()..) })
-}
-
 #[inline(never)]
 fn process2_color(seq: &str, key: &str, color: &mut Vec4<u8>) -> bool {
-	let Some(tail) = split_cmp(seq, key) else {
+	let Some(tail) = seq.strip_prefix(key) else {
 		return false;
 	};
 
-	let Some(value) = split_cmp(tail, "=") else {
+	let Some(value) = tail.strip_prefix("=") else {
 		#[cfg(debug_assertions)]
 		panic!("Invalid escape sequence: {}", seq);
 		#[cfg(not(debug_assertions))]
@@ -99,7 +90,7 @@ fn process2_color(seq: &str, key: &str, color: &mut Vec4<u8>) -> bool {
 }
 
 fn process2_f32(seq: &str, key: &str, float: &mut f32) -> bool {
-	let Some(tail) = split_cmp(seq, key) else {
+	let Some(tail) = seq.strip_prefix(key) else {
 		return false;
 	};
 
@@ -116,7 +107,7 @@ fn process2_f32(seq: &str, key: &str, float: &mut f32) -> bool {
 		_ => (tail, (|_, value| value) as fn(f32, f32) -> f32),
 	};
 
-	let Some(value) = split_cmp(tail, "=") else {
+	let Some(value) = tail.strip_prefix("=") else {
 		#[cfg(debug_assertions)]
 		panic!("Invalid escape sequence: {}", seq);
 		#[cfg(not(debug_assertions))]
@@ -135,6 +126,36 @@ fn process2_f32(seq: &str, key: &str, float: &mut f32) -> bool {
 
 	*float = fun(*float, value);
 	true
+}
+
+fn process2_bool(seq: &str, key: &str, boolean: &mut bool) -> bool {
+	let Some(tail) = seq.strip_prefix(key) else {
+		return false;
+	};
+
+	let Some(value) = tail.strip_prefix("=") else {
+		#[cfg(debug_assertions)]
+		panic!("Invalid escape sequence: {}", seq);
+		#[cfg(not(debug_assertions))]
+		return false;
+	};
+
+	match value {
+		"true" | "1" => {
+			*boolean = true;
+			true
+		}
+		"false" | "0" => {
+			*boolean = false;
+			true
+		}
+		_ => {
+			#[cfg(debug_assertions)]
+			panic!("Invalid boolean syntax: {}", value);
+			#[cfg(not(debug_assertions))]
+			false
+		}
+	}
 }
 
 /// Process an escape sequence.
@@ -159,7 +180,7 @@ pub(crate) fn process(sequence: &str, scribe: &mut Scribe, _cv: Option<&mut Text
 			&mut |seq| $handler(seq, stringify!($key), &mut scribe.$key)
 		}
 	}
-	let handlers: [&mut dyn FnMut(&str) -> bool; 9] = [
+	let handlers: [&mut dyn FnMut(&str) -> bool; 10] = [
 		def_handler!(process2_f32, font_size),
 		def_handler!(process2_f32, font_width_scale),
 		def_handler!(process2_f32, line_height),
@@ -169,8 +190,9 @@ pub(crate) fn process(sequence: &str, scribe: &mut Scribe, _cv: Option<&mut Text
 		def_handler!(process2_f32, top_skew),
 		def_handler!(process2_color, color),
 		def_handler!(process2_color, outline),
+		def_handler!(process2_bool, draw_mask),
 	];
-	let key_chars = [b'f', b'f', b'l', b'b', b'x', b'l', b't', b'c', b'o'];
+	let key_chars = [b'f', b'f', b'l', b'b', b'x', b'l', b't', b'c', b'o', b'd'];
 	assert_eq!(handlers.len(), key_chars.len());
 
 	let mut success = false;

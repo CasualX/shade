@@ -85,6 +85,8 @@ fn main() {
 				scribe.color = Vec4(255, 255, 0, 255);
 				cv.text_box(&font, &scribe, &Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32), d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
 
+				cv.text_box(&font, &scribe, &Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32), d2::TextAlign::MiddleLeft, "[\x1b[draw_mask=false]#\x1b[draw_mask=true]] Emptyness\n[#] Fullness");
+
 				scribe.top_skew = 8.0;
 				let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";
 				let rainbow_width = scribe.text_width(&mut {Vec2::ZERO}, &font.font, rainbow);

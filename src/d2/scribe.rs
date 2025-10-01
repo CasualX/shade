@@ -60,6 +60,8 @@ pub struct Scribe {
 	pub color: Vec4<u8>,
 	/// The color of the outline.
 	pub outline: Vec4<u8>,
+	/// Whether to draw text or just update the cursor position.
+	pub draw_mask: bool,
 }
 
 impl Default for Scribe {
@@ -75,6 +77,7 @@ impl Default for Scribe {
 			top_skew: 0.0,
 			color: Vec4(255, 255, 255, 255),
 			outline: Vec4(0, 0, 0, 255),
+			draw_mask: true,
 		}
 	}
 }
