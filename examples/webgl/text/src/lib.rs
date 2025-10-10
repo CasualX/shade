@@ -24,7 +24,7 @@ impl Context {
 	
 			// Load the texture
 			let texture = include_bytes!("../../../font/font.png");
-			let texture = shade::image::png::load(g, Some("font"), &mut io::Cursor::new(texture), &shade::image::TextureProps {
+			let texture = shade::image::png::load_stream(g, Some("font"), &mut io::Cursor::new(texture), &shade::image::TextureProps {
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::ClampEdge,

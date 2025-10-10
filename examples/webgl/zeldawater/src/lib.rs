@@ -124,7 +124,7 @@ impl Context {
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let texture = include_bytes!("../../../zeldawater/water.png");
-		let texture = shade::image::png::load(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
+		let texture = shade::image::png::load_stream(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
 			filter_min: shade::TextureFilter::Linear,
 			filter_mag: shade::TextureFilter::Linear,
 			wrap_u: shade::TextureWrap::Repeat,
@@ -132,7 +132,7 @@ impl Context {
 		}, None).unwrap();
 
 		let distortion = include_bytes!("../../../zeldawater/distort.png");
-		let distortion = shade::image::png::load(g, None, &mut io::Cursor::new(distortion), &shade::image::TextureProps {
+		let distortion = shade::image::png::load_stream(g, None, &mut io::Cursor::new(distortion), &shade::image::TextureProps {
 			filter_min: shade::TextureFilter::Linear,
 			filter_mag: shade::TextureFilter::Linear,
 			wrap_u: shade::TextureWrap::Repeat,

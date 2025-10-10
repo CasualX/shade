@@ -2,43 +2,32 @@
 Utility to load GIF files to texture.
 */
 
-use std::{fs, path};
+use std::{fs, io, path};
 
 use super::{AnimatedImage, TextureProps};
 
-#[derive(Debug)]
-pub enum LoadError {
-	GIF(gif::DecodingError),
-}
+pub type LoadError = gif::DecodingError;
 
-impl From<gif::DecodingError> for LoadError {
-	#[inline]
-	fn from(e: gif::DecodingError) -> Self {
-		LoadError::GIF(e)
-	}
-}
-
-pub fn load_textures(
+#[inline]
+pub fn load_file(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
 	path: impl AsRef<path::Path>,
 	props: &TextureProps,
 ) -> Result<AnimatedImage, LoadError> {
-	_load_textures(g, name, path.as_ref(), props)
+	let mut file = fs::File::open(path.as_ref()).map_err(gif::DecodingError::Io)?;
+	load_stream(g, name, &mut file, props)
 }
 
-fn _load_textures(
+pub fn load_stream(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
-	path: &path::Path,
+	stream: &mut dyn io::Read,
 	props: &TextureProps,
 ) -> Result<AnimatedImage, LoadError> {
-	// Read the GIF file
-	let file = fs::File::open(path).map_err(gif::DecodingError::Io)?;
-
 	let mut opts = gif::DecodeOptions::new();
 	opts.set_color_output(gif::ColorOutput::RGBA);
-	let mut decoder = opts.read_info(file)?;
+	let mut decoder = opts.read_info(stream)?;
 
 	let width = decoder.width();
 	let height = decoder.height();

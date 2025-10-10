@@ -62,32 +62,43 @@ pub fn gutter(sprite_width: usize, sprite_height: usize) -> impl FnMut(&mut Vec<
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum LoadImageError {
+	/// An I/O error occurred.
+	Io(std::io::Error),
 	#[cfg(feature = "png")]
 	/// An error occurred while decoding a PNG image.
 	PNG(::png::DecodingError),
 	#[cfg(feature = "gif")]
 	/// An error occurred while decoding a GIF image.
-	GIF(::gif::DecodingError),
+	GIF(::gif::DecodingFormatError),
 	/// The image format is not supported.
 	UnsupportedFormat,
 }
 
-#[cfg(feature = "png")]
-impl From<png::LoadError> for LoadImageError {
+impl From<std::io::Error> for LoadImageError {
 	#[inline]
-	fn from(e: png::LoadError) -> Self {
+	fn from(e: std::io::Error) -> Self {
+		LoadImageError::Io(e)
+	}
+}
+
+#[cfg(feature = "png")]
+impl From<::png::DecodingError> for LoadImageError {
+	#[inline]
+	fn from(e: ::png::DecodingError) -> Self {
 		match e {
-			png::LoadError::PNG(e) => LoadImageError::PNG(e),
+			::png::DecodingError::IoError(e) => LoadImageError::Io(e),
+			e => LoadImageError::PNG(e),
 		}
 	}
 }
 
 #[cfg(feature = "gif")]
-impl From<gif::LoadError> for LoadImageError {
+impl From<::gif::DecodingError> for LoadImageError {
 	#[inline]
-	fn from(e: gif::LoadError) -> Self {
+	fn from(e: ::gif::DecodingError) -> Self {
 		match e {
-			gif::LoadError::GIF(e) => LoadImageError::GIF(e),
+			::gif::DecodingError::Io(e) => LoadImageError::Io(e),
+			::gif::DecodingError::Format(e) => LoadImageError::GIF(e),
 		}
 	}
 }
@@ -129,13 +140,14 @@ impl AnimatedImage {
 
 use std::path;
 impl AnimatedImage {
-	pub fn load(g: &mut crate::Graphics, name: Option<&str>, path: impl AsRef<path::Path>, props: &TextureProps) -> Result<Self, LoadImageError> {
+	pub fn load_file(g: &mut crate::Graphics, name: Option<&str>, path: impl AsRef<path::Path>, props: &TextureProps) -> Result<Self, LoadImageError> {
 		Self::_load(g, name, path.as_ref(), props)
 	}
 	fn _load(g: &mut crate::Graphics, name: Option<&str>, path: &path::Path, props: &TextureProps) -> Result<Self, LoadImageError> {
 		#![allow(unused_variables)]
+		let ext = path.extension().and_then(|s| s.to_str());
 		#[cfg(feature = "png")]
-		if path.extension().and_then(|s| s.to_str()) == Some("png") {
+		if ext == Some("png") {
 			let tex = png::load_file(g, name, path, props, None)?;
 			let info = g.texture2d_get_info(tex);
 			return Ok(AnimatedImage {
@@ -148,11 +160,54 @@ impl AnimatedImage {
 			});
 		}
 		#[cfg(feature = "gif")]
-		if path.extension().and_then(|s| s.to_str()) == Some("gif") {
-			let anim = gif::load_textures(g, name, path, props)?;
+		if ext == Some("gif") {
+			let anim = gif::load_file(g, name, path, props)?;
 			return Ok(anim)
-		};
-
+		}
+		Err(LoadImageError::UnsupportedFormat)
+	}
+	pub fn load_stream(g: &mut crate::Graphics, name: Option<&str>, stream: &mut dyn std::io::Read, ext: Option<&[u8]>, props: &TextureProps) -> Result<Self, LoadImageError> {
+		#![allow(unused_variables)]
+		#[cfg(feature = "png")]
+		if ext == Some(b"png") {
+			let tex = png::load_stream(g, name, stream, props, None)?;
+			let info = g.texture2d_get_info(tex);
+			return Ok(AnimatedImage {
+				width: info.width,
+				height: info.height,
+				frames: vec![tex],
+				delay: 0.0,
+				length: 0.0,
+				repeat: false,
+			});
+		}
+		#[cfg(feature = "gif")]
+		if ext == Some(b"gif") {
+			let anim = gif::load_stream(g, name, stream, props)?;
+			return Ok(anim)
+		}
+		Err(LoadImageError::UnsupportedFormat)
+	}
+	pub fn load_memory(g: &mut crate::Graphics, name: Option<&str>, mut data: &[u8], props: &TextureProps) -> Result<Self, LoadImageError> {
+		#![allow(unused_variables)]
+		#[cfg(feature = "png")]
+		if data.starts_with(b"\x89PNG\r\n\x1a\n") {
+			let tex = png::load_stream(g, name, &mut data, props, None)?;
+			let info = g.texture2d_get_info(tex);
+			return Ok(AnimatedImage {
+				width: info.width,
+				height: info.height,
+				frames: vec![tex],
+				delay: 0.0,
+				length: 0.0,
+				repeat: false,
+			});
+		}
+		#[cfg(feature = "gif")]
+		if data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a") {
+			let anim = gif::load_stream(g, name, &mut data, props)?;
+			return Ok(anim)
+		}
 		Err(LoadImageError::UnsupportedFormat)
 	}
 }

@@ -168,7 +168,7 @@ impl Scene {
 			let clip = Clip::NO;
 			let (near, far) = (10.0, 10000.0);
 			let fov_y = Angle::deg(90.0);
-			let projection = Mat4::perspective(fov_y, self.screen_size.x as f32 / self.screen_size.y as f32, near, far, (hand, clip));
+			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
 			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }

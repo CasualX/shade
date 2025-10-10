@@ -6,18 +6,9 @@ use std::{fs, io, path};
 
 use super::{ImageSize, TextureProps};
 
-#[derive(Debug)]
-pub enum LoadError {
-	PNG(png::DecodingError),
-}
+pub type LoadError = png::DecodingError;
 
-impl From<png::DecodingError> for LoadError {
-	#[inline]
-	fn from(e: png::DecodingError) -> Self {
-		LoadError::PNG(e)
-	}
-}
-
+#[inline]
 pub fn load_file(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
@@ -26,19 +17,19 @@ pub fn load_file(
 	transform: Option<&mut dyn FnMut(&mut Vec<u8>, &mut ImageSize)>,
 ) -> Result<crate::Texture2D, LoadError> {
 	let mut file = fs::File::open(path).map_err(png::DecodingError::IoError)?;
-	load(g, name, &mut file, props, transform)
+	load_stream(g, name, &mut file, props, transform)
 }
 
-pub fn load(
+pub fn load_stream(
 	g: &mut crate::Graphics,
 	name: Option<&str>,
-	data: &mut dyn io::Read,
+	stream: &mut dyn io::Read,
 	props: &TextureProps,
 	transform: Option<&mut dyn FnMut(&mut Vec<u8>, &mut ImageSize)>,
 ) -> Result<crate::Texture2D, LoadError> {
 
 	// Read the PNG file
-	let mut decoder = png::Decoder::new(data);
+	let mut decoder = png::Decoder::new(stream);
 	decoder.set_transformations(png::Transformations::normalize_to_color8());
 	let mut reader = decoder.read_info()?;
 	let mut pixels = vec![0; reader.output_buffer_size()];

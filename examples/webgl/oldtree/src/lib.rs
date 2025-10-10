@@ -144,7 +144,7 @@ impl OldTreeModel {
 
 		let texture = include_bytes!("../../../oldtree/texture.png");
 
-		let texture = shade::image::png::load(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
+		let texture = shade::image::png::load_stream(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
 			filter_min: shade::TextureFilter::Nearest,
 			filter_mag: shade::TextureFilter::Nearest,
 			wrap_u: shade::TextureWrap::ClampEdge,
@@ -273,7 +273,7 @@ impl Context {
 			let clip = Clip::NO;
 			let (near, far) = (0.1, 40.0);
 			let projection = match self.projection_type {
-				ProjectionType::Perspective => Mat4::perspective(Angle::deg(90.0), self.screen_size.x as f32 / self.screen_size.y as f32, near, far, (hand, clip)),
+				ProjectionType::Perspective => Mat4::perspective(Angle::deg(90.0), aspect_ratio, near, far, (hand, clip)),
 				ProjectionType::Orthographic => Mat4::ortho(-5.0 * aspect_ratio, 5.0 * aspect_ratio, -5.0, 5.0, near, far, (hand, clip)),
 			};
 			let view_proj = projection * view;
