@@ -8,14 +8,77 @@
 
 use std::collections::HashMap;
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Font {
 	pub atlas: Atlas,
-	pub metrics: Metrics,
-	#[serde(deserialize_with = "deserialize_glyphs")]
-	#[serde(serialize_with = "serialize_glyphs")]
+	pub metrics: Vec<Metrics>,
 	pub glyphs: HashMap<u32, Glyph>,
+}
+
+pub struct Glyph {
+	pub metrics_index: usize,
+	pub unicode: u32,
+	pub advance: f32,
+	pub plane_bounds: Option<Bounds>,
+	pub atlas_bounds: Option<Bounds>,
+}
+
+impl From<FontDto> for Font {
+	fn from(dto: FontDto) -> Self {
+		// Collect metrics and glyphs from either a single or multiple variants
+		let mut metrics: Vec<Metrics> = Vec::new();
+		let mut glyphs: HashMap<u32, Glyph> = HashMap::new();
+
+		let variants = match dto.variants {
+			FontVariants::Single(variant) => vec![variant],
+			FontVariants::Multiple { variants } => variants,
+		};
+
+		for (metrics_index, variant) in variants.into_iter().enumerate() {
+			metrics.push(variant.metrics);
+			for g in variant.glyphs.into_iter() {
+				// If multiple variants contain the same unicode, last one wins
+				glyphs.insert(
+					g.unicode,
+					Glyph {
+						metrics_index,
+						unicode: g.unicode,
+						advance: g.advance,
+						plane_bounds: g.plane_bounds,
+						atlas_bounds: g.atlas_bounds,
+					},
+				);
+			}
+		}
+
+		Font {
+			atlas: dto.atlas,
+			metrics,
+			glyphs,
+		}
+	}
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct FontDto {
+	pub atlas: Atlas,
+	#[serde(flatten)]
+	pub variants: FontVariants,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum FontVariants {
+	Single(FontVariant),
+	Multiple {
+		variants: Vec<FontVariant>,
+	},
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontVariant {
+	pub metrics: Metrics,
+	pub glyphs: Vec<GlyphDto>,
 	// pub kerning: Vec<Kerning>,
 }
 
@@ -63,7 +126,9 @@ pub struct Metrics {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Glyph {
+pub struct GlyphDto {
+	// When using -allglyphs this is the glyph index instead of unicode
+	#[serde(alias = "index")]
 	pub unicode: u32,
 	pub advance: f32,
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -85,20 +150,6 @@ pub struct Bounds {
 // #[serde(rename_all = "camelCase")]
 // pub struct Kerning {
 // }
-
-fn serialize_glyphs<S: serde::Serializer>(map: &HashMap<u32, Glyph>, serializer: S) -> Result<S::Ok, S::Error> {
-	use serde::Serialize;
-	let mut values: Vec<&Glyph> = map.values().collect();
-	values.sort_unstable_by_key(|g| g.unicode);
-	values.serialize(serializer)
-}
-
-fn deserialize_glyphs<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<HashMap<u32, Glyph>, D::Error> {
-	use serde::Deserialize;
-	let values: Vec<Glyph> = Vec::deserialize(deserializer)?;
-	let map = values.into_iter().map(|g| (g.unicode, g)).collect();
-	Ok(map)
-}
 
 use super::*;
 use cvmath::Vec2;
@@ -130,9 +181,13 @@ impl d2::IFont for Font {
 			}
 
 			let Some(glyph) = font.glyphs.get(&(chr as u32)) else { continue };
+			let metrics = &font.metrics[glyph.metrics_index];
 			let pos = *cursor + Vec2(0.0, scribe.line_height - scribe.font_size - scribe.baseline);
 
-			let advance = glyph.advance * scribe.font_size * scribe.font_width_scale + scribe.letter_spacing;
+			// Scale by per-glyph metrics em_size to support mixed variants
+			let scale_x = scribe.font_size * scribe.font_width_scale / metrics.em_size;
+			let scale_y = scribe.font_size / metrics.em_size;
+			let advance = glyph.advance * scale_x + scribe.letter_spacing;
 			cursor.x += advance;
 
 			if !scribe.draw_mask {
@@ -148,10 +203,10 @@ impl d2::IFont for Font {
 				let atop = font.atlas.height as f32 - atlas_bounds.top;
 				let abottom = font.atlas.height as f32 - atlas_bounds.bottom;
 
-				let pleft = plane_bounds.left * scribe.font_size * scribe.font_width_scale;
-				let pright = plane_bounds.right * scribe.font_size * scribe.font_width_scale;
-				let ptop = (1.0 - plane_bounds.top) * scribe.font_size;
-				let pbottom = (1.0 - plane_bounds.bottom) * scribe.font_size;
+				let pleft = plane_bounds.left * scale_x;
+				let pright = plane_bounds.right * scale_x;
+				let ptop = (1.0 - plane_bounds.top) * scale_y;
+				let pbottom = (1.0 - plane_bounds.bottom) * scale_y;
 
 				let vertices = [
 					d2::TextVertex {
