@@ -20,7 +20,8 @@ impl Context {
 
 		let font = {
 			// Parse the font metadata
-			let font: shade::msdfgen::Font = serde_json::from_str(include_str!("../../../font/font.json")).unwrap();
+			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../../font/font.json")).unwrap();
+			let font: shade::msdfgen::Font = font.into();
 	
 			// Load the texture
 			let texture = include_bytes!("../../../font/font.png");
