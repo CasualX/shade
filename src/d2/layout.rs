@@ -2,6 +2,7 @@
 
 /// Specifies layout direction.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Orientation {
 	Horizontal,
 	Vertical,
@@ -18,6 +19,7 @@ impl Orientation {
 
 /// Unit of measurement.
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Unit {
 	/// An absolute size.
 	Abs(f32),
@@ -29,6 +31,7 @@ pub enum Unit {
 
 /// Justification method.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Justify {
 	/// Align spans to the start of the range.
 	Start,
