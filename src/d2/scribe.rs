@@ -26,6 +26,7 @@ pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
 ///   - `Center`: aligns to the horizontal center
 ///   - `Right`: aligns to the right edge
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum TextAlign {
 	TopLeft = 0,
@@ -41,6 +42,7 @@ pub enum TextAlign {
 
 /// Scribe tool, writes text.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Scribe {
 	/// The vertical size of the font.
 	pub font_size: f32,
