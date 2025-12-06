@@ -147,6 +147,7 @@ pub struct WebGLGraphics {
 	textures: WebGLTextures,
 	surfaces: ResourceMap<WebGLSurface>,
 	drawing: bool,
+	metrics: crate::DrawMetrics,
 }
 
 impl WebGLGraphics {
@@ -187,6 +188,7 @@ impl WebGLGraphics {
 			},
 			surfaces: ResourceMap::new(),
 			drawing: false,
+			metrics: Default::default(),
 		}
 	}
 }
@@ -212,6 +214,15 @@ impl crate::IGraphics for WebGLGraphics {
 		draw::end(self)
 	}
 
+	fn get_draw_metrics(&mut self, reset: bool) -> crate::DrawMetrics {
+		if reset {
+			mem::take(&mut self.metrics)
+		}
+		else {
+			self.metrics
+		}
+	}
+
 	fn vertex_buffer_create(&mut self, name: Option<&str>, _size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
 		let buffer = unsafe { api::createBuffer() };
 
@@ -231,6 +242,7 @@ impl crate::IGraphics for WebGLGraphics {
 		let Some(buf) = self.vbuffers.get_mut(id) else { return };
 
 		let size = mem::size_of_val(data) as GLsizeiptr;
+		self.metrics.bytes_uploaded += size as usize;
 		let usage = match buf.usage {
 			crate::BufferUsage::Static => api::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => api::DYNAMIC_DRAW,
@@ -261,6 +273,7 @@ impl crate::IGraphics for WebGLGraphics {
 	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) {
 		let Some(buf) = self.ibuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data) as GLsizeiptr;
+		self.metrics.bytes_uploaded += size as usize;
 		let usage = match buf.usage {
 			crate::BufferUsage::Static => api::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => api::DYNAMIC_DRAW,
@@ -307,6 +320,7 @@ impl crate::IGraphics for WebGLGraphics {
 
 	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		self.metrics.bytes_uploaded += data.len();
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
 		let format = match texture.info.format {

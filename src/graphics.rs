@@ -135,6 +135,21 @@ pub enum FreeMode {
 	Release,
 }
 
+/// Drawing statistics.
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub struct DrawMetrics {
+	/// Time spent between `begin()` and `end()`.
+	pub draw_duration: time::Duration,
+	/// Number of `draw()` and `draw_indexed()` calls.
+	pub draw_call_count: u32,
+	/// Number of vertices drawn.
+	pub vertex_count: u32,
+	/// Number of bytes uploaded to the GPU.
+	pub bytes_uploaded: usize,
+	/// Number of bytes downloaded from the GPU.
+	pub bytes_downloaded: usize,
+}
+
 /// Graphics interface.
 ///
 /// See [`Graphics`](struct.Graphics.html) for a type-erased version.
@@ -149,6 +164,8 @@ pub trait IGraphics {
 	fn draw_indexed(&mut self, args: &DrawIndexedArgs);
 	/// End drawing.
 	fn end(&mut self);
+	/// Get drawing statistics.
+	fn get_draw_metrics(&mut self, reset: bool) -> DrawMetrics;
 
 	/// Create a buffer.
 	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;

@@ -2,7 +2,7 @@
 OpenGL graphics backend.
 */
 
-use std::{mem, ops, ptr, slice};
+use std::{mem, ops, ptr, slice, time};
 use std::any::type_name_of_val as name_of;
 
 /// Re-exported OpenGL bindings.
@@ -155,6 +155,8 @@ pub struct GlGraphics {
 	surfaces: ResourceMap<GlSurface>,
 	dynamic_vao: GLuint,
 	drawing: bool,
+	draw_begin: time::Instant,
+	metrics: crate::DrawMetrics,
 }
 
 impl GlGraphics {
@@ -194,6 +196,8 @@ impl GlGraphics {
 			surfaces: ResourceMap::new(),
 			dynamic_vao,
 			drawing: false,
+			draw_begin: time::Instant::now(),
+			metrics: Default::default(),
 		}
 	}
 }
@@ -219,6 +223,15 @@ impl crate::IGraphics for GlGraphics {
 		draw::end(self)
 	}
 
+	fn get_draw_metrics(&mut self, reset: bool) -> crate::DrawMetrics {
+		if reset {
+			mem::take(&mut self.metrics)
+		}
+		else {
+			self.metrics
+		}
+	}
+
 	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
 		let mut buffer = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
@@ -234,6 +247,7 @@ impl crate::IGraphics for GlGraphics {
 	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8]) {
 		let Some(buf) = self.vbuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data) as GLsizeiptr;
+		self.metrics.bytes_uploaded += size as usize;
 		let gl_usage = match buf.usage {
 			crate::BufferUsage::Static => gl::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
@@ -265,6 +279,7 @@ impl crate::IGraphics for GlGraphics {
 	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) {
 		let Some(buf) = self.ibuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data) as GLsizeiptr;
+		self.metrics.bytes_uploaded += size as usize;
 		let gl_usage = match buf.usage {
 			crate::BufferUsage::Static => gl::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
@@ -312,6 +327,7 @@ impl crate::IGraphics for GlGraphics {
 
 	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		self.metrics.bytes_uploaded += data.len();
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
 		let (internal_format, format) = match texture.info.format {
