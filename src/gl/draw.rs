@@ -275,6 +275,8 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 }
 
 pub fn begin(this: &mut GlGraphics) {
+	this.draw_begin = time::Instant::now();
+
 	if this.drawing {
 		panic!("{}: draw call already in progress", name_of(&begin));
 	}
@@ -309,6 +311,9 @@ pub fn clear(this: &mut GlGraphics, args: &crate::ClearArgs) {
 }
 
 pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) {
+	this.metrics.draw_call_count += 1;
+	this.metrics.vertex_count = u32::wrapping_add(this.metrics.vertex_count, args.vertex_end - args.vertex_start);
+
 	if !this.drawing {
 		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
@@ -356,6 +361,9 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) {
 }
 
 pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
+	this.metrics.draw_call_count += 1;
+	this.metrics.vertex_count = u32::wrapping_add(this.metrics.vertex_count, args.index_end - args.index_start);
+
 	if !this.drawing {
 		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
@@ -412,5 +420,6 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 }
 
 pub fn end(this: &mut GlGraphics) {
+	this.metrics.draw_duration += this.draw_begin.elapsed();
 	this.drawing = false;
 }

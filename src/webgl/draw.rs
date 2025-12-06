@@ -318,6 +318,9 @@ pub fn clear(this: &mut WebGLGraphics, args: &crate::ClearArgs) {
 }
 
 pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
+	this.metrics.draw_call_count += 1;
+	this.metrics.vertex_count = u32::wrapping_add(this.metrics.vertex_count, args.vertex_end - args.vertex_start);
+
 	if !this.drawing {
 		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
@@ -363,6 +366,9 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 }
 
 pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
+	this.metrics.draw_call_count += 1;
+	this.metrics.vertex_count = u32::wrapping_add(this.metrics.vertex_count, args.index_end - args.index_start);
+
 	if !this.drawing {
 		panic!("{}: called outside of an active draw call", name_of(&clear));
 	}
