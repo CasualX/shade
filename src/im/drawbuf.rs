@@ -135,10 +135,10 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 ///
 /// Use one of the high-level tools to populate the buffer with geometry:
 ///
-/// - [`Paint`] – fill shapes with color via `fill_*` methods.
-/// - [`Pen`] – draw outlines and polylines via `draw_*` methods.
-/// - [`Sprite`] – draw textured quads and images via `sprite_*` methods.
-/// - [`Scribe`] – draw text via `text_*` methods.
+/// - [`d2::Paint`] – fill shapes with color via `fill_*` methods.
+/// - [`d2::Pen`] – draw outlines and polylines via `draw_*` methods.
+/// - [`d2::Sprite`] – draw textured quads and images via `sprite_*` methods.
+/// - [`d2::Scribe`] – draw text via `text_*` methods.
 ///
 /// These tools append to the buffer incrementally and can be freely mixed.
 ///
@@ -181,11 +181,11 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// ### Example
 ///
 /// ```
-/// use shade::{cvmath, d2};
+/// use shade::{cvmath, d2, im};
 ///
 /// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: shade::Shader) {
 /// 	// Construct a new DrawBuilder instance
-/// 	let mut cv = d2::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
+/// 	let mut cv = im::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///
 /// 	// Adjust the shared properties
 /// 	cv.viewport = viewport;
@@ -212,11 +212,11 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// }
 /// ```
 pub struct DrawBuilder<V, U> {
-	pub(super) vertices: Vec<V>,
-	pub(super) indices: Vec<IndexT>,
-	pub(super) uniforms: Vec<U>,
-	pub(super) commands: Vec<DrawCommand>,
-	pub(super) auto_state_tracking: bool,
+	pub(crate) vertices: Vec<V>,
+	pub(crate) indices: Vec<IndexT>,
+	pub(crate) uniforms: Vec<U>,
+	pub(crate) commands: Vec<DrawCommand>,
+	pub(crate) auto_state_tracking: bool,
 
 	pub viewport: Bounds2<i32>,
 	pub scissor: Option<Bounds2<i32>>,

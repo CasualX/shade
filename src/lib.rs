@@ -25,6 +25,7 @@ pub use self::shader::Shader;
 
 pub mod d2;
 pub mod d3;
+pub mod im;
 
 pub mod image;
 
