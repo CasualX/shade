@@ -185,11 +185,12 @@ impl GlGraphics {
 						format: crate::TextureFormat::RGBA8,
 						width: 1,
 						height: 1,
-						filter_min: crate::TextureFilter::Nearest,
-						filter_mag: crate::TextureFilter::Nearest,
-						wrap_u: crate::TextureWrap::ClampEdge,
-						wrap_v: crate::TextureWrap::ClampEdge,
-						border_color: [0, 0, 0, 0],
+						props: crate::TextureProps {
+							filter_min: crate::TextureFilter::Nearest,
+							filter_mag: crate::TextureFilter::Nearest,
+							wrap_u: crate::TextureWrap::ClampEdge,
+							wrap_v: crate::TextureWrap::ClampEdge,
+						}
 					},
 				},
 			},
@@ -312,10 +313,10 @@ impl crate::IGraphics for GlGraphics {
 		let mut texture = 0;
 		gl_check!(gl::GenTextures(1, &mut texture));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl_texture_wrap(info.wrap_u)));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.wrap_v)));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(info.filter_mag)));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(info.filter_min)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(info.props.filter_mag)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(info.props.filter_min)));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		let id = self.textures.textures2d.insert(name, GlTexture2D { texture, info: *info });
 		return id;

@@ -248,6 +248,31 @@ impl ops::DerefMut for Graphics {
 }
 
 impl Graphics {
+	/// Create a texture from an image.
+	#[inline]
+	pub fn image<F: image::ImageToTexture>(&mut self, name: Option<&str>, image: &F) -> Texture2D {
+		let info = image.info();
+		let data = image.data();
+		let tex = self.texture2d_create(name, &info);
+		self.texture2d_set_data(tex, data);
+		return tex;
+	}
+	/// Create an animated texture from an animated image.
+	pub fn animated_image(&mut self, image: &image::AnimatedImage, props: &crate::TextureProps) -> crate::AnimatedTexture2D {
+		let mut frames = Vec::with_capacity(image.frames.len());
+		for frame in &image.frames {
+			let tex = self.image(None, &(frame, props));
+			frames.push(tex);
+		}
+		let length = image.delays.iter().sum();
+		crate::AnimatedTexture2D {
+			width: image.width,
+			height: image.height,
+			frames,
+			length,
+			repeat: image.repeat,
+		}
+	}
 	/// Create and assign data to a vertex buffer.
 	#[inline]
 	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> VertexBuffer {

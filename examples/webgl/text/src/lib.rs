@@ -1,4 +1,3 @@
-use std::io;
 use shade::d2;
 use shade::cvmath::*;
 
@@ -24,14 +23,18 @@ impl Context {
 			let font: shade::msdfgen::Font = font.into();
 	
 			// Load the texture
-			let texture = include_bytes!("../../../font/font.png");
-			let texture = shade::image::png::load_stream(g, Some("font"), &mut io::Cursor::new(texture), &shade::image::TextureProps {
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::ClampEdge,
-				wrap_v: shade::TextureWrap::ClampEdge,
-			}, None).unwrap();
-	
+			let texture = {
+				let file_png = include_bytes!("../../../font/font.png");
+				let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
+				let props = shade::TextureProps {
+					filter_min: shade::TextureFilter::Linear,
+					filter_mag: shade::TextureFilter::Linear,
+					wrap_u: shade::TextureWrap::ClampEdge,
+					wrap_v: shade::TextureWrap::ClampEdge,
+				};
+				g.image(Some("font"), &(&image, &props))
+			};
+
 			// Compile the shader
 			let shader = g.shader_create(None, shade::webgl::shaders::MTSDF_VS, shade::webgl::shaders::MTSDF_FS);
 	

@@ -1,4 +1,4 @@
-use std::{io, mem, slice};
+use std::{mem, slice};
 use shade::cvmath::*;
 
 mod api;
@@ -142,14 +142,17 @@ impl OldTreeModel {
 		let vertices_len = vertices.len() as u32;
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
-		let texture = include_bytes!("../../../oldtree/texture.png");
-
-		let texture = shade::image::png::load_stream(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Nearest,
-			filter_mag: shade::TextureFilter::Nearest,
-			wrap_u: shade::TextureWrap::ClampEdge,
-			wrap_v: shade::TextureWrap::ClampEdge,
-		}, None).unwrap();
+		let texture = {
+			let file_png = include_bytes!("../../../oldtree/texture.png");
+			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Nearest,
+				filter_mag: shade::TextureFilter::Nearest,
+				wrap_u: shade::TextureWrap::ClampEdge,
+				wrap_v: shade::TextureWrap::ClampEdge,
+			};
+			g.image(None, &(&image, &props))
+		};
 
 		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);

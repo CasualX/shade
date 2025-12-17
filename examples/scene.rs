@@ -109,12 +109,16 @@ fn main() {
 	let mut g = shade::gl::GlGraphics::new();
 
 	// Load the texture
-	let texture = shade::image::png::load_file(&mut g, Some("scene tiles"), "examples/textures/scene tiles.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Nearest,
-		filter_mag: shade::TextureFilter::Nearest,
-		wrap_u: shade::TextureWrap::ClampEdge,
-		wrap_v: shade::TextureWrap::ClampEdge,
-	}, None).unwrap();
+	let texture = {
+		let image = shade::image::DecodedImage::load_file_png("examples/textures/scene tiles.png").unwrap();
+		let props = shade::TextureProps {
+			filter_min: shade::TextureFilter::Nearest,
+			filter_mag: shade::TextureFilter::Nearest,
+			wrap_u: shade::TextureWrap::ClampEdge,
+			wrap_v: shade::TextureWrap::ClampEdge,
+		};
+		g.image(Some("scene tiles"), &(&image, &props))
+	};
 
 	// Create the shader
 	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);

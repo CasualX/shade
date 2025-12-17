@@ -228,12 +228,10 @@ impl OldTreeModel {
 
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
-		let texture = shade::image::png::load_file(g, None, "examples/oldtree/texture.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Nearest,
-			filter_mag: shade::TextureFilter::Nearest,
-			wrap_u: shade::TextureWrap::ClampEdge,
-			wrap_v: shade::TextureWrap::ClampEdge,
-		}, None).unwrap();
+		let texture = {
+			let image = shade::image::DecodedImage::load_file_png("examples/oldtree/texture.png").unwrap();
+			g.image(None, &image)
+		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
@@ -303,26 +301,38 @@ impl shade::UniformVisitor for ParallaxModel {
 
 impl ParallaxModel {
 	fn create(g: &mut shade::Graphics) -> ParallaxModel {
-		let diffuse = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.diffuse.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		}, None).unwrap();
+		let diffuse = {
+			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
 
-		let normal_map = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.normal.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		}, None).unwrap();
+		let normal_map = {
+			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.normal.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
 
-		let height_map = shade::image::png::load_file(g, None, "examples/textures/stonefloor-512.height.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		}, None).unwrap();
+		let height_map = {
+			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.height.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
 		ParallaxModel { shader, diffuse, normal_map, height_map, height_scale: 0.04 }

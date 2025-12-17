@@ -25,12 +25,10 @@ fn main() {
 		let font: shade::msdfgen::Font = font.into();
 
 		// Load the texture
-		let texture = shade::image::png::load_file(&mut g, Some("font"), "examples/font/font.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::ClampEdge,
-			wrap_v: shade::TextureWrap::ClampEdge,
-		}, None).unwrap();
+		let texture = {
+			let image = shade::image::DecodedImage::load_file_png("examples/font/font.png").unwrap();
+			g.image(Some("font"), &image)
+		};
 
 		// Compile the shader
 		let shader = g.shader_create(None, shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS);

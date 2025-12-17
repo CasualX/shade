@@ -178,11 +178,12 @@ impl WebGLGraphics {
 						width: 1,
 						height: 1,
 						format: crate::TextureFormat::RGBA8,
-						filter_min: crate::TextureFilter::Nearest,
-						filter_mag: crate::TextureFilter::Nearest,
-						wrap_u: crate::TextureWrap::ClampEdge,
-						wrap_v: crate::TextureWrap::ClampEdge,
-						border_color: [0; 4],
+						props: crate::TextureProps {
+							filter_min: crate::TextureFilter::Nearest,
+							filter_mag: crate::TextureFilter::Nearest,
+							wrap_u: crate::TextureWrap::ClampEdge,
+							wrap_v: crate::TextureWrap::ClampEdge,
+						},
 					},
 				},
 			},
@@ -305,10 +306,10 @@ impl crate::IGraphics for WebGLGraphics {
 	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
 		let texture = unsafe { api::createTexture() };
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.wrap_u)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_T, gl_texture_wrap(info.wrap_v)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter(info.filter_min)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter(info.filter_mag)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter(info.props.filter_min)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter(info.props.filter_mag)) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 		let id = self.textures.textures2d.insert(name, WebGLTexture2D { texture, info: info.clone() });
 		return id;

@@ -140,12 +140,10 @@ struct CubeModel {
 impl CubeModel {
 	fn create(g: &mut shade::Graphics) -> CubeModel {
 		// Load the texture
-		let texture = shade::image::png::load_file(g, Some("brick 24"), "examples/textures/brick 24 - 256x256.png", &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::ClampEdge,
-			wrap_v: shade::TextureWrap::ClampEdge,
-		}, None).unwrap();
+		let texture = {
+			let image = shade::image::DecodedImage::load_file_png("examples/textures/brick 24 - 256x256.png").unwrap();
+			g.image(Some("brick 24"), &image)
+		};
 
 		// Create the vertex and index buffers
 		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);

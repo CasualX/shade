@@ -1,4 +1,4 @@
-use std::{io, mem};
+use std::mem;
 use shade::cvmath::*;
 
 mod api;
@@ -123,21 +123,29 @@ impl Context {
 		// Create the triangle shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		let texture = include_bytes!("../../../zeldawater/water.png");
-		let texture = shade::image::png::load_stream(g, None, &mut io::Cursor::new(texture), &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		}, None).unwrap();
+		let texture = {
+			let file_png = include_bytes!("../../../zeldawater/water.png");
+			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
 
-		let distortion = include_bytes!("../../../zeldawater/distort.png");
-		let distortion = shade::image::png::load_stream(g, None, &mut io::Cursor::new(distortion), &shade::image::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		}, None).unwrap();
+		let distortion = {
+			let file_png = include_bytes!("../../../zeldawater/distort.png");
+			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
 
 		// Create the full screen quad vertex buffer
 		let vb = g.vertex_buffer(None, &[

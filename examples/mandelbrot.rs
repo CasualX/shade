@@ -187,12 +187,10 @@ fn main() {
 	let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
 	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-	let gradient = shade::image::png::load_file(&mut g, None, "examples/mandelbrot/gradient.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::ClampEdge,
-		wrap_v: shade::TextureWrap::ClampEdge,
-	}, None).unwrap();
+	let gradient = {
+		let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
+		g.image(None, &gradient)
+	};
 
 	let mut pan_start = Point2f::ZERO;
 	let mut panning = false;

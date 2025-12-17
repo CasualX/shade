@@ -127,20 +127,28 @@ fn main() {
 		1, 3, 2,
 	], 4, shade::BufferUsage::Static);
 
-	// Load the texture
-	let texture = shade::image::png::load_file(&mut g, None, "examples/zeldawater/water.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::Repeat,
-		wrap_v: shade::TextureWrap::Repeat,
-	}, None).unwrap();
+	// Load the textures
+	let texture = {
+		let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
+		let props = shade::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+		};
+		g.image(Some("font"), &(&image, &props))
+	};
 
-	let distortion = shade::image::png::load_file(&mut g, None, "examples/zeldawater/distort.png", &shade::image::TextureProps {
-		filter_min: shade::TextureFilter::Linear,
-		filter_mag: shade::TextureFilter::Linear,
-		wrap_u: shade::TextureWrap::Repeat,
-		wrap_v: shade::TextureWrap::Repeat,
-	}, None).unwrap();
+	let distortion = {
+		let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/distort.png").unwrap();
+			let props = shade::TextureProps {
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+		};
+		g.image(None, &(&image, &props))
+	};
 
 	// Create the water shader
 	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
