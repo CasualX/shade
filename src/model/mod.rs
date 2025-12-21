@@ -4,3 +4,4 @@ use cvmath::*;
 use crate::*;
 
 pub mod stl;
+pub mod obj;
