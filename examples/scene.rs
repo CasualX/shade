@@ -1,4 +1,9 @@
-use std::{mem, thread, time};
+use std::mem;
+use std::ffi::CString;
+use std::num::NonZeroU32;
+use std::time;
+
+use glutin::prelude::*;
 use shade::cvmath::*;
 
 //----------------------------------------------------------------
@@ -89,82 +94,114 @@ impl shade::UniformVisitor for MyUniform3 {
 }
 
 //----------------------------------------------------------------
+// Application state
 
-fn main() {
-	let mut size = winit::dpi::PhysicalSize::new(800, 600);
+struct App {
+	size: winit::dpi::PhysicalSize<u32>,
+	window: winit::window::Window,
+	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+	context: glutin::context::PossiblyCurrentContext,
+	g: shade::gl::GlGraphics,
+	texture: shade::Texture2D,
+	shader: shade::Shader,
+	time_base: time::Instant,
+}
 
-	let mut event_loop = winit::event_loop::EventLoop::new();
-	let window = winit::window::WindowBuilder::new()
-		.with_inner_size(size);
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
 
-	let window_context = glutin::ContextBuilder::new()
-		.build_windowed(window, &event_loop)
-		.unwrap();
+		let size = winit::dpi::PhysicalSize::new(800, 600);
 
-	let context = unsafe { window_context.make_current().unwrap() };
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
 
-	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
 
-	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
+			.expect("Failed to build window and GL config");
 
-	// Load the texture
-	let texture = {
-		let image = shade::image::DecodedImage::load_file_png("examples/textures/scene tiles.png").unwrap();
-		let props = shade::TextureProps {
-			filter_min: shade::TextureFilter::Nearest,
-			filter_mag: shade::TextureFilter::Nearest,
-			wrap_u: shade::TextureWrap::ClampEdge,
-			wrap_v: shade::TextureWrap::ClampEdge,
-		};
-		g.image(Some("scene tiles"), &(&image, &props))
-	};
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
 
-	// Create the shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
 
-	let time_base = time::Instant::now();
+		let gl_display = gl_config.display();
 
-	// Main loop
-	let mut quit = false;
-	while !quit {
-		// Handle events
-		use winit::platform::run_return::EventLoopExtRunReturn as _;
-		event_loop.run_return(|event, _, control_flow| {
-			*control_flow = winit::event_loop::ControlFlow::Wait;
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
 
-			// // Print only Window events to reduce noise
-			// if let winit::event::Event::WindowEvent { event, .. } = &event {
-			// 	println!("{:?}", event);
-			// }
+		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
 
-			match event {
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
-					quit = true;
-				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
-					size = new_size;
-					context.resize(new_size);
-				}
-				winit::event::Event::MainEventsCleared => {
-					*control_flow = winit::event_loop::ControlFlow::Exit;
-				}
-				_ => (),
-			}
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
+
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
 		});
 
+		// Create the graphics context
+		let mut g = shade::gl::GlGraphics::new();
+
+		// Load the texture
+		let texture = {
+			let image = shade::image::DecodedImage::load_file_png("examples/textures/scene tiles.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Nearest,
+				filter_mag: shade::TextureFilter::Nearest,
+				wrap_u: shade::TextureWrap::ClampEdge,
+				wrap_v: shade::TextureWrap::ClampEdge,
+			};
+			g.image(Some("scene tiles"), &(&image, &props))
+		};
+
+		// Create the shader
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+
+		let time_base = time::Instant::now();
+
+		Box::new(App { size, window, surface, context, g, texture, shader, time_base })
+	}
+
+	fn draw(&mut self) {
+		let app = self;
+		let size = app.size;
+		let curtime = time::Instant::now().duration_since(app.time_base).as_secs_f32();
+
 		// Render the frame
-		g.begin();
+		app.g.begin();
 
 		// Clear the screen
-		g.clear(&shade::ClearArgs {
+		app.g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.2, 0.2, 0.5, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
-
-		let curtime = time::Instant::now().duration_since(time_base).as_secs_f32();
 
 		// Update the camera
 		let projection = Mat4::perspective(Angle::deg(45.0), size.width as f32 / size.height as f32, 0.1, 1000.0, (Hand::RH, Clip::NO));
@@ -180,9 +217,9 @@ fn main() {
 		cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.depth_test = Some(shade::DepthTest::Less);
-		cv.shader = shader;
+		cv.shader = app.shader;
 		cv.uniform.transform = transform;
-		cv.uniform.texture = texture;
+		cv.uniform.texture = app.texture;
 		floor_tile(&mut cv, 0, 0, &GRASS);
 		floor_tile(&mut cv, 1, 0, &GRASS);
 		floor_tile(&mut cv, 2, 0, &GRASS);
@@ -194,15 +231,56 @@ fn main() {
 		floor_thing(&mut cv, 2, 0, &DROP);
 		floor_thing(&mut cv, 1, 0, &BEAR);
 
-		cv.draw(&mut g, shade::Surface::BACK_BUFFER);
+		cv.draw(&mut app.g, shade::Surface::BACK_BUFFER);
 
 		// Finish the frame
-		g.end();
-
-		// Swap the buffers and wait for the next frame
-		context.swap_buffers().unwrap();
-		thread::sleep(time::Duration::from_millis(16));
+		app.g.end();
 	}
+}
+
+//----------------------------------------------------------------
+
+fn main() {
+	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+
+	let mut app: Option<Box<App>> = None;
+
+	#[allow(deprecated)]
+	let _ = event_loop.run(move |event, event_loop| {
+		use winit::event::{Event, WindowEvent};
+
+		match event {
+			Event::Resumed => {
+				if app.is_none() {
+					app = Some(App::new(event_loop));
+				}
+			}
+			Event::WindowEvent { event, .. } => match event {
+				WindowEvent::Resized(new_size) => {
+					if let Some(app) = app.as_deref_mut() {
+						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+						app.size = new_size;
+						app.surface.resize(&app.context, width, height);
+					}
+				}
+				WindowEvent::CloseRequested => event_loop.exit(),
+				WindowEvent::RedrawRequested => {
+					if let Some(app) = app.as_deref_mut() {
+						app.draw();
+						app.surface.swap_buffers(&app.context).unwrap();
+					}
+				}
+				_ => {}
+			},
+			Event::AboutToWait => {
+				if let Some(app) = app.as_deref() {
+					app.window.request_redraw();
+				}
+			}
+			_ => {}
+		}
+	});
 }
 
 struct Sprite {

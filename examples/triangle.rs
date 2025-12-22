@@ -1,4 +1,8 @@
 use std::mem;
+use std::ffi::CString;
+use std::num::NonZeroU32;
+
+use glutin::prelude::*;
 use shade::cvmath::*;
 
 //----------------------------------------------------------------
@@ -61,84 +65,169 @@ void main()
 "#;
 
 //----------------------------------------------------------------
+// Application state
+
+struct App {
+	size: winit::dpi::PhysicalSize<u32>,
+	window: winit::window::Window,
+	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+	context: glutin::context::PossiblyCurrentContext,
+	g: shade::gl::GlGraphics,
+	vb: shade::VertexBuffer,
+	shader: shade::Shader,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let size = winit::dpi::PhysicalSize::new(800, 600);
+
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
+			.expect("Failed to build window and GL config");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
+
+		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
+
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		// Create the graphics context
+		let mut g = shade::gl::GlGraphics::new();
+
+		// Create the triangle vertex buffer
+		let vb = g.vertex_buffer(None, &[
+			TriangleVertex { position: Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
+			TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
+			TriangleVertex { position: Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
+		], shade::BufferUsage::Static);
+
+		// Create the triangle shader
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+
+		Box::new(App { size, window, surface, context, g, vb, shader })
+	}
+
+	fn draw(&mut self) {
+		let app = self;
+		app.g.begin();
+
+		// Clear the screen
+		app.g.clear(&shade::ClearArgs {
+			surface: shade::Surface::BACK_BUFFER,
+			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
+			..Default::default()
+		});
+
+		// Draw the triangle
+		app.g.draw(&shade::DrawArgs {
+			surface: shade::Surface::BACK_BUFFER,
+			viewport: Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32),
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: None,
+			cull_mode: None,
+			mask: shade::DrawMask::COLOR,
+			prim_type: shade::PrimType::Triangles,
+			shader: app.shader,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: app.vb,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			uniforms: &[],
+			vertex_start: 0,
+			vertex_end: 3,
+			instances: -1,
+		});
+
+		// Finish rendering
+		app.g.end();
+	}
+}
+
+//----------------------------------------------------------------
 
 fn main() {
-	let mut size = winit::dpi::PhysicalSize::new(800, 600);
+	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
 
-	let event_loop = winit::event_loop::EventLoop::new();
-	let window = winit::window::WindowBuilder::new()
-		.with_inner_size(size);
+	let mut app: Option<Box<App>> = None;
 
-	let window_context = glutin::ContextBuilder::new()
-		.build_windowed(window, &event_loop)
-		.unwrap();
+	#[allow(deprecated)]
+	let _ = event_loop.run(move |event, event_loop| {
+		use winit::event::{Event, WindowEvent};
 
-	let context = unsafe { window_context.make_current().unwrap() };
-
-	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
-
-	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
-
-	// Create the triangle vertex buffer
-	let vb = g.vertex_buffer(None, &[
-		TriangleVertex { position: Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
-		TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
-		TriangleVertex { position: Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
-	], shade::BufferUsage::Static);
-
-	// Create the triangle shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
-	// Main loop
-	event_loop.run(move |event, _, control_flow| {
 		match event {
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
-				*control_flow = winit::event_loop::ControlFlow::Exit
+			Event::Resumed => {
+				if app.is_none() {
+					app = Some(App::new(event_loop));
+				}
 			}
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
-				size = new_size;
-				context.resize(new_size);
+			Event::WindowEvent { event, .. } => match event {
+				WindowEvent::Resized(new_size) => {
+					if let Some(app) = app.as_deref_mut() {
+						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+						app.size = new_size;
+						app.surface.resize(&app.context, width, height);
+					}
+				}
+				WindowEvent::CloseRequested => event_loop.exit(),
+				WindowEvent::RedrawRequested => {
+					if let Some(app) = app.as_deref_mut() {
+						app.draw();
+						app.surface.swap_buffers(&app.context).unwrap();
+					}
+				}
+				_ => {}
+			},
+			Event::AboutToWait => {
+				if let Some(app) = app.as_deref() {
+					app.window.request_redraw();
+				}
 			}
-			winit::event::Event::RedrawRequested(_) => {
-				// Render the frame
-				g.begin();
-
-				// Clear the screen
-				g.clear(&shade::ClearArgs {
-					surface: shade::Surface::BACK_BUFFER,
-					color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-					..Default::default()
-				});
-
-				// Draw the triangle
-				g.draw(&shade::DrawArgs {
-					surface: shade::Surface::BACK_BUFFER,
-					viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
-					scissor: None,
-					blend_mode: shade::BlendMode::Solid,
-					depth_test: None,
-					cull_mode: None,
-					mask: shade::DrawMask::COLOR,
-					prim_type: shade::PrimType::Triangles,
-					shader,
-					vertices: &[shade::DrawVertexBuffer {
-						buffer: vb,
-						divisor: shade::VertexDivisor::PerVertex,
-					}],
-					uniforms: &[],
-					vertex_start: 0,
-					vertex_end: 3,
-					instances: -1,
-				});
-
-				// Finish rendering
-				g.end();
-
-				// Swap buffers
-				context.swap_buffers().unwrap();
-			}
-			_ => (),
+			_ => {}
 		}
 	});
 }

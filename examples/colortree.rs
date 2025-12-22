@@ -1,4 +1,8 @@
-use std::{fs, mem, slice, thread, time};
+use std::{fs, mem, slice};
+use std::ffi::CString;
+use std::num::NonZeroU32;
+
+use glutin::prelude::*;
 use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
@@ -192,45 +196,111 @@ impl Scene {
 	}
 }
 
+//----------------------------------------------------------------
+
+struct App {
+	size: winit::dpi::PhysicalSize<u32>,
+	window: winit::window::Window,
+	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+	context: glutin::context::PossiblyCurrentContext,
+	g: shade::gl::GlGraphics,
+	scene: Scene,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let size = winit::dpi::PhysicalSize::new(800, 600);
+
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
+			.expect("Failed to build window and GL config");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
+
+		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
+
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		let mut g = shade::gl::GlGraphics::new();
+
+		// Create the scene
+		let scene = {
+			let color_tree = ColorTreeModel::create(&mut g);
+
+			let axes = {
+				let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+				shade::d3::axes::AxesModel::create(&mut g, shader)
+			};
+
+			let camera = {
+				let pivot = color_tree.bounds.center().set_x(0.0).set_y(0.0);
+				let position = pivot + Vec3::<f32>::X * color_tree.bounds.size().xy().vmax() * 1.0;
+
+				shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
+			};
+
+			let screen_size = Vec2::new(size.width as i32, size.height as i32);
+
+			Scene { screen_size, camera, color_tree, axes }
+		};
+
+		Box::new(App { size, window, surface, context, g, scene })
+	}
+
+	fn draw(&mut self) {
+		self.scene.draw(&mut self.g);
+	}
+}
+
+//----------------------------------------------------------------
+
 fn main() {
-	let mut size = winit::dpi::PhysicalSize::new(800, 600);
+	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
 
-	let mut event_loop = winit::event_loop::EventLoop::new();
-	let window = winit::window::WindowBuilder::new()
-		.with_inner_size(size);
-
-	let window_context = glutin::ContextBuilder::new()
-		.with_multisampling(4)
-		.build_windowed(window, &event_loop)
-		.unwrap();
-
-	let context = unsafe { window_context.make_current().unwrap() };
-
-	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
-
-	// Create the graphics context
-	let ref mut g = shade::gl::GlGraphics::new();
-
-	// Create the scene
-	let mut scene = {
-		let color_tree = ColorTreeModel::create(g);
-
-		let axes = {
-			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
-			shade::d3::axes::AxesModel::create(g, shader)
-		};
-
-		let camera = {
-			let pivot = color_tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + Vec3::<f32>::X * color_tree.bounds.size().xy().vmax() * 1.0;
-
-			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
-		};
-
-		let screen_size = Vec2::new(size.width as i32, size.height as i32);
-
-		Scene { screen_size, camera, color_tree, axes }
-	};
+	let mut app: Option<Box<App>> = None;
 
 	let mut left_click = false;
 	let mut right_click = false;
@@ -238,69 +308,72 @@ fn main() {
 	let mut auto_rotate = true;
 	let mut cursor_position = winit::dpi::PhysicalPosition::<f64>::new(0.0, 0.0);
 
-	// Main loop
-	let mut quit = false;
-	while !quit {
-		// Handle events
-		use winit::platform::run_return::EventLoopExtRunReturn as _;
-		event_loop.run_return(|event, _, control_flow| {
-			*control_flow = winit::event_loop::ControlFlow::Wait;
+	#[allow(deprecated)]
+	let _ = event_loop.run(move |event, event_loop| {
+		use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 
-			// // Print only Window events to reduce noise
-			// if let winit::event::Event::WindowEvent { event, .. } = &event {
-			// 	println!("{:?}", event);
-			// }
-
-			match event {
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
-					quit = true;
+		match event {
+			Event::Resumed => {
+				if app.is_none() {
+					app = Some(App::new(event_loop));
 				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
-					size = new_size;
-					scene.screen_size.x = new_size.width as i32;
-					scene.screen_size.y = new_size.height as i32;
-					context.resize(new_size);
+			}
+			Event::WindowEvent { event, .. } => match event {
+				WindowEvent::Resized(new_size) => {
+					if let Some(app) = app.as_deref_mut() {
+						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+						app.size = new_size;
+						app.scene.screen_size.x = new_size.width as i32;
+						app.scene.screen_size.y = new_size.height as i32;
+						app.surface.resize(&app.context, width, height);
+					}
 				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CursorMoved { position, .. }, .. } => {
-					let dx = position.x as f32 - cursor_position.x as f32;
-					let dy = position.y as f32 - cursor_position.y as f32;
-					if left_click {
-						auto_rotate = false;
-						scene.camera.rotate(-dx, -dy);
-					}
-					if right_click {
-						auto_rotate = false;
-						scene.camera.pan(-dx, dy);
-					}
-					if middle_click {
-						scene.camera.zoom(dy * 0.01);
+				WindowEvent::CursorMoved { position, .. } => {
+					if let Some(app) = app.as_deref_mut() {
+						let dx = position.x as f32 - cursor_position.x as f32;
+						let dy = position.y as f32 - cursor_position.y as f32;
+						if left_click {
+							auto_rotate = false;
+							app.scene.camera.rotate(-dx, -dy);
+						}
+						if right_click {
+							auto_rotate = false;
+							app.scene.camera.pan(-dx, dy);
+						}
+						if middle_click {
+							app.scene.camera.zoom(dy * 0.01);
+						}
 					}
 					cursor_position = position;
 				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::MouseInput { state, button: winit::event::MouseButton::Left, .. }, .. } => {
-					left_click = matches!(state, winit::event::ElementState::Pressed);
+				WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
+					left_click = matches!(state, ElementState::Pressed);
 				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::MouseInput { state, button: winit::event::MouseButton::Right, .. }, .. } => {
-					right_click = matches!(state, winit::event::ElementState::Pressed);
+				WindowEvent::MouseInput { state, button: MouseButton::Right, .. } => {
+					right_click = matches!(state, ElementState::Pressed);
 				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::MouseInput { state, button: winit::event::MouseButton::Middle, .. }, .. } => {
-					middle_click = matches!(state, winit::event::ElementState::Pressed);
+				WindowEvent::MouseInput { state, button: MouseButton::Middle, .. } => {
+					middle_click = matches!(state, ElementState::Pressed);
 				}
-				winit::event::Event::MainEventsCleared => {
-					*control_flow = winit::event_loop::ControlFlow::Exit;
+				WindowEvent::CloseRequested => event_loop.exit(),
+				WindowEvent::RedrawRequested => {
+					if let Some(app) = app.as_deref_mut() {
+						if auto_rotate {
+							app.scene.camera.rotate(-1.0, 0.0);
+						}
+						app.draw();
+						app.surface.swap_buffers(&app.context).unwrap();
+					}
 				}
-				_ => (),
+				_ => {}
+			},
+			Event::AboutToWait => {
+				if let Some(app) = app.as_deref() {
+					app.window.request_redraw();
+				}
 			}
-		});
-
-		if auto_rotate {
-			scene.camera.rotate(-1.0, 0.0);
+			_ => {}
 		}
-
-		scene.draw(g);
-
-		// Swap the buffers and wait for the next frame
-		context.swap_buffers().unwrap();
-		thread::sleep(time::Duration::from_millis(16));
-	}
+	});
 }

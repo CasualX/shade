@@ -1,4 +1,8 @@
 use std::mem;
+use std::ffi::CString;
+use std::num::NonZeroU32;
+
+use glutin::prelude::*;
 use shade::cvmath::*;
 
 const FRAGMENT_SHADER: &str = r#"
@@ -166,127 +170,217 @@ impl ZoomViewStack {
 	}
 }
 
+struct App {
+	size: winit::dpi::PhysicalSize<u32>,
+	window: winit::window::Window,
+	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+	context: glutin::context::PossiblyCurrentContext,
+	g: shade::gl::GlGraphics,
+	vb: shade::VertexBuffer,
+	shader: shade::Shader,
+	gradient: shade::Texture2D,
+	pan_start: Point2f,
+	panning: bool,
+	cursor: Point2f,
+	stack: ZoomViewStack,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let size = winit::dpi::PhysicalSize::new(800, 600);
+
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
+			.expect("Failed to build window and GL config");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
+
+		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
+
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		// Create the graphics context
+		let mut g = shade::gl::GlGraphics::new();
+
+		let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+
+		let gradient = {
+			let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
+			g.image(None, &gradient)
+		};
+
+		let pan_start = Point2f::ZERO;
+		let panning = false;
+		let cursor = Point2f::ZERO;
+		let stack = ZoomViewStack::default();
+
+		Box::new(App { size, window, surface, context, g, vb, shader, gradient, pan_start, panning, cursor, stack })
+	}
+
+	fn draw(&mut self) {
+		let size = self.size;
+
+		// Render the frame
+		self.g.begin();
+
+		self.g.clear(&shade::ClearArgs {
+			surface: shade::Surface::BACK_BUFFER,
+			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
+			..Default::default()
+		});
+
+		let aspect_ratio = size.width as f32 / size.height as f32;
+
+		// Compute the transform for the current zoom view
+		let zoom_view = self.stack.current();
+		let view_bounds = zoom_view.to_bounds(aspect_ratio);
+		let transform = Transform2f::ortho(view_bounds).inverse();
+
+		let uniforms = Uniforms { transform, gradient: self.gradient };
+
+		self.g.draw(&shade::DrawArgs {
+			surface: shade::Surface::BACK_BUFFER,
+			viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: None,
+			cull_mode: None,
+			mask: shade::DrawMask::COLOR,
+			prim_type: shade::PrimType::Triangles,
+			shader: self.shader,
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: self.vb,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			uniforms: &[&uniforms],
+			vertex_start: 0,
+			vertex_end: 6,
+			instances: -1,
+		});
+
+		self.g.end();
+	}
+}
+
 fn main() {
-	let mut size = winit::dpi::PhysicalSize::new(800, 600);
+	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
 
-	let event_loop = winit::event_loop::EventLoop::new();
-	let window = winit::window::WindowBuilder::new()
-		.with_inner_size(size);
+	let mut app: Option<Box<App>> = None;
 
-	let window_context = glutin::ContextBuilder::new()
-		.build_windowed(window, &event_loop)
-		.unwrap();
+	#[allow(deprecated)]
+	let _ = event_loop.run(move |event, event_loop| {
+		use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 
-	let context = unsafe { window_context.make_current().unwrap() };
-
-	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
-
-	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
-
-	let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
-	let gradient = {
-		let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
-		g.image(None, &gradient)
-	};
-
-	let mut pan_start = Point2f::ZERO;
-	let mut panning = false;
-	let mut cursor = Point2f::ZERO;
-	let mut stack = ZoomViewStack::default();
-
-	// Main loop
-	event_loop.run(move |event, _, control_flow| {
 		match event {
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
-				*control_flow = winit::event_loop::ControlFlow::Exit
-			}
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
-				size = new_size;
-				context.resize(new_size);
-			}
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CursorMoved { position, .. }, .. } => {
-				cursor.x = position.x as f32;
-				cursor.y = position.y as f32;
-				if panning {
-					stack.pan(cursor - pan_start, Vec2::new(size.width as f32, size.height as f32));
-					pan_start = cursor;
-					context.window().request_redraw();
+			Event::Resumed => {
+				if app.is_none() {
+					app = Some(App::new(event_loop));
 				}
 			}
-			winit::event::Event::WindowEvent { event: winit::event::WindowEvent::MouseInput { state, button, .. }, .. } => {
-				if matches!(button, winit::event::MouseButton::Left) {
-					if matches!(state, winit::event::ElementState::Pressed) {
-						stack.zoom(cursor, Vec2::new(size.width as f32, size.height as f32), 0.5);
-						// request redraw
-						context.window().request_redraw();
+			Event::WindowEvent { event, .. } => match event {
+				WindowEvent::Resized(new_size) => {
+					if let Some(app) = app.as_deref_mut() {
+						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+						app.size = new_size;
+						app.surface.resize(&app.context, width, height);
 					}
 				}
-				else if matches!(button, winit::event::MouseButton::Right) {
-					if matches!(state, winit::event::ElementState::Pressed) {
-						pan_start = cursor;
-						panning = true;
-						// Panning modifies the current view
-						stack.views.push(stack.current().clone());
-					}
-					else {
-						panning = false;
-					}
-				}
-				else if matches!(button, winit::event::MouseButton::Middle) {
-					if matches!(state, winit::event::ElementState::Pressed) {
-						stack.back();
-						context.window().request_redraw();
+				WindowEvent::CursorMoved { position, .. } => {
+					if let Some(app) = app.as_deref_mut() {
+						app.cursor.x = position.x as f32;
+						app.cursor.y = position.y as f32;
+						if app.panning {
+							let size_vec = Vec2::new(app.size.width as f32, app.size.height as f32);
+							app.stack.pan(app.cursor - app.pan_start, size_vec);
+							app.pan_start = app.cursor;
+							app.window.request_redraw();
+						}
 					}
 				}
-			}
-			winit::event::Event::RedrawRequested(_) => {
-				// Render the frame
-				g.begin();
-
-				g.clear(&shade::ClearArgs {
-					surface: shade::Surface::BACK_BUFFER,
-					color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-					..Default::default()
-				});
-
-				let aspect_ratio = size.width as f32 / size.height as f32;
-
-				// Compute the transform for the current zoom view
-				let zoom_view = stack.current();
-				let view_bounds = zoom_view.to_bounds(aspect_ratio);
-				let transform = Transform2f::ortho(view_bounds).inverse();
-
-				let uniforms = Uniforms { transform, gradient };
-
-				g.draw(&shade::DrawArgs {
-					surface: shade::Surface::BACK_BUFFER,
-					viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
-					scissor: None,
-					blend_mode: shade::BlendMode::Solid,
-					depth_test: None,
-					cull_mode: None,
-					mask: shade::DrawMask::COLOR,
-					prim_type: shade::PrimType::Triangles,
-					shader,
-					vertices: &[shade::DrawVertexBuffer {
-						buffer: vb,
-						divisor: shade::VertexDivisor::PerVertex,
-					}],
-					uniforms: &[&uniforms],
-					vertex_start: 0,
-					vertex_end: 6,
-					instances: -1,
-				});
-
-				g.end();
-
-				// Swap buffers
-				context.swap_buffers().unwrap();
-			}
-			_ => (),
+				WindowEvent::MouseInput { state, button, .. } => {
+					if let Some(app) = app.as_deref_mut() {
+						match button {
+							MouseButton::Left => {
+								if matches!(state, ElementState::Pressed) {
+									let size_vec = Vec2::new(app.size.width as f32, app.size.height as f32);
+									app.stack.zoom(app.cursor, size_vec, 0.5);
+									app.window.request_redraw();
+								}
+							}
+							MouseButton::Right => {
+								if matches!(state, ElementState::Pressed) {
+									app.pan_start = app.cursor;
+									app.panning = true;
+									app.stack.views.push(app.stack.current().clone());
+								} else {
+									app.panning = false;
+								}
+							}
+							MouseButton::Middle => {
+								if matches!(state, ElementState::Pressed) {
+									app.stack.back();
+									app.window.request_redraw();
+								}
+							}
+							_ => {}
+						}
+					}
+				}
+				WindowEvent::CloseRequested => event_loop.exit(),
+				WindowEvent::RedrawRequested => {
+					if let Some(app) = app.as_deref_mut() {
+						app.draw();
+						app.surface.swap_buffers(&app.context).unwrap();
+					}
+				}
+				_ => {}
+			},
+			_ => {}
 		}
 	});
 }

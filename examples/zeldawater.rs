@@ -1,4 +1,8 @@
-use std::{mem, thread, time};
+use std::{mem, time};
+use std::ffi::CString;
+use std::num::NonZeroU32;
+
+use glutin::prelude::*;
 use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
@@ -95,126 +99,156 @@ impl shade::UniformVisitor for Uniform {
 }
 
 //----------------------------------------------------------------
+// Application state
 
-fn main() {
-	let mut size = winit::dpi::PhysicalSize::new(800, 600);
+struct App {
+	size: winit::dpi::PhysicalSize<u32>,
+	window: winit::window::Window,
+	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+	context: glutin::context::PossiblyCurrentContext,
+	g: shade::gl::GlGraphics,
+	vb: shade::VertexBuffer,
+	ib: shade::IndexBuffer,
+	texture: shade::Texture2D,
+	distortion: shade::Texture2D,
+	shader: shade::Shader,
+	start_time: time::Instant,
+}
 
-	let mut event_loop = winit::event_loop::EventLoop::new();
-	let window = winit::window::WindowBuilder::new()
-		.with_inner_size(size);
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
 
-	let window_context = glutin::ContextBuilder::new()
-		.build_windowed(window, &event_loop)
-		.unwrap();
+		let size = winit::dpi::PhysicalSize::new(800, 600);
 
-	let context = unsafe { window_context.make_current().unwrap() };
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
 
-	shade::gl::capi::load_with(|s| context.get_proc_address(s) as *const _);
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
 
-	// Create the graphics context
-	let mut g = shade::gl::GlGraphics::new();
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
+			.expect("Failed to build window and GL config");
 
-	// Create the full screen quad vertex buffer
-	let vb = g.vertex_buffer(None, &[
-		Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
-		Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
-		Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
-		Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
-	], shade::BufferUsage::Static);
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
 
-	let ib = g.index_buffer(None, &[
-		0u16, 1, 2,
-		1, 3, 2,
-	], 4, shade::BufferUsage::Static);
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
 
-	// Load the textures
-	let texture = {
-		let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
-		let props = shade::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		};
-		g.image(Some("font"), &(&image, &props))
-	};
+		let gl_display = gl_config.display();
 
-	let distortion = {
-		let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/distort.png").unwrap();
-			let props = shade::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-		};
-		g.image(None, &(&image, &props))
-	};
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
 
-	// Create the water shader
-	let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
 
-	let start_time = time::Instant::now();
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
 
-	// Main loop
-	let mut quit = false;
-	while !quit {
-		// Handle events
-		use winit::platform::run_return::EventLoopExtRunReturn as _;
-		event_loop.run_return(|event, _, control_flow| {
-			*control_flow = winit::event_loop::ControlFlow::Wait;
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
 
-			// // Print only Window events to reduce noise
-			// if let winit::event::Event::WindowEvent { event, .. } = &event {
-			// 	println!("{:?}", event);
-			// }
-
-			match event {
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. } => {
-					quit = true;
-				}
-				winit::event::Event::WindowEvent { event: winit::event::WindowEvent::Resized(new_size), .. } => {
-					size = new_size;
-					// state.screen_size.x = new_size.width as i32;
-					// state.screen_size.y = new_size.height as i32;
-					context.resize(new_size);
-				}
-				winit::event::Event::MainEventsCleared => {
-					*control_flow = winit::event_loop::ControlFlow::Exit;
-				}
-				_ => (),
-			}
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
 		});
 
-		// Render the frame
-		g.begin();
+		// Create the graphics context
+		let mut g = shade::gl::GlGraphics::new();
+
+		// Create the full screen quad vertex buffer
+		let vb = g.vertex_buffer(None, &[
+			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
+			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
+		], shade::BufferUsage::Static);
+
+		let ib = g.index_buffer(None, &[
+			0u16, 1, 2,
+			1, 3, 2,
+		], 4, shade::BufferUsage::Static);
+
+		// Load the textures
+		let texture = {
+			let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(Some("font"), &(&image, &props))
+		};
+
+		let distortion = {
+			let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/distort.png").unwrap();
+			let props = shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			};
+			g.image(None, &(&image, &props))
+		};
+
+		// Create the water shader
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+
+		let start_time = time::Instant::now();
+
+		Box::new(App { size, window, surface, context, g, vb, ib, texture, distortion, shader, start_time })
+	}
+
+	fn draw(&mut self) {
+		let app = self;
+		app.g.begin();
 
 		// Clear the screen
-		g.clear(&shade::ClearArgs {
+		app.g.clear(&shade::ClearArgs {
 			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		});
 
-		let time = start_time.elapsed().as_secs_f32();
-
-		let uniform = Uniform { time, texture, distortion };
+		let time = app.start_time.elapsed().as_secs_f32();
+		let uniform = Uniform { time, texture: app.texture, distortion: app.distortion };
 
 		// Draw the quad
-		g.draw_indexed(&shade::DrawIndexedArgs {
+		app.g.draw_indexed(&shade::DrawIndexedArgs {
 			surface: shade::Surface::BACK_BUFFER,
-			viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
+			viewport: Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader,
+			shader: app.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: vb,
+				buffer: app.vb,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: ib,
+			indices: app.ib,
 			index_start: 0,
 			index_end: 6,
 			uniforms: &[&uniform],
@@ -222,10 +256,51 @@ fn main() {
 		});
 
 		// Finish rendering
-		g.end();
-
-		// Swap buffers
-		context.swap_buffers().unwrap();
-		thread::sleep(time::Duration::from_millis(16));
+		app.g.end();
 	}
+}
+
+//----------------------------------------------------------------
+
+fn main() {
+	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+
+	let mut app: Option<Box<App>> = None;
+
+	#[allow(deprecated)]
+	let _ = event_loop.run(move |event, event_loop| {
+		use winit::event::{Event, WindowEvent};
+
+		match event {
+			Event::Resumed => {
+				if app.is_none() {
+					app = Some(App::new(event_loop));
+				}
+			}
+			Event::WindowEvent { event, .. } => match event {
+				WindowEvent::Resized(new_size) => {
+					if let Some(app) = app.as_deref_mut() {
+						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+						app.size = new_size;
+						app.surface.resize(&app.context, width, height);
+					}
+				}
+				WindowEvent::CloseRequested => event_loop.exit(),
+				WindowEvent::RedrawRequested => {
+					if let Some(app) = app.as_deref_mut() {
+						app.draw();
+						app.surface.swap_buffers(&app.context).unwrap();
+					}
+				}
+				_ => {}
+			},
+			Event::AboutToWait => {
+				if let Some(app) = app.as_deref() {
+					app.window.request_redraw();
+				}
+			}
+			_ => {}
+		}
+	});
 }
