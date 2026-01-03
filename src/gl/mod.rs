@@ -10,7 +10,6 @@ pub use gl as capi;
 use gl::types::*;
 
 use crate::resources::{Resource, ResourceMap};
-use crate::handle::Handle;
 
 #[cfg(debug_assertions)]
 macro_rules! gl_check {
@@ -35,8 +34,8 @@ pub mod shaders;
 
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 	(match wrap {
-		crate::TextureWrap::ClampEdge => gl::CLAMP_TO_EDGE,
-		crate::TextureWrap::ClampBorder => gl::CLAMP_TO_BORDER,
+		crate::TextureWrap::Edge => gl::CLAMP_TO_EDGE,
+		crate::TextureWrap::Border => gl::CLAMP_TO_BORDER,
 		crate::TextureWrap::Repeat => gl::REPEAT,
 		crate::TextureWrap::Mirror => gl::MIRRORED_REPEAT,
 	}) as GLint
@@ -133,30 +132,17 @@ impl GlTextures {
 	}
 }
 
-#[allow(dead_code)]
-struct GlSurface {
-	texture: crate::Texture2D,
-	frame_buf: GLuint,
-	depth_buf: GLuint,
-	tex_buf: GLuint,
-	format: crate::SurfaceFormat,
-	width: i32,
-	height: i32,
-}
-impl Resource for GlSurface {
-	type Handle = crate::Surface;
-}
-
 pub struct GlGraphics {
 	vbuffers: ResourceMap<GlVertexBuffer>,
 	ibuffers: ResourceMap<GlIndexBuffer>,
 	shaders: ResourceMap<GlShader>,
 	textures: GlTextures,
-	surfaces: ResourceMap<GlSurface>,
 	dynamic_vao: GLuint,
 	drawing: bool,
 	draw_begin: time::Instant,
 	metrics: crate::DrawMetrics,
+	/// Temporary framebuffer for immediate render passes, deleted at end().
+	immediate_fbo: Option<GLuint>,
 }
 
 impl GlGraphics {
@@ -183,22 +169,23 @@ impl GlGraphics {
 					texture: default_texture2d,
 					info: crate::Texture2DInfo {
 						format: crate::TextureFormat::RGBA8,
+						levels: 1,
 						width: 1,
 						height: 1,
 						props: crate::TextureProps {
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
-							wrap_u: crate::TextureWrap::ClampEdge,
-							wrap_v: crate::TextureWrap::ClampEdge,
+							wrap_u: crate::TextureWrap::Edge,
+							wrap_v: crate::TextureWrap::Edge,
 						}
 					},
 				},
 			},
-			surfaces: ResourceMap::new(),
 			dynamic_vao,
 			drawing: false,
 			draw_begin: time::Instant::now(),
 			metrics: Default::default(),
+			immediate_fbo: None,
 		}
 	}
 }
@@ -317,6 +304,22 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(info.props.filter_mag)));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(info.props.filter_min)));
+		if matches!(info.format, crate::TextureFormat::R8) {
+			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_G, gl::RED as GLint));
+			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_B, gl::RED as GLint));
+			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_A, gl::ONE as GLint));
+		}
+		// Allocate texture storage (required for framebuffer attachments)
+		let internal_format = match info.format {
+			crate::TextureFormat::RGB8 => gl::RGB8,
+			crate::TextureFormat::RGBA8 => gl::RGBA8,
+			crate::TextureFormat::R8 => gl::R8,
+			crate::TextureFormat::Depth16 => gl::DEPTH_COMPONENT16,
+			crate::TextureFormat::Depth24 => gl::DEPTH_COMPONENT24,
+			crate::TextureFormat::Depth32F => gl::DEPTH_COMPONENT32F,
+			crate::TextureFormat::Depth24Stencil8 => gl::DEPTH24_STENCIL8,
+		};
+		gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.levels as GLsizei, internal_format, info.width, info.height));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		let id = self.textures.textures2d.insert(name, GlTexture2D { texture, info: *info });
 		return id;
@@ -330,13 +333,19 @@ impl crate::IGraphics for GlGraphics {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
-		let (internal_format, format) = match texture.info.format {
-			crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB),
-			crate::TextureFormat::RGBA8 => (gl::RGBA8 as GLint, gl::RGBA),
-			crate::TextureFormat::Grey8 => (gl::R8 as GLint, gl::RED),
+		let (bpp, _internal_format, format, type_, align) = match texture.info.format {
+			crate::TextureFormat::RGB8 => (3, gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGBA8 => (4, gl::RGBA8 as GLint, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::R8 => (1, gl::R8 as GLint, gl::RED, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::Depth16 => (2, gl::DEPTH_COMPONENT16 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
+			crate::TextureFormat::Depth24 => (3, gl::DEPTH_COMPONENT24 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 1), // 3 byte alignment not supported
+			crate::TextureFormat::Depth32F => (4, gl::DEPTH_COMPONENT32F as GLint, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
+			crate::TextureFormat::Depth24Stencil8 => (4, gl::DEPTH24_STENCIL8 as GLint, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
 		};
-		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, internal_format, texture.info.width, texture.info.height, 0, format, gl::UNSIGNED_BYTE, data.as_ptr() as *const _));
+		let stride = texture.info.width * bpp;
+		assert_eq!(data.len(), (stride * texture.info.height) as usize, "Data size does not match texture dimensions");
+		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, align)); // Force correct byte alignment
+		gl_check!(gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0, 0, texture.info.width, texture.info.height, format, type_, data.as_ptr() as *const _));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 	}
 
@@ -349,122 +358,6 @@ impl crate::IGraphics for GlGraphics {
 		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
 		let Some(texture) = self.textures.textures2d.remove(id) else { return };
 		gl_check!(gl::DeleteTextures(1, &texture.texture));
-	}
-
-	// fn texture2darray_create(&mut self, name: Option<&str>, info: &crate::Texture2DArrayInfo) -> Result<crate::Texture2DArray, crate::GfxError> {
-	// 	let mut texture = 0;
-	// 	gl_check!(gl::GenTextures(1, &mut texture));
-	// 	gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture));
-	// 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl_texture_wrap(info.wrap_u)));
-	// 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.wrap_v)));
-	// 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAG_FILTER, gl_texture_filter(info.filter_mag)));
-	// 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl_texture_filter(info.filter_min)));
-	// 	gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0));
-	// 	let id = self.textures.textures2darray.insert(name, GlTexture2DArray { texture, info: *info });
-	// 	return Ok(id);
-	// }
-	// fn texture2darray_find(&mut self, name: &str) -> Result<crate::Texture2DArray, crate::GfxError> {
-	// 	self.textures.textures2darray.find_id(name).ok_or(crate::GfxError::NameNotFound)
-	// }
-	// fn texture2darray_set_data(&mut self, id: crate::Texture2DArray, index: usize, data: &[u8]) -> Result<(), crate::GfxError> {
-	// 	let Some(texture) = self.textures.textures2darray.get(id) else { return Err(crate::GfxError::InvalidHandle) };
-	// 	if index >= texture.info.count as usize { return Err(crate::GfxError::IndexOutOfBounds) }
-	// 	gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture.texture));
-	// 	let (internal_format, format) = match texture.info.format {
-	// 		crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB),
-	// 		crate::TextureFormat::RGBA8 => (gl::RGBA8 as GLint, gl::RGBA),
-	// 		crate::TextureFormat::Grey8 => (gl::R8 as GLint, gl::RED),
-	// 	};
-	// 	gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
-	// 	gl_check!(gl::TexImage3D(gl::TEXTURE_2D_ARRAY, 0, internal_format, texture.info.width, texture.info.height, index as i32, 0, format, gl::UNSIGNED_BYTE, data.as_ptr() as *const _));
-	// 	gl_check!(gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0));
-	// 	Ok(())
-	// }
-	// fn texture2darray_get_info(&mut self, id: crate::Texture2DArray) -> Result<crate::Texture2DArrayInfo, crate::GfxError> {
-	// 	let Some(texture) = self.textures.textures2darray.get(id) else { return Err(crate::GfxError::InvalidHandle) };
-	// 	return Ok(texture.info);
-	// }
-	// fn texture2darray_free(&mut self, id: crate::Texture2DArray, mode: crate::FreeMode) -> Result<(), crate::GfxError> {
-	// 	assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-	// 	let Some(texture) = self.textures.textures2darray.remove(id) else { return Err(crate::GfxError::InvalidHandle) };
-	// 	gl_check!(gl::DeleteTextures(1, &texture.texture));
-	// 	Ok(())
-	// }
-
-	fn surface_create(&mut self, name: Option<&str>, info: &crate::SurfaceInfo) -> crate::Surface {
-		let texture = Handle::create(0);
-
-		let mut frame_buf = 0;
-		let mut depth_buf = 0;
-		let mut tex_buf = 0;
-		gl_check!(gl::GenFramebuffers(1, &mut frame_buf));
-		gl_check!(gl::GenRenderbuffers(1, &mut depth_buf));
-		gl_check!(gl::GenTextures(1, &mut tex_buf));
-
-		gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, frame_buf));
-
-		gl_check!(gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buf));
-		gl_check!(gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH_COMPONENT, info.width, info.height));
-		gl_check!(gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::RENDERBUFFER, depth_buf));
-
-		gl_check!(gl::BindTexture(gl::TEXTURE_2D, tex_buf));
-
-		let format = match info.format {
-			crate::SurfaceFormat::RGB8 => gl::RGB,
-			crate::SurfaceFormat::RGBA8 => gl::RGBA,
-		};
-		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)); // Force 1 byte alignment
-		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, format as i32, info.width, info.height, 0, format, gl::UNSIGNED_BYTE, ptr::null::<GLvoid>()));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32));
-
-		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, tex_buf, 0));
-
-		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
-		gl_check!(gl::BindRenderbuffer(gl::RENDERBUFFER, 0));
-		gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
-
-		// let status = unsafe { gl::CheckFramebufferStatus(gl::FRAMEBUFFER) };
-		// if status != gl::FRAMEBUFFER_COMPLETE {
-		// 	panic!("Framebuffer is not complete: {}", status);
-		// }
-
-		let id = self.surfaces.insert(name, GlSurface { texture, frame_buf, depth_buf, tex_buf, format: info.format, width: info.width, height: info.height });
-		return id;
-	}
-
-	fn surface_find(&mut self, name: &str) -> crate::Surface {
-		self.surfaces.find_id(name).unwrap_or(crate::Surface::INVALID)
-	}
-
-	fn surface_get_info(&mut self, id: crate::Surface) -> crate::SurfaceInfo {
-		let Some(surface) = self.surfaces.get(id) else { panic!("invalid surface handle: {:?}", id) };
-		return crate::SurfaceInfo {
-			offscreen: true,
-			has_depth: surface.depth_buf != 0,
-			has_texture: surface.texture.id() != 0,
-			format: surface.format,
-			width: surface.width,
-			height: surface.height,
-		};
-	}
-
-	fn surface_set_info(&mut self, _id: crate::Surface, _info: &crate::SurfaceInfo) {
-		// Err(crate::GfxError::InternalError)
-		todo!()
-	}
-
-	fn surface_get_texture(&mut self, id: crate::Surface) -> crate::Texture2D {
-		let Some(surface) = self.surfaces.get(id) else { panic!("invalid surface handle: {:?}", id) };
-		return surface.texture;
-	}
-
-	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) {
-		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(surface) = self.surfaces.remove(id) else { return };
-		self.texture2d_free(surface.texture, mode)
 	}
 }
 

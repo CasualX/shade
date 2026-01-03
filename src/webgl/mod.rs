@@ -19,8 +19,8 @@ pub fn log(s: impl fmt::Display) {
 
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 	(match wrap {
-		crate::TextureWrap::ClampEdge => api::CLAMP_TO_EDGE,
-		crate::TextureWrap::ClampBorder => unimplemented!("ClampBorder is not supported in WebGL"),
+		crate::TextureWrap::Edge => api::CLAMP_TO_EDGE,
+		crate::TextureWrap::Border => unimplemented!("ClampBorder is not supported in WebGL"),
 		crate::TextureWrap::Repeat => api::REPEAT,
 		crate::TextureWrap::Mirror => api::MIRRORED_REPEAT,
 	}) as GLint
@@ -125,27 +125,11 @@ impl WebGLTextures {
 	}
 }
 
-#[allow(dead_code)]
-struct WebGLSurface {
-	texture: crate::Texture2D,
-	frame_buf: GLuint,
-	depth_buf: GLuint,
-	tex_buf: GLuint,
-	format: crate::SurfaceFormat,
-	width: i32,
-	height: i32,
-}
-
-impl Resource for WebGLSurface {
-	type Handle = crate::Surface;
-}
-
 pub struct WebGLGraphics {
 	vbuffers: ResourceMap<WebGLVertexBuffer>,
 	ibuffers: ResourceMap<WebGLIndexBuffer>,
 	shaders: ResourceMap<WebGLProgram>,
 	textures: WebGLTextures,
-	surfaces: ResourceMap<WebGLSurface>,
 	drawing: bool,
 	metrics: crate::DrawMetrics,
 }
@@ -175,19 +159,19 @@ impl WebGLGraphics {
 				textures2d_default: WebGLTexture2D {
 					texture: default_texture2d,
 					info: crate::Texture2DInfo {
+						levels: 1,
 						width: 1,
 						height: 1,
 						format: crate::TextureFormat::RGBA8,
 						props: crate::TextureProps {
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
-							wrap_u: crate::TextureWrap::ClampEdge,
-							wrap_v: crate::TextureWrap::ClampEdge,
+							wrap_u: crate::TextureWrap::Edge,
+							wrap_v: crate::TextureWrap::Edge,
 						},
 					},
 				},
 			},
-			surfaces: ResourceMap::new(),
 			drawing: false,
 			metrics: Default::default(),
 		}
@@ -327,7 +311,8 @@ impl crate::IGraphics for WebGLGraphics {
 		let format = match texture.info.format {
 			crate::TextureFormat::RGB8 => api::RGB,
 			crate::TextureFormat::RGBA8 => api::RGBA,
-			crate::TextureFormat::Grey8 => api::LUMINANCE,
+			crate::TextureFormat::R8 => api::LUMINANCE,
+			_ => unimplemented!()
 		};
 		unsafe { api::texImage2D(api::TEXTURE_2D, 0, format, texture.info.width, texture.info.height, 0, format, api::UNSIGNED_BYTE, data.as_ptr(), data.len()) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
@@ -343,29 +328,4 @@ impl crate::IGraphics for WebGLGraphics {
 		let Some(texture) = self.textures.textures2d.remove(id) else { return };
 		unsafe { api::deleteTexture(texture.texture) };
 	}
-
-	fn surface_create(&mut self, name: Option<&str>, info: &crate::SurfaceInfo) -> crate::Surface {
-		todo!()
-	}
-
-	fn surface_find(&mut self, name: &str) -> crate::Surface {
-		todo!()
-	}
-
-	fn surface_get_info(&mut self, id: crate::Surface) -> crate::SurfaceInfo {
-		todo!()
-	}
-
-	fn surface_set_info(&mut self, id: crate::Surface, info: &crate::SurfaceInfo) {
-		todo!()
-	}
-
-	fn surface_get_texture(&mut self, id: crate::Surface) -> crate::Texture2D {
-		todo!()
-	}
-
-	fn surface_free(&mut self, id: crate::Surface, mode: crate::FreeMode) {
-		todo!()
-	}
-
 }

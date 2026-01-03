@@ -13,3 +13,5 @@ pub const MTSDF_FS: &str = include_str!("shaders/mtsdf.fs.glsl");
 
 pub const COLOR3D_VS: &str = include_str!("shaders/color3d.vs.glsl");
 pub const COLOR3D_FS: &str = include_str!("shaders/color3d.fs.glsl");
+
+pub const POST_PROCESS_VS: &str = include_str!("shaders/post_process.vs.glsl");
