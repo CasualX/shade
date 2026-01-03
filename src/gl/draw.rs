@@ -27,6 +27,11 @@ fn gl_blend(blend_mode: crate::BlendMode) {
 			dfactor: gl::ONE_MINUS_SRC_ALPHA,
 			equation: gl::FUNC_ADD,
 		},
+		crate::BlendMode::PremultipliedAlpha => GlBlend {
+			sfactor: gl::ONE,
+			dfactor: gl::ONE_MINUS_SRC_ALPHA,
+			equation: gl::FUNC_ADD,
+		},
 		crate::BlendMode::Additive => GlBlend {
 			sfactor: gl::ONE,
 			dfactor: gl::ONE,

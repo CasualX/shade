@@ -43,6 +43,7 @@ pub enum PrimType {
 
 /// Blend mode.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[non_exhaustive]
 pub enum BlendMode {
 	/// Solid color.
 	///
@@ -60,6 +61,14 @@ pub enum BlendMode {
 	/// result[a] = src[a] + dest[a] * (1 - src[a])
 	/// ```
 	Alpha,
+
+	/// Premultiplied alpha blending.
+	///
+	/// ```text
+	/// result[rgb] = src[rgb] + dest[rgb] * (1 - src[a])
+	/// result[a] = src[a] + dest[a] * (1 - src[a])
+	/// ```
+	PremultipliedAlpha,
 
 	/// Additive blending.
 	///
