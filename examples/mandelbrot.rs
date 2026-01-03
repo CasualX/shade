@@ -266,10 +266,7 @@ impl App {
 		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
 		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
 		let aspect_ratio = self.size.width as f32 / self.size.height as f32;
 

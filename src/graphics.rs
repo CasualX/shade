@@ -306,3 +306,14 @@ impl Graphics {
 		self.inner.index_buffer_set_data(id, dataview::bytes(data))
 	}
 }
+
+/// Clear the surface.
+#[macro_export]
+macro_rules! clear {
+	($g:expr $(, $field:ident : $value:expr )* $(,)? ) => {
+		$g.clear(&$crate::ClearArgs {
+			$( $field: Some($value), )*
+			..Default::default()
+		});
+	};
+}

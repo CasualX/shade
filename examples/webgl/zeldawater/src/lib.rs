@@ -175,10 +175,7 @@ impl Context {
 		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-			..Default::default()
-		});
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
 		let time = time as f32;
 		let texture = self.texture;

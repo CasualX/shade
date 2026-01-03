@@ -307,11 +307,7 @@ impl App {
 		});
 
 		// Clear the screen
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.0, 0.0, 0.0, 0.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.0, 0.0, 0.0, 0.0), depth: 1.0);
 
 		// Camera setup
 		let camera = {
@@ -354,11 +350,7 @@ impl App {
 		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);
 
 		let uniforms = PostProcessUniforms { texture: self.texture };
 		self.post_process_quad.draw(&mut self.g, self.post_process_shader, shade::BlendMode::Additive, &[&uniforms]);

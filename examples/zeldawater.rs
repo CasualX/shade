@@ -224,10 +224,7 @@ impl App {
 		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
 		let time = self.start_time.elapsed().as_secs_f32();
 		let uniform = Uniform { time, texture: self.texture, distortion: self.distortion };

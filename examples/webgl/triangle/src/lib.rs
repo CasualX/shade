@@ -104,11 +104,7 @@ impl Context {
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
-		g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.5, 0.2, 1.0, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
 
 		// Compute rotation matrix from time
 		let rotation = Mat2::rotate(Angle(time as f32));

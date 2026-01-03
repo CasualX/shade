@@ -254,11 +254,7 @@ impl Context {
 		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);
 
 		if self.auto_rotate {
 			self.camera.rotate(-1.0, 0.0);

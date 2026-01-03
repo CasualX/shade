@@ -195,11 +195,7 @@ impl App {
 		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.2, 0.2, 0.5, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.2, 0.2, 0.5, 1.0), depth: 1.0);
 
 		// Update the camera
 		let aspect_ratio = self.size.width as f32 / self.size.height as f32;

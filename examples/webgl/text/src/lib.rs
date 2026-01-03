@@ -59,11 +59,7 @@ impl Context {
 		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.4, 0.4, 0.7, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(g, color: Vec4(0.4, 0.4, 0.7, 1.0), depth: 1.0);
 
 		let mut cv = d2::TextBuffer::new();
 		cv.blend_mode = shade::BlendMode::Alpha;

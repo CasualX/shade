@@ -268,11 +268,7 @@ impl App {
 		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
-			depth: Some(1.0),
-			..Default::default()
-		});
+		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
 
 		// Rotate the cube
 		self.model = self.model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Angle::deg(1.0));
