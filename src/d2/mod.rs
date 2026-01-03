@@ -6,6 +6,7 @@ use super::*;
 
 mod paint;
 mod pen;
+mod post_process;
 mod scribe;
 mod sprite;
 
@@ -23,8 +24,9 @@ pub use self::color::*;
 pub use self::textured::*;
 pub use self::paint::Paint;
 pub use self::pen::Pen;
-pub use self::sprite::Sprite;
 pub use self::scribe::*;
+pub use self::sprite::Sprite;
+pub use self::post_process::PostProcessQuad;
 
 /// Generate vertex data from a template.
 pub trait ToVertex<V> {

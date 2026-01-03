@@ -6,6 +6,8 @@ use std::num::NonZeroU32;
 use glutin::prelude::*;
 use shade::cvmath::*;
 
+const SIZE: i32 = 256;
+
 //----------------------------------------------------------------
 // Geometry, uniforms and shader
 
@@ -71,6 +73,27 @@ void main()
 	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
 "#;
+
+
+const POST_PROCESS_FS: &str = r#"\
+#version 330 core
+out vec4 o_fragColor;
+in vec2 v_uv;
+uniform sampler2D u_texture;
+void main() {
+	o_fragColor = texture(u_texture, v_uv);
+}
+"#;
+
+struct PostProcessUniforms {
+	texture: shade::Texture2D,
+}
+
+impl shade::UniformVisitor for PostProcessUniforms {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.sampler2d("u_texture", &[self.texture]);
+	}
+}
 
 //----------------------------------------------------------------
 // Model and instance
@@ -178,6 +201,10 @@ struct App {
 	axes: shade::d3::axes::AxesModel,
 	bunny_rotation: Transform3f,
 	start_time: time::Instant,
+	texture: shade::Texture2D,
+	texture_depth: shade::Texture2D,
+	post_process_shader: shade::Shader,
+	post_process_quad: shade::d2::PostProcessQuad,
 }
 
 impl App {
@@ -245,18 +272,43 @@ impl App {
 		};
 		let bunny_rotation = Transform3::IDENTITY;
 		let start_time = time::Instant::now();
+		let texture = g.texture2d_create(None, &shade::Texture2DInfo {
+			format: shade::TextureFormat::RGBA8,
+			levels: 1,
+			width: SIZE,
+			height: SIZE,
+			props: shade::TextureProps {
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+			},
+		});
+		let texture_depth = g.texture2d_create(None, &shade::Texture2DInfo {
+			format: shade::TextureFormat::Depth24,
+			levels: 1,
+			width: SIZE,
+			height: SIZE,
+			props: shade::TextureProps::default(),
+		});
 
-		Box::new(App { size, window, surface, context, g, bunny, axes, bunny_rotation, start_time })
+		let post_process_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, POST_PROCESS_FS);
+		let post_process_quad = shade::d2::PostProcessQuad::create(&mut g);
+
+		Box::new(App { size, window, surface, context, g, bunny, axes, bunny_rotation, start_time, texture, texture_depth, post_process_shader, post_process_quad })
 	}
 
 	fn draw(&mut self) {
-		// Render the frame
-		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
-		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		let viewport = Bounds2::c(0, 0, SIZE, SIZE);
+		self.g.begin(&shade::RenderPassArgs::Immediate {
+			color: &[self.texture],
+			depth: self.texture_depth,
+			viewport,
+		});
 
 		// Clear the screen
 		self.g.clear(&shade::ClearArgs {
-			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
+			color: Some(Vec4(0.0, 0.0, 0.0, 0.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
@@ -294,6 +346,22 @@ impl App {
 			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.32)),
 			depth_test: Some(shade::DepthTest::Less),
 		});
+
+		self.g.end();
+
+		// Render the frame
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+
+		// Clear the screen
+		self.g.clear(&shade::ClearArgs {
+			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
+			depth: Some(1.0),
+			..Default::default()
+		});
+
+		let uniforms = PostProcessUniforms { texture: self.texture };
+		self.post_process_quad.draw(&mut self.g, self.post_process_shader, shade::BlendMode::Additive, &[&uniforms]);
 
 		// Finish the frame
 		self.g.end();

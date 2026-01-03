@@ -29,8 +29,8 @@ impl Context {
 				let props = shade::TextureProps {
 					filter_min: shade::TextureFilter::Linear,
 					filter_mag: shade::TextureFilter::Linear,
-					wrap_u: shade::TextureWrap::ClampEdge,
-					wrap_v: shade::TextureWrap::ClampEdge,
+					wrap_u: shade::TextureWrap::Edge,
+					wrap_v: shade::TextureWrap::Edge,
 				};
 				g.image(Some("font"), &(&image, &props))
 			};

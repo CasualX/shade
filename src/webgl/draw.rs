@@ -285,13 +285,10 @@ pub fn begin(this: &mut WebGLGraphics, args: &crate::RenderPassArgs) {
 	this.drawing = true;
 
 	match args {
-		crate::RenderPassArgs::BackBuffer { viewport } => {
+		&crate::RenderPassArgs::BackBuffer { ref viewport } => {
 			gl_viewport(viewport);
 		}
-		crate::RenderPassArgs::Surface { surface, viewport } => {
-			unimplemented!("GlGraphics::begin with Surface is not implemented yet");
-		}
-		crate::RenderPassArgs::Immediate { color_attachments, depth_attachment, viewport } => {
+		&crate::RenderPassArgs::Immediate { color: _, depth: _, viewport: _ } => {
 			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
 		}
 	}

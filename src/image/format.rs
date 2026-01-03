@@ -17,7 +17,7 @@ impl PixelFormat for [u8; 3] {
 }
 
 impl PixelFormat for u8 {
-	const FORMAT: crate::TextureFormat = crate::TextureFormat::Grey8;
+	const FORMAT: crate::TextureFormat = crate::TextureFormat::R8;
 	const CHANNELS: usize = 1;
 }
 
@@ -34,18 +34,21 @@ impl ImageToTexture for DecodedImage {
 		match self {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
 				format: crate::TextureFormat::RGBA8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props: Default::default(),
 			},
 			DecodedImage::RGB(image) => crate::Texture2DInfo {
 				format: crate::TextureFormat::RGB8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props: Default::default(),
 			},
 			DecodedImage::Grey(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::Grey8,
+				format: crate::TextureFormat::R8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props: Default::default(),
@@ -70,18 +73,21 @@ impl ImageToTexture for (&DecodedImage, &crate::TextureProps) {
 		match image {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
 				format: crate::TextureFormat::RGBA8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props,
 			},
 			DecodedImage::RGB(image) => crate::Texture2DInfo {
 				format: crate::TextureFormat::RGB8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props,
 			},
 			DecodedImage::Grey(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::Grey8,
+				format: crate::TextureFormat::R8,
+				levels: 1,
 				width: image.width,
 				height: image.height,
 				props,
@@ -105,6 +111,7 @@ impl<T: PixelFormat + Copy + dataview::Pod> ImageToTexture for Image<T> {
 	fn info(&self) -> crate::Texture2DInfo {
 		crate::Texture2DInfo {
 			format: T::FORMAT,
+			levels: 1,
 			width: self.width,
 			height: self.height,
 			props: Default::default(),
@@ -122,6 +129,7 @@ impl<T: PixelFormat + Copy + dataview::Pod> ImageToTexture for (&Image<T>, &crat
 		let (image, &props) = self;
 		crate::Texture2DInfo {
 			format: T::FORMAT,
+			levels: 1,
 			width: image.width,
 			height: image.height,
 			props,

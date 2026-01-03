@@ -274,6 +274,47 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	}
 }
 
+fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], depth: crate::Texture2D) {
+	// Create a temporary framebuffer
+	let mut fbo = 0;
+	gl_check!(gl::GenFramebuffers(1, &mut fbo));
+	gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, fbo));
+
+	// Attach color textures
+	assert!(color.len() <= 16, "Immediate mode framebuffer cannot have more than 16 color attachments");
+	let mut draw_buffers: [GLenum; 16] = [gl::NONE; 16];
+	for (i, &tex_id) in color.iter().enumerate() {
+		let texture = this.textures.get2d(tex_id);
+		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, gl::TEXTURE_2D, texture.texture, 0));
+		draw_buffers[i] = gl::COLOR_ATTACHMENT0 + i as u32;
+	}
+
+	// Specify which color attachments to draw to
+	if color.is_empty() {
+		gl_check!(gl::DrawBuffer(gl::NONE));
+		gl_check!(gl::ReadBuffer(gl::NONE));
+	}
+	else {
+		gl_check!(gl::DrawBuffers(color.len() as i32, draw_buffers.as_ptr()));
+	}
+
+	// Attach depth texture if valid
+	if depth != crate::Texture2D::INVALID {
+		let depth_tex = this.textures.get2d(depth);
+		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, depth_tex.texture, 0));
+	}
+
+	// Check framebuffer completeness
+	#[cfg(debug_assertions)] {
+		let status = gl_check!(gl::CheckFramebufferStatus(gl::FRAMEBUFFER));
+		if status != gl::FRAMEBUFFER_COMPLETE {
+			panic!("Immediate framebuffer is incomplete: status = 0x{:X}", status);
+		}
+	}
+
+	this.immediate_fbo = Some(fbo);
+}
+
 pub fn begin(this: &mut GlGraphics, args: &crate::RenderPassArgs) {
 	this.draw_begin = time::Instant::now();
 
@@ -284,14 +325,13 @@ pub fn begin(this: &mut GlGraphics, args: &crate::RenderPassArgs) {
 	this.drawing = true;
 
 	match args {
-		crate::RenderPassArgs::BackBuffer { viewport } => {
+		&crate::RenderPassArgs::BackBuffer { ref viewport } => {
+			gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
 			gl_viewport(viewport);
 		}
-		crate::RenderPassArgs::Surface { surface, viewport } => {
-			unimplemented!("GlGraphics::begin with Surface is not implemented yet");
-		}
-		crate::RenderPassArgs::Immediate { color_attachments, depth_attachment, viewport } => {
-			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
+		&crate::RenderPassArgs::Immediate { color, depth, ref viewport } => {
+			gl_immediate_fbo(this, color, depth);
+			gl_viewport(viewport);
 		}
 	}
 }
@@ -432,4 +472,12 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 pub fn end(this: &mut GlGraphics) {
 	this.metrics.draw_duration += this.draw_begin.elapsed();
 	this.drawing = false;
+
+	// Clean up immediate framebuffer if one was created
+	if let Some(fbo) = this.immediate_fbo.take() {
+		gl_check!(gl::DeleteFramebuffers(1, &fbo));
+	}
+
+	// Unbind framebuffer to return to default state
+	gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
 }

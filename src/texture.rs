@@ -1,19 +1,27 @@
 
 /// Texture format.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
+#[non_exhaustive]
 pub enum TextureFormat {
+	// Color formats
 	#[default]
 	RGBA8,
 	RGB8,
-	Grey8,
+	R8,
+
+	// Depth formats
+	Depth16,
+	Depth24,
+	Depth32F,
+	Depth24Stencil8,
 }
 
 /// Texture wrap mode.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 pub enum TextureWrap {
 	#[default]
-	ClampEdge,
-	ClampBorder,
+	Edge,
+	Border,
 	Repeat,
 	Mirror,
 }
@@ -85,6 +93,7 @@ define_handle!(Texture2D);
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 pub struct Texture2DInfo {
 	pub format: TextureFormat,
+	pub levels: u8,
 	pub width: i32,
 	pub height: i32,
 	pub props: TextureProps,

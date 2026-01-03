@@ -148,8 +148,8 @@ impl OldTreeModel {
 			let props = shade::TextureProps {
 				filter_min: shade::TextureFilter::Nearest,
 				filter_mag: shade::TextureFilter::Nearest,
-				wrap_u: shade::TextureWrap::ClampEdge,
-				wrap_v: shade::TextureWrap::ClampEdge,
+				wrap_u: shade::TextureWrap::Edge,
+				wrap_v: shade::TextureWrap::Edge,
 			};
 			g.image(None, &(&image, &props))
 		};

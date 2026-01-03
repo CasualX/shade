@@ -2,19 +2,14 @@ use super::*;
 
 /// Arguments for [begin](IGraphics::begin).
 pub enum RenderPassArgs<'a> {
-	/// Begin drawing on a surface.
-	Surface {
-		surface: Surface,
-		viewport: cvmath::Bounds2<i32>,
-	},
 	/// Begin drawing on the back buffer.
 	BackBuffer {
 		viewport: cvmath::Bounds2<i32>,
 	},
 	/// Begin immediate mode drawing.
 	Immediate {
-		color_attachments: &'a [Texture2D],
-		depth_attachment: Texture2D,
+		color: &'a [Texture2D],
+		depth: Texture2D,
 		viewport: cvmath::Bounds2<i32>,
 	},
 }
@@ -211,19 +206,6 @@ pub trait IGraphics {
 	fn texture2d_get_info(&mut self, id: Texture2D) -> Texture2DInfo;
 	/// Release the resources of a 2D texture.
 	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
-
-	/// Create a surface.
-	fn surface_create(&mut self, name: Option<&str>, info: &SurfaceInfo) -> Surface;
-	/// Find a surface by name.
-	fn surface_find(&mut self, name: &str) -> Surface;
-	/// Get the info of a surface.
-	fn surface_get_info(&mut self, id: Surface) -> SurfaceInfo;
-	/// Set the info of a surface.
-	fn surface_set_info(&mut self, id: Surface, info: &SurfaceInfo);
-	/// Get the texture of a surface.
-	fn surface_get_texture(&mut self, id: Surface) -> Texture2D;
-	/// Release the resources of a surface.
-	fn surface_free(&mut self, id: Surface, mode: FreeMode);
 }
 
 /// Graphics interface.
@@ -281,6 +263,13 @@ impl Graphics {
 			length,
 			repeat: image.repeat,
 		}
+	}
+	/// Create and assign data to a 2D texture.
+	#[inline]
+	pub fn texture2d(&mut self, name: Option<&str>, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
+		let texture = self.texture2d_create(name, info);
+		self.texture2d_set_data(texture, data);
+		return texture;
 	}
 	/// Create and assign data to a vertex buffer.
 	#[inline]
