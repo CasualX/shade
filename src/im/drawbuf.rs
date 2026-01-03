@@ -122,16 +122,16 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// A `DrawBuilder` collects geometry (vertices and indices) generated on the CPU, and prepares
 /// it for rendering. It is the primary structure for immediate-mode drawing.
 ///
-/// See also: [`DrawPool`] allows mixing multiple `DrawBuilder` types with different vertex or uniform formats in a single pass.
+/// See also: [DrawPool] allows mixing multiple `DrawBuilder` types with different vertex or uniform formats in a single pass.
 ///
 /// ### Filling the buffer
 ///
 /// Use one of the high-level tools to populate the buffer with geometry:
 ///
-/// - [`d2::Paint`] – fill shapes with color via `fill_*` methods.
-/// - [`d2::Pen`] – draw outlines and polylines via `draw_*` methods.
-/// - [`d2::Sprite`] – draw textured quads and images via `sprite_*` methods.
-/// - [`d2::Scribe`] – draw text via `text_*` methods.
+/// - [d2::Paint] – fill shapes with color via `fill_*` methods.
+/// - [d2::Pen] – draw outlines and polylines via `draw_*` methods.
+/// - [d2::Sprite] – draw textured quads and images via `sprite_*` methods.
+/// - [d2::Scribe] – draw text via `text_*` methods.
 ///
 /// These tools append to the buffer incrementally and can be freely mixed.
 ///
@@ -150,11 +150,11 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// #### Reusing the buffer
 ///
 /// A `DrawBuilder` can be reused across frames to avoid repeated allocations. Simply call
-/// [`clear()`](Self::clear) to remove previously submitted geometry and start fresh.
+/// [clear()](Self::clear) to remove previously submitted geometry and start fresh.
 ///
 /// #### Drawing multiple times
 ///
-/// Once populated, a `DrawBuilder` can be drawn multiple times using [`draw()`](Self::draw).
+/// Once populated, a `DrawBuilder` can be drawn multiple times using [draw()](Self::draw).
 /// This is useful when the same content needs to be rendered to different surfaces or at
 /// different points in the frame. The buffer remains valid until cleared or modified.
 ///
@@ -167,7 +167,7 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// #### Custom draw tools
 ///
 /// For low-level or specialized use cases, custom draw tools can be implemented using the
-/// [`begin()`](Self::begin) method. This provides access to a [`PrimBuilder`], allowing direct
+/// [begin()](Self::begin) method. This provides access to a [PrimBuilder], allowing direct
 /// construction of geometry and command batching.
 ///
 /// ### Example

@@ -99,6 +99,7 @@ pub struct Texture2DInfo {
 	pub props: TextureProps,
 }
 
+/// Animated Texture2D structure.
 #[derive(Clone, Debug)]
 pub struct AnimatedTexture2D {
 	/// The width of the image.

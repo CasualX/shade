@@ -156,7 +156,7 @@ pub struct DrawMetrics {
 
 /// Graphics interface.
 ///
-/// See [`Graphics`](struct.Graphics.html) for a type-erased version.
+/// See [Graphics](struct@Graphics) for a type-erased version.
 pub trait IGraphics {
 	/// Begin drawing.
 	fn begin(&mut self, args: &RenderPassArgs);
