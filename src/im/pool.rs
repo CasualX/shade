@@ -119,10 +119,10 @@ struct DrawSub {
 
 /// Draw buffer pool.
 ///
-/// Manages a collection of [`DrawBuilder`] with heterogeneous vertex and uniform types,
+/// Manages a collection of [DrawBuilder] with heterogeneous vertex and uniform types,
 /// enabling efficient reuse and batching of draw commands.
 ///
-/// Use [`get`](Self::get) to obtain a compatible `DrawBuilder<T, U>` for adding geometry.
+/// Use [get](Self::get) to obtain a compatible `DrawBuilder<T, U>` for adding geometry.
 /// Buffers are reused when possible to minimize allocations and state changes.
 ///
 /// Note: shared render state (scissor, blend mode, etc.) is carried over when switching between buffers of different types,
@@ -151,7 +151,7 @@ impl DrawPool {
 		self.subs.clear();
 	}
 
-	/// Returns a compatible [`DrawBuilder`] for issuing draw commands.
+	/// Returns a compatible [DrawBuilder] for issuing draw commands.
 	///
 	/// If the most recently used buffer matches the requested vertex and uniform types,
 	/// it is reused to continue adding geometry efficiently.

@@ -38,7 +38,7 @@ pub fn flex1d<const N: usize>(min: f32, max: f32, gap: Option<Unit>, justify: Ju
 
 /// Flexible layout in one dimension.
 ///
-/// See [`flex1d`] for details.
+/// See [flex1d] for details.
 pub fn flex1d_slice(
 	min: f32,
 	max: f32,

@@ -30,7 +30,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 	/// Draws a sprite with custom position, rotation, scale, or skew.
 	///
-	/// Unlike [`sprite_rect`](Self::sprite_rect), this method lets you place the sprite at any orientation or shape by providing a 2D transform.
+	/// Unlike [sprite_rect](Self::sprite_rect), this method lets you place the sprite at any orientation or shape by providing a 2D transform.
 	/// Conceptually, the sprite is a unit square from `0, 0` to `1, 1`, and each of its corners is transformed using the provided `pos`.
 	/// The transform's translation sets the position of the bottom-left corner (at `0, 0`), while its X and Y axes define the direction and extent of the sprite's sides.
 	///
