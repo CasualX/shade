@@ -118,8 +118,6 @@ impl ColorTreeModel {
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ColorTreeInstance) {
 		let transform = camera.view_proj * instance.model;
 		g.draw(&shade::DrawArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
@@ -151,11 +149,11 @@ struct Scene {
 impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		// Render the frame
-		g.begin();
+		let viewport = Bounds2::vec(self.screen_size);
+		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
@@ -163,8 +161,6 @@ impl Scene {
 
 		// Camera setup
 		let camera = {
-			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = Bounds2::vec(self.screen_size);
 			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
 			let position = self.camera.position();
 			let hand = Hand::RH;
@@ -175,7 +171,7 @@ impl Scene {
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		let light_pos = Vec3f::new(10000.0, 10000.0, 10000.0);

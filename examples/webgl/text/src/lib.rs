@@ -55,22 +55,19 @@ impl Context {
 		let font = &self.font;
 
 		// Render the frame
-		g.begin();
+		let viewport = Bounds2::c(0, 0, size.x, size.y);
+		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.4, 0.4, 0.7, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
 
 		let mut cv = d2::TextBuffer::new();
-		cv.viewport = Bounds2::c(0, 0, size.x, size.y);
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.shader = font.shader;
 		cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, size.x as f32, size.y as f32));
-		cv.uniform.texture = font.texture;
 		cv.uniform.outline_width_relative = 0.125;
 
 		let mut pos = Vec2(0.0, 0.0);
@@ -97,7 +94,7 @@ impl Context {
 		let mut pos = Vec2f((size.x as f32 - rainbow_width) * 0.5, size.y as f32 - scribe.font_size);
 		cv.text_write(&font, &mut scribe, &mut pos, rainbow);
 
-		cv.draw(g, shade::Surface::BACK_BUFFER);
+		cv.draw(g);
 
 		// Finish rendering
 		g.end();

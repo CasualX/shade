@@ -165,8 +165,6 @@ impl CubeModel {
 
 		// Draw the cube
 		g.draw_indexed(&shade::DrawIndexedArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
@@ -265,25 +263,23 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		app.g.begin();
+		// Render the frame
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
 
 		// Rotate the cube
-		app.model = app.model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Angle::deg(1.0));
+		self.model = self.model * Transform3::rotate(Vec3(0.8, 0.6, 0.1), Angle::deg(1.0));
 
 		// Camera setup
 		let camera = {
-			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32);
-			let aspect_ratio = app.size.width as f32 / app.size.height as f32;
+			let aspect_ratio = self.size.width as f32 / self.size.height as f32;
 			let position = Vec3(0.0, 0.0, 4.0);
 			let target = Vec3::ZERO;
 			let view = Transform3f::look_at(position, target, Vec3::Y, Hand::RH);
@@ -292,14 +288,14 @@ impl App {
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (Hand::RH, Clip::NO));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
+			shade::d3::CameraSetup { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Draw the cube
-		app.cube.draw(&mut app.g, &camera, &CubeInstance { model: app.model });
+		self.cube.draw(&mut self.g, &camera, &CubeInstance { model: self.model });
 
 		// Finish the frame
-		app.g.end();
+		self.g.end();
 	}
 }
 

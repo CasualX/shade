@@ -220,43 +220,39 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		app.g.begin();
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		});
 
-		let time = app.start_time.elapsed().as_secs_f32();
-		let uniform = Uniform { time, texture: app.texture, distortion: app.distortion };
+		let time = self.start_time.elapsed().as_secs_f32();
+		let uniform = Uniform { time, texture: self.texture, distortion: self.distortion };
 
 		// Draw the quad
-		app.g.draw_indexed(&shade::DrawIndexedArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32),
+		self.g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader: app.shader,
+			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: app.vb,
+				buffer: self.vb,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: app.ib,
+			indices: self.ib,
 			index_start: 0,
 			index_end: 6,
 			uniforms: &[&uniform],
 			instances: -1,
 		});
 
-		// Finish rendering
-		app.g.end();
+		self.g.end();
 	}
 }
 

@@ -6,7 +6,6 @@ type IndexT = u16;
 #[derive(Clone, Debug, PartialEq)]
 pub struct PipelineState {
 	pub prim_type: PrimType,
-	pub viewport: Bounds2<i32>,
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
 	pub depth_test: Option<DepthTest>,
@@ -32,12 +31,10 @@ pub struct DrawBuffer<U> {
 }
 
 impl<U: UniformVisitor> DrawBuffer<U> {
-	pub fn draw(&self, g: &mut Graphics, surface: Surface) {
+	pub fn draw(&self, g: &mut Graphics) {
 		for cmd in &self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
-				surface,
-				viewport: cmd.pipeline_state.viewport,
 				scissor: cmd.pipeline_state.scissor,
 				blend_mode: cmd.pipeline_state.blend_mode,
 				depth_test: cmd.pipeline_state.depth_test,
@@ -57,12 +54,10 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 			});
 		}
 	}
-	pub fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>) {
+	pub fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>) {
 		for cmd in &self.commands[range] {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
-				surface,
-				viewport: cmd.pipeline_state.viewport,
 				scissor: cmd.pipeline_state.scissor,
 				blend_mode: cmd.pipeline_state.blend_mode,
 				depth_test: cmd.pipeline_state.depth_test,
@@ -97,12 +92,10 @@ struct DrawBufferRef<'a, U> {
 }
 
 impl<'a, U: TUniform> DrawBufferRef<'a, U> {
-	fn draw(&self, g: &mut Graphics, surface: Surface) {
+	fn draw(&self, g: &mut Graphics) {
 		for cmd in self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
-				surface,
-				viewport: cmd.pipeline_state.viewport,
 				scissor: cmd.pipeline_state.scissor,
 				blend_mode: cmd.pipeline_state.blend_mode,
 				depth_test: cmd.pipeline_state.depth_test,
@@ -146,7 +139,6 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 ///
 /// Rendering behavior is controlled via the public fields on this type:
 ///
-/// - `viewport` **must** be set before drawing.
 /// - `blend_mode`, `depth_test`, `scissor`, `cull_mode`, and `shader` can be customized.
 /// - The `uniform` field contains shader-specific uniform data.
 ///
@@ -188,7 +180,6 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// 	let mut cv = im::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///
 /// 	// Adjust the shared properties
-/// 	cv.viewport = viewport;
 /// 	cv.blend_mode = shade::BlendMode::Alpha;
 /// 	cv.shader = shader;
 ///
@@ -208,7 +199,7 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// 	cv.fill_ring(&paint, &cvmath::Bounds2::c(50.0, 50.0, 150.0, 150.0), 5.0, 19);
 ///
 /// 	// Draw to the back buffer
-/// 	cv.draw(g, shade::Surface::BACK_BUFFER);
+/// 	cv.draw(g);
 /// }
 /// ```
 pub struct DrawBuilder<V, U> {
@@ -218,7 +209,6 @@ pub struct DrawBuilder<V, U> {
 	pub(crate) commands: Vec<DrawCommand>,
 	pub(crate) auto_state_tracking: bool,
 
-	pub viewport: Bounds2<i32>,
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
 	pub depth_test: Option<DepthTest>,
@@ -239,7 +229,6 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			commands: Vec::new(),
 			auto_state_tracking: false,
 
-			viewport: Bounds2::ZERO,
 			scissor: None,
 			blend_mode: BlendMode::Solid,
 			depth_test: None,
@@ -259,7 +248,6 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		self.commands.clear();
 		self.auto_state_tracking = false;
 
-		self.viewport = Bounds2::ZERO;
 		self.scissor = None;
 		self.blend_mode = BlendMode::Solid;
 		self.depth_test = None;
@@ -283,7 +271,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 	}
 
 	/// Draws the buffer.
-	pub fn draw(&self, g: &mut Graphics, surface: Surface) {
+	pub fn draw(&self, g: &mut Graphics) {
 		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Stream);
 		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Stream);
 
@@ -292,7 +280,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			indices,
 			uniforms: &self.uniforms,
 			commands: &self.commands,
-		}.draw(g, surface);
+		}.draw(g);
 
 		g.index_buffer_free(indices, FreeMode::Delete);
 		g.vertex_buffer_free(vertices, FreeMode::Delete);
@@ -320,7 +308,6 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 		let pipeline_state = PipelineState {
 			prim_type,
-			viewport: self.viewport,
 			scissor: self.scissor,
 			blend_mode: self.blend_mode,
 			depth_test: self.depth_test,

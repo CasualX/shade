@@ -163,8 +163,6 @@ impl OldTreeModel {
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &OldTreeInstance) {
 		// Draw the model
 		g.draw(&shade::DrawArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
@@ -252,11 +250,11 @@ impl Context {
 		let g = shade::Graphics(&mut self.webgl);
 
 		// Render the frame
-		g.begin();
+		let viewport = Bounds2::vec(self.screen_size);
+		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
@@ -267,8 +265,6 @@ impl Context {
 		}
 
 		let camera = {
-			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = Bounds2::vec(self.screen_size);
 			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
 			let position = self.camera.position();
 			let hand = Hand::RH;
@@ -281,7 +277,7 @@ impl Context {
 			};
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		self.tree.draw(g, &camera, &OldTreeInstance {

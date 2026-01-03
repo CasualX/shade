@@ -274,7 +274,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	}
 }
 
-pub fn begin(this: &mut GlGraphics) {
+pub fn begin(this: &mut GlGraphics, args: &crate::RenderPassArgs) {
 	this.draw_begin = time::Instant::now();
 
 	if this.drawing {
@@ -282,6 +282,18 @@ pub fn begin(this: &mut GlGraphics) {
 	}
 
 	this.drawing = true;
+
+	match args {
+		crate::RenderPassArgs::BackBuffer { viewport } => {
+			gl_viewport(viewport);
+		}
+		crate::RenderPassArgs::Surface { surface, viewport } => {
+			unimplemented!("GlGraphics::begin with Surface is not implemented yet");
+		}
+		crate::RenderPassArgs::Immediate { color_attachments, depth_attachment, viewport } => {
+			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
+		}
+	}
 }
 
 pub fn clear(this: &mut GlGraphics, args: &crate::ClearArgs) {
@@ -333,7 +345,6 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) {
 	gl_depth_test(args.depth_test);
 	gl_cull_face(args.cull_mode);
 	gl_scissor(&args.scissor);
-	gl_viewport(&args.viewport);
 
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
@@ -384,7 +395,6 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 	gl_depth_test(args.depth_test);
 	gl_cull_face(args.cull_mode);
 	gl_scissor(&args.scissor);
-	gl_viewport(&args.viewport);
 
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));

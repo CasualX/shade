@@ -14,7 +14,6 @@ pub use self::firstperson::FirstPersonCamera;
 /// Contains camera matrices and parameters.
 #[derive(Clone, Debug)]
 pub struct CameraSetup {
-	pub surface: Surface,
 	pub viewport: Bounds2<i32>,
 	pub aspect_ratio: f32,
 	pub position: Vec3f,

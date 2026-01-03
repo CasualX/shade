@@ -101,10 +101,10 @@ impl Context {
 
 	pub fn draw(&mut self, time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
-		g.begin();
+		let viewport = Bounds2::vec(self.screen_size);
+		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.5, 0.2, 1.0, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
@@ -122,8 +122,6 @@ impl Context {
 
 		// Draw the triangle
 		g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: Bounds2::vec(self.screen_size),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,

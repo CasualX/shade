@@ -41,8 +41,6 @@ impl FrustumModel {
 		};
 
 		g.draw_indexed(&DrawIndexedArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: BlendMode::Solid,
 			depth_test: Some(DepthTest::Less),
@@ -62,8 +60,6 @@ impl FrustumModel {
 		});
 
 		g.draw_indexed(&DrawIndexedArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: BlendMode::Alpha,
 			depth_test: Some(DepthTest::Less),

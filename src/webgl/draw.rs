@@ -277,12 +277,24 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 }
 
-pub fn begin(this: &mut WebGLGraphics) {
+pub fn begin(this: &mut WebGLGraphics, args: &crate::RenderPassArgs) {
 	if this.drawing {
 		panic!("{}: draw call already in progress", name_of(&begin));
 	}
 
 	this.drawing = true;
+
+	match args {
+		crate::RenderPassArgs::BackBuffer { viewport } => {
+			gl_viewport(viewport);
+		}
+		crate::RenderPassArgs::Surface { surface, viewport } => {
+			unimplemented!("GlGraphics::begin with Surface is not implemented yet");
+		}
+		crate::RenderPassArgs::Immediate { color_attachments, depth_attachment, viewport } => {
+			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
+		}
+	}
 }
 
 pub fn clear(this: &mut WebGLGraphics, args: &crate::ClearArgs) {
@@ -340,7 +352,6 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 	gl_depth_test(args.depth_test);
 	gl_cull_face(args.cull_mode);
 	gl_scissor(&args.scissor);
-	gl_viewport(&args.viewport);
 
 	unsafe { api::useProgram(shader.program) };
 	let enabled_attribs = gl_attributes(shader, args.vertices, &this.vbuffers);
@@ -389,7 +400,6 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 	gl_depth_test(args.depth_test);
 	gl_cull_face(args.cull_mode);
 	gl_scissor(&args.scissor);
-	gl_viewport(&args.viewport);
 
 	unsafe { api::useProgram(shader.program) };
 	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, ib.buffer) };

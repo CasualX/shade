@@ -1,10 +1,5 @@
 define_handle!(Surface);
 
-impl Surface {
-	/// Back buffer surface.
-	pub const BACK_BUFFER: Surface = Surface(0);
-}
-
 /// Surface format.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum SurfaceFormat {

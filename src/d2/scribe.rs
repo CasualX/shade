@@ -123,6 +123,7 @@ impl TextBuffer {
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_write<T: fmt::Display>(&mut self, font: &FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+		self.uniform.texture = font.texture;
 		self.shader = font.shader;
 		text_write(self, font.as_dyn().font, scribe, cursor, &text);
 	}
@@ -134,6 +135,7 @@ impl TextBuffer {
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
+		self.uniform.texture = font.texture;
 		self.shader = font.shader;
 		text_lines(self, font.as_dyn().font, scribe, rect, align, lines);
 	}
@@ -145,6 +147,7 @@ impl TextBuffer {
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+		self.uniform.texture = font.texture;
 		self.shader = font.shader;
 		text_box(self, font.as_dyn().font, scribe, rect, align, text);
 	}

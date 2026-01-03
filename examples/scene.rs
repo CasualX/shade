@@ -188,23 +188,22 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		let size = app.size;
-		let curtime = time::Instant::now().duration_since(app.time_base).as_secs_f32();
+		let curtime = time::Instant::now().duration_since(self.time_base).as_secs_f32();
 
 		// Render the frame
-		app.g.begin();
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.2, 0.2, 0.5, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
 
 		// Update the camera
-		let projection = Mat4::perspective(Angle::deg(45.0), size.width as f32 / size.height as f32, 0.1, 1000.0, (Hand::RH, Clip::NO));
+		let aspect_ratio = self.size.width as f32 / self.size.height as f32;
+		let projection = Mat4::perspective(Angle::deg(45.0), aspect_ratio, 0.1, 1000.0, (Hand::RH, Clip::NO));
 		let view = {
 			let eye = Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
 			let target = Vec3(96.0 * 0.5, 0.0, 32.0);
@@ -214,12 +213,11 @@ impl App {
 		let transform = projection * view;
 
 		let mut cv = shade::im::DrawBuilder::<MyVertex3, MyUniform3>::new();
-		cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.depth_test = Some(shade::DepthTest::Less);
-		cv.shader = app.shader;
+		cv.shader = self.shader;
 		cv.uniform.transform = transform;
-		cv.uniform.texture = app.texture;
+		cv.uniform.texture = self.texture;
 		floor_tile(&mut cv, 0, 0, &GRASS);
 		floor_tile(&mut cv, 1, 0, &GRASS);
 		floor_tile(&mut cv, 2, 0, &GRASS);
@@ -231,10 +229,10 @@ impl App {
 		floor_thing(&mut cv, 2, 0, &DROP);
 		floor_thing(&mut cv, 1, 0, &BEAR);
 
-		cv.draw(&mut app.g, shade::Surface::BACK_BUFFER);
+		cv.draw(&mut self.g);
 
 		// Finish the frame
-		app.g.end();
+		self.g.end();
 	}
 }
 

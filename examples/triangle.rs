@@ -151,29 +151,26 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		app.g.begin();
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		});
 
 		// Draw the triangle
-		app.g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32),
+		self.g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader: app.shader,
+			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: app.vb,
+				buffer: self.vb,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[],
@@ -183,7 +180,7 @@ impl App {
 		});
 
 		// Finish rendering
-		app.g.end();
+		self.g.end();
 	}
 }
 

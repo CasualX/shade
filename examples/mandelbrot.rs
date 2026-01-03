@@ -262,18 +262,16 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let size = self.size;
-
 		// Render the frame
-		self.g.begin();
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		self.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
 			color: Some(Vec4(0.2, 0.5, 0.2, 1.0)),
 			..Default::default()
 		});
 
-		let aspect_ratio = size.width as f32 / size.height as f32;
+		let aspect_ratio = self.size.width as f32 / self.size.height as f32;
 
 		// Compute the transform for the current zoom view
 		let zoom_view = self.stack.current();
@@ -283,8 +281,6 @@ impl App {
 		let uniforms = Uniforms { transform, gradient: self.gradient };
 
 		self.g.draw(&shade::DrawArgs {
-			surface: shade::Surface::BACK_BUFFER,
-			viewport: Bounds2::c(0, 0, size.width as i32, size.height as i32),
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,

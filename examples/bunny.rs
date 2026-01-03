@@ -146,8 +146,6 @@ impl BunnyModel {
 		let uniforms = BunnyUniforms { transform, light_dir };
 
 		g.draw(&shade::DrawArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::DepthTest::Less),
@@ -252,12 +250,12 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		app.g.begin();
+		// Render the frame
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.5, 0.2, 0.2, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
@@ -265,14 +263,12 @@ impl App {
 
 		// Camera setup
 		let camera = {
-			let surface = shade::Surface::BACK_BUFFER;
-			let viewport = Bounds2::c(0, 0, app.size.width as i32, app.size.height as i32);
-			let aspect_ratio = app.size.width as f32 / app.size.height as f32;
-			let position = Vec3(-50.0, -200.0, app.bunny.bounds.height() * 0.5);
+			let aspect_ratio = self.size.width as f32 / self.size.height as f32;
+			let position = Vec3(-50.0, -200.0, self.bunny.bounds.height() * 0.5);
 			let target = Vec3::ZERO;
 			let view = Transform3f::look_at(position, target, Vec3::Z, Hand::RH);
 
-			let blend = (app.start_time.elapsed().as_secs_f32() * 0.5).fract() * 2.0;
+			let blend = (self.start_time.elapsed().as_secs_f32() * 0.5).fract() * 2.0;
 			let blend = if blend > 1.0 { 2.0 - blend } else { blend };
 			let focus_depth = position.distance(target);
 			let fov_y = Angle::deg(45.0);
@@ -282,25 +278,25 @@ impl App {
 
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { surface, viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
+			shade::d3::CameraSetup { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Rotate the bunny
-		app.bunny_rotation *= Transform3::rotate(Vec3::Z, Angle::deg(1.0));
+		self.bunny_rotation *= Transform3::rotate(Vec3::Z, Angle::deg(1.0));
 
 		// Draw the bunny
-		let model = app.bunny_rotation * Transform3::translate(-app.bunny.bounds.center());
+		let model = self.bunny_rotation * Transform3::translate(-self.bunny.bounds.center());
 		let light_dir = Vec3::new(1.0, -1.0, 1.0).norm();
-		app.bunny.draw(&mut app.g, &camera, &BunnyInstance { model, light_dir });
+		self.bunny.draw(&mut self.g, &camera, &BunnyInstance { model, light_dir });
 
 		// Draw the axes gizmo
-		app.axes.draw(&mut app.g, &camera, &shade::d3::axes::AxesInstance {
+		self.axes.draw(&mut self.g, &camera, &shade::d3::axes::AxesInstance {
 			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.32)),
 			depth_test: Some(shade::DepthTest::Less),
 		});
 
 		// Finish the frame
-		app.g.end();
+		self.g.end();
 	}
 }
 

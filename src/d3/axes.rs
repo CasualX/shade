@@ -35,8 +35,6 @@ impl AxesModel {
 		};
 
 		g.draw_indexed(&DrawIndexedArgs {
-			surface: camera.surface,
-			viewport: camera.viewport,
 			scissor: None,
 			blend_mode: BlendMode::Solid,
 			depth_test: instance.depth_test,

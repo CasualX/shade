@@ -195,8 +195,8 @@ impl WebGLGraphics {
 }
 
 impl crate::IGraphics for WebGLGraphics {
-	fn begin(&mut self) {
-		draw::begin(self)
+	fn begin(&mut self, args: &crate::RenderPassArgs) {
+		draw::begin(self, args)
 	}
 
 	fn clear(&mut self, args: &crate::ClearArgs) {

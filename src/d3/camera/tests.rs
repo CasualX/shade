@@ -28,7 +28,6 @@ fn test_camera_setup() {
 	let inv_view_proj = view_proj.inverse();
 
 	let cam = CameraSetup {
-		surface: Surface::INVALID,
 		viewport,
 		aspect_ratio,
 		position,

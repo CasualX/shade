@@ -1,10 +1,27 @@
 use super::*;
 
+/// Arguments for [begin](IGraphics::begin).
+pub enum RenderPassArgs<'a> {
+	/// Begin drawing on a surface.
+	Surface {
+		surface: Surface,
+		viewport: cvmath::Bounds2<i32>,
+	},
+	/// Begin drawing on the back buffer.
+	BackBuffer {
+		viewport: cvmath::Bounds2<i32>,
+	},
+	/// Begin immediate mode drawing.
+	Immediate {
+		color_attachments: &'a [Texture2D],
+		depth_attachment: Texture2D,
+		viewport: cvmath::Bounds2<i32>,
+	},
+}
+
 /// Arguments for [clear](IGraphics::clear).
 #[derive(Default)]
 pub struct ClearArgs {
-	/// Surface to clear.
-	pub surface: Surface,
 	/// Scissor rectangle.
 	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Color to clear with.
@@ -58,10 +75,6 @@ pub struct DrawVertexBuffer {
 
 /// Arguments for [draw](IGraphics::draw).
 pub struct DrawArgs<'a> {
-	/// Surface to draw on.
-	pub surface: Surface,
-	/// Viewport rectangle.
-	pub viewport: cvmath::Bounds2<i32>,
 	/// Scissor rectangle.
 	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Blend mode.
@@ -92,10 +105,6 @@ pub struct DrawArgs<'a> {
 
 /// Arguments for [draw_indexed](IGraphics::draw_indexed).
 pub struct DrawIndexedArgs<'a> {
-	/// Surface to draw on.
-	pub surface: Surface,
-	/// Viewport rectangle.
-	pub viewport: cvmath::Bounds2<i32>,
 	/// Scissor rectangle.
 	pub scissor: Option<cvmath::Bounds2<i32>>,
 	/// Blend mode.
@@ -155,7 +164,7 @@ pub struct DrawMetrics {
 /// See [`Graphics`](struct.Graphics.html) for a type-erased version.
 pub trait IGraphics {
 	/// Begin drawing.
-	fn begin(&mut self);
+	fn begin(&mut self, args: &RenderPassArgs);
 	/// Clear the surface.
 	fn clear(&mut self, args: &ClearArgs);
 	/// Draw primitives.

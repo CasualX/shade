@@ -98,27 +98,20 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let app = self;
-		let size = app.size;
-		let font = &app.font;
-
 		// Render the frame
-		app.g.begin();
+		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
 
 		// Clear the screen
-		app.g.clear(&shade::ClearArgs {
-			surface: shade::Surface::BACK_BUFFER,
+		self.g.clear(&shade::ClearArgs {
 			color: Some(Vec4(0.4, 0.4, 0.7, 1.0)),
 			depth: Some(1.0),
 			..Default::default()
 		});
 
 		let mut cv = d2::TextBuffer::new();
-		cv.viewport = Bounds2::c(0, 0, size.width as i32, size.height as i32);
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.shader = font.shader;
-		cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32));
-		cv.uniform.texture = font.texture;
+		cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, self.size.width as f32, self.size.height as f32));
 		cv.uniform.outline_width_relative = 0.125;
 
 		let mut pos = Vec2(0.0, 0.0);
@@ -131,28 +124,28 @@ impl App {
 		};
 		scribe.set_baseline_relative(0.5);
 
-		cv.text_write(font, &mut scribe, &mut pos, "Hello, \x1b[font_size=96.0]\x1b[font_width_scale=1.5]\x1b[top_skew=0.0]world!");
+		cv.text_write(&self.font, &mut scribe, &mut pos, "Hello, \x1b[font_size=96.0]\x1b[font_width_scale=1.5]\x1b[top_skew=0.0]world!");
 
 		scribe.font_size = 32.0;
 		scribe.line_height = 32.0;
 		scribe.font_width_scale = 1.0;
 		scribe.color = Vec4(255, 255, 0, 255);
 
-		let bounds = Bounds2::c(0.0, 0.0, size.width as f32, size.height as f32);
-		cv.text_box(font, &scribe, &bounds, d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
-		cv.text_box(font, &scribe, &bounds, d2::TextAlign::MiddleLeft, "[\x1b[draw_mask=false]#\x1b[draw_mask=true]] Emptyness\n[#] Fullness");
-		cv.text_box(font, &scribe, &bounds, d2::TextAlign::MiddleRight, "↑↓←→↔↕\n★☆✓✗●○\n▴▾◂▸\n▲▼◀▶\n△▽◁▷\n☐☑☒🗹🗷\n⏰💎🔹⚡⛔🏁");
+		let bounds = Bounds2::c(0.0, 0.0, self.size.width as f32, self.size.height as f32);
+		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
+		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleLeft, "[\x1b[draw_mask=false]#\x1b[draw_mask=true]] Emptyness\n[#] Fullness");
+		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleRight, "↑↓←→↔↕\n★☆✓✗●○\n▴▾◂▸\n▲▼◀▶\n△▽◁▷\n☐☑☒🗹🗷\n⏰💎🔹⚡⛔🏁");
 
 		scribe.top_skew = 8.0;
 		let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";
-		let rainbow_width = scribe.text_width(&mut {Vec2::ZERO}, &font.font, rainbow);
-		let mut pos = Vec2f((size.width as f32 - rainbow_width) * 0.5, size.height as f32 - scribe.font_size);
-		cv.text_write(font, &mut scribe, &mut pos, rainbow);
+		let rainbow_width = scribe.text_width(&mut {Vec2::ZERO}, &self.font.font, rainbow);
+		let mut pos = Vec2f((self.size.width as f32 - rainbow_width) * 0.5, self.size.height as f32 - scribe.font_size);
+		cv.text_write(&self.font, &mut scribe, &mut pos, rainbow);
 
-		cv.draw(&mut app.g, shade::Surface::BACK_BUFFER);
+		cv.draw(&mut self.g);
 
 		// Finish rendering
-		app.g.end();
+		self.g.end();
 	}
 }
 

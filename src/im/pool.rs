@@ -4,7 +4,6 @@ use std::any;
 use super::*;
 
 pub struct SharedState {
-	pub viewport: Bounds2<i32>,
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
 	pub depth_test: Option<DepthTest>,
@@ -19,8 +18,8 @@ struct DrawData {
 trait IDrawBuffer: any::Any {
 	fn clear(&mut self);
 	fn data(&self, g: &mut Graphics) -> DrawData;
-	fn draw(&self, g: &mut Graphics, surface: Surface);
-	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData);
+	fn draw(&self, g: &mut Graphics);
+	fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>, data: &DrawData);
 	fn commands_len(&self) -> usize;
 	fn shared_state(&self) -> SharedState;
 }
@@ -41,23 +40,22 @@ impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
 		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as u16, BufferUsage::Static);
 		DrawData { vertices, indices }
 	}
-	fn draw(&self, g: &mut Graphics, surface: Surface) {
-		draw(self, g, surface)
+	fn draw(&self, g: &mut Graphics) {
+		draw(self, g)
 	}
-	fn draw_range(&self, g: &mut Graphics, surface: Surface, range: ops::Range<usize>, data: &DrawData) {
+	fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>, data: &DrawData) {
 		let batch = DrawBatch {
 			commands: &self.commands[range],
 			vertices: data.vertices,
 			indices: data.indices,
 		};
-		draw_range(self, g, surface, &batch)
+		draw_range(self, g, &batch)
 	}
 	fn commands_len(&self) -> usize {
 		self.commands.len()
 	}
 	fn shared_state(&self) -> SharedState {
 		SharedState {
-			viewport: self.viewport,
 			scissor: self.scissor,
 			blend_mode: self.blend_mode,
 			depth_test: self.depth_test,
@@ -74,7 +72,7 @@ pub struct DrawBatch<'a> {
 }
 
 /// Draws the DrawBuilder.
-fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface) {
+fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics) {
 	let vertices = g.vertex_buffer(None, &this.vertices, BufferUsage::Static);
 	let indices = g.index_buffer(None, &this.indices, this.vertices.len() as u16, BufferUsage::Static);
 	let range = DrawBatch {
@@ -83,18 +81,16 @@ fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, sur
 		indices,
 	};
 
-	draw_range(this, g, surface, &range);
+	draw_range(this, g, &range);
 	g.index_buffer_free(indices, FreeMode::Delete);
 	g.vertex_buffer_free(vertices, FreeMode::Delete);
 }
 
 /// Draws the specified commands from the buffer.
-fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, surface: Surface, batch: &DrawBatch) {
+fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, batch: &DrawBatch) {
 	for cmd in batch.commands {
 		let uniforms = &this.uniforms[cmd.pipeline_state.uniform_index as usize];
 		g.draw_indexed(&DrawIndexedArgs {
-			surface,
-			viewport: cmd.pipeline_state.viewport,
 			scissor: cmd.pipeline_state.scissor,
 			blend_mode: cmd.pipeline_state.blend_mode,
 			depth_test: cmd.pipeline_state.depth_test,
@@ -129,7 +125,7 @@ struct DrawSub {
 /// Use [`get`](Self::get) to obtain a compatible `DrawBuilder<T, U>` for adding geometry.
 /// Buffers are reused when possible to minimize allocations and state changes.
 ///
-/// Note: shared render state (viewport, scissor, blend mode, etc.) is carried over when switching between buffers of different types,
+/// Note: shared render state (scissor, blend mode, etc.) is carried over when switching between buffers of different types,
 /// but shaders and uniforms are not.
 #[derive(Default)]
 pub struct DrawPool {
@@ -160,7 +156,7 @@ impl DrawPool {
 	/// If the most recently used buffer matches the requested vertex and uniform types,
 	/// it is reused to continue adding geometry efficiently.
 	///
-	/// When switching to a different buffer type, shared render state (viewport, scissor, blend mode, etc.)
+	/// When switching to a different buffer type, shared render state (scissor, blend mode, etc.)
 	/// is preserved from the previous buffer to maintain consistency.
 	///
 	/// Note that shader and shader uniforms are *not* carried over and must be set explicitly.
@@ -201,7 +197,6 @@ impl DrawPool {
 
 		// Carry-over shared state if available
 		if let Some(shared_state) = shared_state {
-			buf.viewport = shared_state.viewport;
 			buf.scissor = shared_state.scissor;
 			buf.blend_mode = shared_state.blend_mode;
 			buf.depth_test = shared_state.depth_test;
@@ -217,7 +212,7 @@ impl DrawPool {
 	}
 
 	/// Draws all commands in submission order.
-	pub fn draw(&mut self, g: &mut Graphics, surface: Surface) {
+	pub fn draw(&mut self, g: &mut Graphics) {
 		// Update the last submission range
 		if let Some(last) = self.subs.last_mut() {
 			if let Some(buf) = self.pool.get_mut(&last.id) {
@@ -233,7 +228,7 @@ impl DrawPool {
 		for sub in &self.subs {
 			let buf = self.pool.get(&sub.id).unwrap();
 			let data = data.get(&sub.id).unwrap();
-			buf.draw_range(g, surface, sub.range.clone(), data);
+			buf.draw_range(g, sub.range.clone(), data);
 		}
 
 		// Free the buffers
@@ -246,9 +241,9 @@ impl DrawPool {
 	/// Draws all commands without preserving submission order.
 	///
 	/// This can be more efficient when the scene uses depth buffering and does not require blending.
-	pub fn draw_unordered(&mut self, g: &mut Graphics, surface: Surface) {
+	pub fn draw_unordered(&mut self, g: &mut Graphics) {
 		for buf in self.pool.values() {
-			buf.draw(g, surface);
+			buf.draw(g);
 		}
 	}
 }

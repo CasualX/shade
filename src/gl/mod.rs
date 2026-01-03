@@ -204,8 +204,8 @@ impl GlGraphics {
 }
 
 impl crate::IGraphics for GlGraphics {
-	fn begin(&mut self) {
-		draw::begin(self)
+	fn begin(&mut self, args: &crate::RenderPassArgs) {
+		draw::begin(self, args)
 	}
 
 	fn clear(&mut self, args: &crate::ClearArgs) {
