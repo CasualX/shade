@@ -28,11 +28,11 @@ impl ArcballCamera {
 	/// The distance between `position` and `pivot` must be greater than zero,
 	/// and the view direction must not be aligned with the `ref_up` axis.
 	pub fn new(position: Vec3f, pivot: Vec3f, ref_up: Vec3f) -> ArcballCamera {
-		let offset = position - pivot;
+		let offset = pivot - position;
 		let (forward, radius) = offset.norm_len();
 
 		let yaw_axis = ref_up.norm();
-		let pitch_axis = yaw_axis.cross(forward).norm();
+		let pitch_axis = forward.cross(yaw_axis).norm();
 
 		let yaw = Angle(0.0); // Relative to the pitch axis
 		let pitch = Angle(forward.dot(yaw_axis).asin());

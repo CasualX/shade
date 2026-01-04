@@ -74,3 +74,15 @@ fn test_camera_setup() {
 		}
 	}
 }
+
+#[test]
+fn test_arcball_roundtrips_position() {
+	let position = Vec3::new(0.0, 3.2, 1.8);
+	let pivot = Vec3::ZERO;
+	let ref_up = Vec3::Z;
+
+	let cam = ArcballCamera::new(position, pivot, ref_up);
+	let got = cam.position();
+	let diff = (got - position).len();
+	assert!(diff < 1.0e-4, "ArcballCamera::new should preserve position: got={got:?} expected={position:?} diff={diff}");
+}
