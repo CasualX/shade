@@ -1,4 +1,4 @@
-use std::{mem, slice};
+use std::mem;
 use shade::cvmath::*;
 
 mod api;
@@ -124,11 +124,11 @@ impl shade::UniformVisitor for OldTreeModel {
 	}
 }
 
-static VERTICES_DATA: ([u64; 0], [u8; 306816]) = ([], *include_bytes!("../../../oldtree/vertices.bin"));
+shade::include_bin!(VERTICES_DATA: [Vertex] = "../../../oldtree/vertices.bin");
 
 impl OldTreeModel {
 	fn create(g: &mut shade::Graphics) -> OldTreeModel {
-		let vertices = unsafe { slice::from_raw_parts(VERTICES_DATA.1.as_ptr() as *const Vertex, VERTICES_DATA.1.len() / mem::size_of::<Vertex>()) };
+		let vertices: &[Vertex] = VERTICES_DATA.as_slice();
 
 		let mut mins = Vec3::dup(f32::INFINITY);
 		let mut maxs = Vec3::dup(f32::NEG_INFINITY);

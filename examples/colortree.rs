@@ -1,4 +1,4 @@
-use std::{fs, mem, slice};
+use std::mem;
 use std::ffi::CString;
 use std::num::NonZeroU32;
 
@@ -94,10 +94,11 @@ impl shade::UniformVisitor for ColorTreeModel {
 	}
 }
 
+shade::include_bin!(VERTICES: [Vertex] = "colortree/vertices.bin");
+
 impl ColorTreeModel {
 	fn create(g: &mut shade::Graphics) -> ColorTreeModel {
-		let vertices = fs::read("examples/colortree/vertices.bin").unwrap();
-		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
+		let vertices: &[Vertex] = VERTICES.as_slice();
 		let mut mins = Vec3::dup(f32::INFINITY);
 		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {

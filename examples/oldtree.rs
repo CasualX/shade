@@ -1,4 +1,4 @@
-use std::{fs, mem, slice, time};
+use std::{mem, time};
 use std::ffi::CString;
 use std::num::NonZeroU32;
 
@@ -215,10 +215,11 @@ impl shade::UniformVisitor for OldTreeModel {
 	}
 }
 
+shade::include_bin!(VERTICES: [Vertex] = "oldtree/vertices.bin");
+
 impl OldTreeModel {
 	fn create(g: &mut shade::Graphics) -> OldTreeModel {
-		let vertices = fs::read("examples/oldtree/vertices.bin").unwrap();
-		let vertices = unsafe { slice::from_raw_parts(vertices.as_ptr() as *const Vertex, vertices.len() / mem::size_of::<Vertex>()) };
+		let vertices: &[Vertex] = VERTICES.as_slice();
 		let vertices_len = vertices.len() as u32;
 
 		let mut mins = Vec3::dup(f32::INFINITY);
