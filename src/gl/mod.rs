@@ -232,7 +232,7 @@ impl crate::IGraphics for GlGraphics {
 		self.vbuffers.find_id(name).unwrap_or(crate::VertexBuffer::INVALID)
 	}
 
-	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8]) {
+	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, data: &[u8]) {
 		let Some(buf) = self.vbuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
@@ -264,7 +264,7 @@ impl crate::IGraphics for GlGraphics {
 		self.ibuffers.find_id(name).unwrap_or(crate::IndexBuffer::INVALID)
 	}
 
-	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) {
+	fn index_buffer_write(&mut self, id: crate::IndexBuffer, data: &[u8]) {
 		let Some(buf) = self.ibuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
@@ -329,23 +329,52 @@ impl crate::IGraphics for GlGraphics {
 		self.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
 	}
 
-	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) {
+	fn texture2d_generate_mipmap(&mut self, id: crate::Texture2D) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
+		gl_check!(gl::GenerateMipmap(gl::TEXTURE_2D));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
+	}
+
+	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
+		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		assert!(level < texture.info.levels, "Invalid mip level {}", level);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-		let (bpp, _internal_format, format, type_, align) = match texture.info.format {
-			crate::TextureFormat::RGB8 => (3, gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RGBA8 => (4, gl::RGBA8 as GLint, gl::RGBA, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::R8 => (1, gl::R8 as GLint, gl::RED, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::Depth16 => (2, gl::DEPTH_COMPONENT16 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
-			crate::TextureFormat::Depth24 => (3, gl::DEPTH_COMPONENT24 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 1), // 3 byte alignment not supported
-			crate::TextureFormat::Depth32F => (4, gl::DEPTH_COMPONENT32F as GLint, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
-			crate::TextureFormat::Depth24Stencil8 => (4, gl::DEPTH24_STENCIL8 as GLint, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
+		let (_internal_format, format, type_, align) = match texture.info.format {
+			crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGBA8 => (gl::RGBA8 as GLint, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::R8 => (gl::R8 as GLint, gl::RED, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT16 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
+			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT24 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
+			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT32F as GLint, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
+			crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH24_STENCIL8 as GLint, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
 		};
-		let stride = texture.info.width * bpp;
-		assert_eq!(data.len(), (stride * texture.info.height) as usize, "Data size does not match texture dimensions");
+		let (w, h, expected_size) = texture.info.mip_size(level);
+		assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
 		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, align)); // Force correct byte alignment
-		gl_check!(gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0, 0, texture.info.width, texture.info.height, format, type_, data.as_ptr() as *const _));
+		gl_check!(gl::TexSubImage2D(gl::TEXTURE_2D, level as GLint, 0, 0, w, h, format, type_, data.as_ptr() as *const _));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
+	}
+
+	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
+		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		assert!(level < texture.info.levels, "Invalid mip level {}", level);
+		self.metrics.bytes_downloaded = usize::wrapping_add(self.metrics.bytes_downloaded, data.len());
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
+		let (format, type_, align) = match texture.info.format {
+			crate::TextureFormat::RGB8 => (gl::RGB, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGBA8 => (gl::RGBA, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::R8 => (gl::RED, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
+			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
+			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT, gl::FLOAT, 4),
+			crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
+		};
+		let (_w, _h, expected_size) = texture.info.mip_size(level);
+		assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
+		gl_check!(gl::PixelStorei(gl::PACK_ALIGNMENT, align)); // Force correct byte alignment
+		gl_check!(gl::GetTexImage(gl::TEXTURE_2D, level as GLint, format, type_, data.as_mut_ptr() as *mut _));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 	}
 

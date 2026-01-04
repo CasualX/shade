@@ -77,6 +77,7 @@ extern "C" {
 	pub fn deleteTexture(texture: types::GLuint);
 	pub fn activeTexture(texture: types::GLenum);
 	pub fn bindTexture(target: types::GLenum, texture: types::GLuint);
+	pub fn generateMipmap(target: types::GLenum);
 	pub fn pixelStorei(pname: types::GLenum, param: types::GLint);
 	pub fn texParameteri(target: types::GLenum, pname: types::GLenum, param: types::GLint);
 	pub fn texImage2D(

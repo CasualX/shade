@@ -223,7 +223,7 @@ impl crate::IGraphics for WebGLGraphics {
 		self.vbuffers.find_id(name).unwrap_or(crate::VertexBuffer::INVALID)
 	}
 
-	fn vertex_buffer_set_data(&mut self, id: crate::VertexBuffer, data: &[u8]) {
+	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, data: &[u8]) {
 		let Some(buf) = self.vbuffers.get_mut(id) else { return };
 
 		let size = mem::size_of_val(data);
@@ -255,7 +255,7 @@ impl crate::IGraphics for WebGLGraphics {
 		self.ibuffers.find_id(name).unwrap_or(crate::IndexBuffer::INVALID)
 	}
 
-	fn index_buffer_set_data(&mut self, id: crate::IndexBuffer, data: &[u8]) {
+	fn index_buffer_write(&mut self, id: crate::IndexBuffer, data: &[u8]) {
 		let Some(buf) = self.ibuffers.get_mut(id) else { return };
 		let size = mem::size_of_val(data);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
@@ -303,8 +303,16 @@ impl crate::IGraphics for WebGLGraphics {
 		self.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
 	}
 
-	fn texture2d_set_data(&mut self, id: crate::Texture2D, data: &[u8]) {
+	fn texture2d_generate_mipmap(&mut self, id: crate::Texture2D) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
+		unsafe { api::generateMipmap(api::TEXTURE_2D) };
+		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
+	}
+
+	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
+		let Some(texture) = self.textures.textures2d.get(id) else { return };
+		assert!(level < texture.info.levels, "Invalid mip level {}", level);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
@@ -314,8 +322,12 @@ impl crate::IGraphics for WebGLGraphics {
 			crate::TextureFormat::R8 => api::LUMINANCE,
 			_ => unimplemented!()
 		};
-		unsafe { api::texImage2D(api::TEXTURE_2D, 0, format, texture.info.width, texture.info.height, 0, format, api::UNSIGNED_BYTE, data.as_ptr(), data.len()) };
+		unsafe { api::texImage2D(api::TEXTURE_2D, level as GLint, format, texture.info.width, texture.info.height, 0, format, api::UNSIGNED_BYTE, data.as_ptr(), data.len()) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
+	}
+
+	fn texture2d_read_into(&mut self, _id: crate::Texture2D, _level: u8, _data: &mut [u8]) {
+		unimplemented!()
 	}
 
 	fn texture2d_get_info(&mut self, id: crate::Texture2D) -> crate::Texture2DInfo {

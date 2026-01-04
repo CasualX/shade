@@ -27,6 +27,17 @@ pub struct ClearArgs {
 	pub stencil: Option<u8>,
 }
 
+/// Clear the surface.
+#[macro_export]
+macro_rules! clear {
+	($g:expr $(, $field:ident : $value:expr )* $(,)? ) => {
+		$g.clear(&$crate::ClearArgs {
+			$( $field: Some($value), )*
+			..Default::default()
+		});
+	};
+}
+
 /// Draw mask.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct DrawMask {
@@ -176,7 +187,7 @@ pub trait IGraphics {
 	/// Find a vertex buffer by name.
 	fn vertex_buffer_find(&mut self, name: &str) -> VertexBuffer;
 	/// Set the data of a vertex buffer.
-	fn vertex_buffer_set_data(&mut self, id: VertexBuffer, data: &[u8]);
+	fn vertex_buffer_write(&mut self, id: VertexBuffer, data: &[u8]);
 	/// Release the resources of a vertex buffer.
 	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode);
 
@@ -185,7 +196,7 @@ pub trait IGraphics {
 	/// Find a vertex buffer by name.
 	fn index_buffer_find(&mut self, name: &str) -> IndexBuffer;
 	/// Set the data of a vertex buffer.
-	fn index_buffer_set_data(&mut self, id: IndexBuffer, data: &[u8]);
+	fn index_buffer_write(&mut self, id: IndexBuffer, data: &[u8]);
 	/// Release the resources of a vertex buffer.
 	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode);
 
@@ -200,10 +211,14 @@ pub trait IGraphics {
 	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Texture2D;
 	/// Find a 2D texture by name.
 	fn texture2d_find(&mut self, name: &str) -> Texture2D;
-	/// Set the data of a 2D texture.
-	fn texture2d_set_data(&mut self, id: Texture2D, data: &[u8]);
 	/// Get the info of a 2D texture.
 	fn texture2d_get_info(&mut self, id: Texture2D) -> Texture2DInfo;
+	/// Generate mipmap for a 2D texture.
+	fn texture2d_generate_mipmap(&mut self, id: Texture2D);
+	/// Set the data of a 2D texture.
+	fn texture2d_write(&mut self, id: Texture2D, level: u8, data: &[u8]);
+	/// Read the data of a 2D texture into a buffer.
+	fn texture2d_read_into(&mut self, id: Texture2D, level: u8, data: &mut [u8]);
 	/// Release the resources of a 2D texture.
 	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
 }
@@ -245,7 +260,8 @@ impl Graphics {
 		let info = image.info();
 		let data = image.data();
 		let tex = self.texture2d_create(name, &info);
-		self.texture2d_set_data(tex, data);
+		self.texture2d_write(tex, 0, data);
+		self.texture2d_generate_mipmap(tex);
 		return tex;
 	}
 	/// Create an animated texture from an animated image.
@@ -268,21 +284,38 @@ impl Graphics {
 	#[inline]
 	pub fn texture2d(&mut self, name: Option<&str>, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
 		let texture = self.texture2d_create(name, info);
-		self.texture2d_set_data(texture, data);
+		self.texture2d_write(texture, 0, data);
+		self.texture2d_generate_mipmap(texture);
 		return texture;
+	}
+	/// Read the data of a 2D texture into an image.
+	pub fn texture2d_read<T: dataview::Pod>(&mut self, id: Texture2D, level: u8) -> image::Image<T> {
+		let info = self.texture2d_get_info(id);
+		let (mip_width, mip_height, byte_size) = info.mip_size(level);
+		assert!(byte_size % mem::size_of::<T>() == 0, "Texture2D level={level} byte_size={byte_size} is not a multiple of {}", mem::size_of::<T>());
+		let nelements = byte_size / mem::size_of::<T>();
+		let mut vec = Vec::with_capacity(nelements);
+		let data = unsafe { slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, byte_size) };
+		self.texture2d_read_into(id, level, data);
+		unsafe { vec.set_len(nelements) };
+		return image::Image {
+			width: mip_width,
+			height: mip_height,
+			data: vec,
+		};
 	}
 	/// Create and assign data to a vertex buffer.
 	#[inline]
 	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> VertexBuffer {
 		let this = &mut self.inner;
 		let id = this.vertex_buffer_create(name, mem::size_of_val(data), T::LAYOUT, usage);
-		this.vertex_buffer_set_data(id, dataview::bytes(data));
+		this.vertex_buffer_write(id, dataview::bytes(data));
 		return id;
 	}
 	/// Set the data of a vertex buffer.
 	#[inline]
-	pub fn buffer_set_data<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) {
-		self.inner.vertex_buffer_set_data(id, dataview::bytes(data))
+	pub fn vertex_buffer_write<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) {
+		self.inner.vertex_buffer_write(id, dataview::bytes(data))
 	}
 	/// Create and assign data to an index buffer.
 	#[inline]
@@ -297,23 +330,12 @@ impl Graphics {
 		}
 		let this = &mut self.inner;
 		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage);
-		this.index_buffer_set_data(id, dataview::bytes(data));
+		this.index_buffer_write(id, dataview::bytes(data));
 		return id;
 	}
 	/// Set the data of an index buffer.
 	#[inline]
-	pub fn index_buffer_set_data<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) {
-		self.inner.index_buffer_set_data(id, dataview::bytes(data))
+	pub fn index_buffer_write<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) {
+		self.inner.index_buffer_write(id, dataview::bytes(data))
 	}
-}
-
-/// Clear the surface.
-#[macro_export]
-macro_rules! clear {
-	($g:expr $(, $field:ident : $value:expr )* $(,)? ) => {
-		$g.clear(&$crate::ClearArgs {
-			$( $field: Some($value), )*
-			..Default::default()
-		});
-	};
 }

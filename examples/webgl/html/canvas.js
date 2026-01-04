@@ -242,6 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
 					},
 					activeTexture(texture) { gl.activeTexture(texture); },
 					bindTexture(target, texture) { gl.bindTexture(target, handles.get(texture)); },
+					generateMipmap(target) { gl.generateMipmap(target); },
 					pixelStorei(pname, param) { gl.pixelStorei(pname, param); },
 					texParameteri(target, pname, param) { gl.texParameteri(target, pname, param); },
 					texImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr, pixels_len) {

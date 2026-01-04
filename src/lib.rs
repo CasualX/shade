@@ -1,4 +1,4 @@
-use std::{mem, ops, time};
+use std::{mem, ops, slice, time};
 
 /// Re-export of compatible `cvmath` crate.
 pub use cvmath;

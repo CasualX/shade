@@ -16,6 +16,22 @@ pub enum TextureFormat {
 	Depth24Stencil8,
 }
 
+impl TextureFormat {
+	/// Returns the number of bytes per pixel for the format.
+	#[inline]
+	pub const fn bytes_per_pixel(self) -> usize {
+		match self {
+			TextureFormat::RGBA8 => 4,
+			TextureFormat::RGB8 => 3,
+			TextureFormat::R8 => 1,
+			TextureFormat::Depth16 => 2,
+			TextureFormat::Depth24 => 4, // Although the internal format is 24-bit, write/readback uses 32-bit values
+			TextureFormat::Depth32F => 4,
+			TextureFormat::Depth24Stencil8 => 4,
+		}
+	}
+}
+
 /// Texture wrap mode.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 pub enum TextureWrap {
@@ -97,6 +113,22 @@ pub struct Texture2DInfo {
 	pub width: i32,
 	pub height: i32,
 	pub props: TextureProps,
+}
+
+#[inline]
+const fn mip_size(dim: i32, level: u8) -> i32 {
+	let v = dim >> level;
+	if v == 0 { 1 } else { v }
+}
+
+impl Texture2DInfo {
+	/// Returns the (width, height, byte_size) of the specified mip level.
+	#[inline]
+	pub const fn mip_size(&self, level: u8) -> (i32, i32, usize) {
+		let w = mip_size(self.width, level);
+		let h = mip_size(self.height, level);
+		(w as i32, h as i32, w as usize * h as usize * self.format.bytes_per_pixel())
+	}
 }
 
 /// Animated Texture2D structure.
