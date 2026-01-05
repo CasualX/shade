@@ -61,37 +61,37 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 
 	let mut nattribs = 0;
 	gl_check!(gl::GetProgramiv(program, gl::ACTIVE_ATTRIBUTES, &mut nattribs));
-	let mut attribs = Vec::new();
+	let mut attribs = HashMap::new();
 	for i in 0..nattribs {
 		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
 		gl_check!(gl::GetActiveAttrib(program, i as u32, namebuf.len() as GLsizei, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr() as *mut GLchar));
-		assert!((namelen as usize) < namebuf.len(), "Attribute name too long: {}", String::from_utf8_lossy(&namebuf));
+		let name = str::from_utf8(&namebuf[..namelen as usize]).unwrap();
+		assert!((namelen as usize) < namebuf.len(), "Attribute name too long: {}", name);
 
 		let location = gl_check!(gl::GetAttribLocation(program, namebuf.as_ptr() as *const _));
 		assert!(location >= 0, "Attribute not found?!: {}", String::from_utf8_lossy(&namebuf));
 
 		let location = location as u32;
-		let namelen = namelen as u8;
-		attribs.push(GlActiveAttrib { location, size, ty, namelen, namebuf });
+		attribs.insert(name.into(), GlActiveAttrib { location, size, ty });
 		// println!("Attribute: {} (location: {})", shader.attribs.last().unwrap().name(), location);
 	}
 
 	let mut nuniforms = 0;
 	gl_check!(gl::GetProgramiv(program, gl::ACTIVE_UNIFORMS, &mut nuniforms));
-	let mut uniforms = Vec::new();
+	let mut uniforms = HashMap::new();
 	let mut texture_slot = -1;
 	for i in 0..nuniforms {
 		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
 		gl_check!(gl::GetActiveUniform(program, i as u32, namebuf.len() as GLsizei, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr() as *mut GLchar));
-		assert!((namelen as usize) < namebuf.len(), "Uniform name too long: {}", String::from_utf8_lossy(&namebuf));
+		let name = str::from_utf8(&namebuf[..namelen as usize]).unwrap();
+		assert!((namelen as usize) < namebuf.len(), "Uniform name too long: {}", name);
 
 		let location = gl_check!(gl::GetUniformLocation(program, namebuf.as_ptr() as *const _));
 		assert!(location >= 0, "Uniform not found?!: {}", String::from_utf8_lossy(&namebuf));
 
 		let needs_texture_unit = matches!(ty, gl::SAMPLER_2D | gl::SAMPLER_2D_ARRAY | gl::SAMPLER_1D | gl::SAMPLER_1D_ARRAY | gl::SAMPLER_CUBE | gl::SAMPLER_3D);
 		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
-		let namelen = namelen as u8;
-		uniforms.push(GlActiveUniform { location, size, ty, texture_unit, namelen, namebuf });
+		uniforms.insert(name.into(), GlActiveUniform { location, size, ty, texture_unit });
 		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 

@@ -17,6 +17,7 @@ mod surface;
 mod uniform;
 mod shader;
 mod resources;
+mod sstring;
 
 pub use self::common::*;
 pub use self::graphics::*;

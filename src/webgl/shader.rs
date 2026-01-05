@@ -43,33 +43,33 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 	}
 
 	let nattribs = unsafe { api::getProgramParameter(program, api::ACTIVE_ATTRIBUTES) };
-	let mut attribs = Vec::new();
+	let mut attribs = HashMap::new();
 	for i in 0..nattribs {
-		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 63], 0, 0, 0);
+		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
 		unsafe { api::getActiveAttrib(program, i as u32, namebuf.len() as i32 - 1, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr()) };
+		let name = str::from_utf8(&namebuf[..namelen as usize]).unwrap();
 
-		let location = unsafe { api::getAttribLocation(program, namebuf.as_ptr(), namelen as usize) };
-		debug_assert!(location >= 0, "Invalid attribute location: {}", String::from_utf8_lossy(&namebuf[..namelen as usize]));
+		let location = unsafe { api::getAttribLocation(program, name.as_ptr(), name.len()) };
+		debug_assert!(location >= 0, "Invalid attribute location: {}", name);
 		let location = location as GLuint;
-		let namelen = namelen as u8;
-		attribs.push(WebGLActiveAttrib { location, size, ty, namelen, namebuf });
+		attribs.insert(name.into(), WebGLActiveAttrib { location, size, ty });
 	}
 
 	let nuniforms = unsafe { api::getProgramParameter(program, api::ACTIVE_UNIFORMS) };
-	let mut uniforms = Vec::new();
+	let mut uniforms = HashMap::new();
 	let mut texture_slot = -1;
 	for i in 0..nuniforms {
-		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 66], 0, 0, 0);
+		let (mut namebuf, mut namelen, mut size, mut ty) = ([0; 64], 0, 0, 0);
 		unsafe { api::getActiveUniform(program, i as u32, namebuf.len() as i32 - 1, &mut namelen, &mut size, &mut ty, namebuf.as_mut_ptr()) };
+		let name = str::from_utf8(&namebuf[..namelen as usize]).unwrap();
 
-		let location = unsafe { api::getUniformLocation(program, namebuf.as_ptr(), namelen as usize) };
-		assert!(location >= 0, "Invalid uniform location: {}", String::from_utf8_lossy(&namebuf[..namelen as usize]));
+		let location = unsafe { api::getUniformLocation(program, name.as_ptr(), name.len()) };
+		assert!(location >= 0, "Invalid uniform location: {}", name);
 
 		let location = location as GLuint;
 		let needs_texture_unit = matches!(ty, api::SAMPLER_2D | api::SAMPLER_CUBE);
 		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
-		let namelen = namelen as u8;
-		uniforms.push(WebGLActiveUniform { location, size, ty, texture_unit, namelen, namebuf });
+		uniforms.insert(name.into(), WebGLActiveUniform { location, size, ty, texture_unit });
 	}
 
 	return this.shaders.insert(name, WebGLProgram { program, attribs, uniforms });

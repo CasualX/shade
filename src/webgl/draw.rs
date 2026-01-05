@@ -111,7 +111,7 @@ fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &
 
 		let layout = buf.layout;
 		for attr in layout.attributes {
-			let Some(attrib) = shader.get_attrib(attr.name) else { continue };
+			let Some(attrib) = shader.attribs.get(attr.name) else { continue };
 			enabled_attribs |= 1 << attrib.location;
 			unsafe { api::enableVertexAttribArray(attrib.location) };
 
@@ -134,8 +134,8 @@ fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &
 
 	// Assert that all attributes are bound
 	#[cfg(debug_assertions)]
-	for attr in &shader.attribs {
-		assert!(enabled_attribs & (1 << attr.location) != 0, "Attribute {} not bound in shader {}", attr.name(), shader.program);
+	for (name, attr) in &shader.attribs {
+		assert!(enabled_attribs & (1 << attr.location) != 0, "Attribute {} not bound in shader {}", name, shader.program);
 	}
 	return enabled_attribs;
 }
@@ -154,55 +154,55 @@ struct WebGLUniformSetter<'a> {
 }
 impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn float(&mut self, name: &str, data: &[f32]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT, "Uniform {name:?} expected `float` type in shader");
 			unsafe { api::uniform1fv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
 	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
 			unsafe { api::uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 2]) };
 		}
 	}
 	fn vec3(&mut self, name: &str, data: &[cvmath::Vec3<f32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
 			unsafe { api::uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 3]) };
 		}
 	}
 	fn vec4(&mut self, name: &str, data: &[cvmath::Vec4<f32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
 			unsafe { api::uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 4]) };
 		}
 	}
 	fn int(&mut self, name: &str, data: &[i32]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT, "Uniform {name:?} expected `int` type in shader");
 			unsafe { api::uniform1iv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
 	fn ivec2(&mut self, name: &str, data: &[cvmath::Vec2<i32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
 			unsafe { api::uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 2]) };
 		}
 	}
 	fn ivec3(&mut self, name: &str, data: &[cvmath::Vec3<i32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
 			unsafe { api::uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 3]) };
 		}
 	}
 	fn ivec4(&mut self, name: &str, data: &[cvmath::Vec4<i32>]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
 			unsafe { api::uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 4]) };
 		}
 	}
 	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT2, "Uniform {name:?} expected `mat2` type in shader");
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
@@ -211,7 +211,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		}
 	}
 	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
@@ -220,7 +220,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		}
 	}
 	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
@@ -229,7 +229,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		}
 	}
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.mat3().into_column_major();
@@ -238,7 +238,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		}
 	}
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.mat4().into_column_major();
@@ -247,7 +247,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 		}
 	}
 	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
-		if let Some(u) = self.shader.get_uniform(name) {
+		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::SAMPLER_2D, "Uniform {name:?} expected `sampler2D` type in shader");
 
 			const MAX_TEXTURES: usize = 32;

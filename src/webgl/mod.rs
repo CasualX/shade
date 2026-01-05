@@ -2,6 +2,7 @@
 
 use std::{fmt, mem, slice};
 use std::any::type_name_of_val as name_of;
+use std::collections::HashMap;
 
 mod api;
 mod draw;
@@ -11,6 +12,8 @@ pub mod shaders;
 
 use crate::resources::{Resource, ResourceMap};
 use api::types::*;
+
+type NameBuf = crate::sstring::SmallString<64>;
 
 pub fn log(s: impl fmt::Display) {
 	let s = s.to_string();
@@ -57,16 +60,6 @@ struct WebGLActiveAttrib {
 	location: GLuint,
 	size: GLint,
 	ty: GLenum,
-	namelen: u8,
-	namebuf: [u8; 63],
-}
-impl WebGLActiveAttrib {
-	fn name(&self) -> &str {
-		#[cfg(not(debug_assertions))]
-		return unsafe { str::from_utf8_unchecked(self.namebuf.get_unchecked(..self.namelen as usize)) };
-		#[cfg(debug_assertions)]
-		return str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err");
-	}
 }
 
 #[allow(dead_code)]
@@ -75,32 +68,14 @@ struct WebGLActiveUniform {
 	size: GLint,
 	ty: GLenum,
 	texture_unit: i8, // -1 if not a texture
-	namelen: u8,
-	namebuf: [u8; 66],
-}
-impl WebGLActiveUniform {
-	fn name(&self) -> &str {
-		#[cfg(not(debug_assertions))]
-		return unsafe { str::from_utf8_unchecked(self.namebuf.get_unchecked(..self.namelen as usize)) };
-		#[cfg(debug_assertions)]
-		return str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err");
-	}
 }
 
 struct WebGLProgram {
 	program: GLuint,
 	// compile_log: String, // Displayed in JS console
 
-	attribs: Vec<WebGLActiveAttrib>,
-	uniforms: Vec<WebGLActiveUniform>,
-}
-impl WebGLProgram {
-	fn get_attrib(&self, name: &str) -> Option<&WebGLActiveAttrib> {
-		self.attribs.iter().find(|a| a.name() == name)
-	}
-	fn get_uniform(&self, name: &str) -> Option<&WebGLActiveUniform> {
-		self.uniforms.iter().find(|u| u.name() == name)
-	}
+	attribs: HashMap<NameBuf, WebGLActiveAttrib>,
+	uniforms: HashMap<NameBuf, WebGLActiveUniform>,
 }
 impl Resource for WebGLProgram {
 	type Handle = crate::Shader;

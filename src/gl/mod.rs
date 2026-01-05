@@ -4,12 +4,15 @@ OpenGL graphics backend.
 
 use std::{mem, ops, ptr, slice, time};
 use std::any::type_name_of_val as name_of;
+use std::collections::HashMap;
 
 /// Re-exported OpenGL bindings.
 pub use gl as capi;
 use gl::types::*;
 
 use crate::resources::{Resource, ResourceMap};
+
+type NameBuf = crate::sstring::SmallString<64>;
 
 #[cfg(debug_assertions)]
 macro_rules! gl_check {
@@ -70,47 +73,25 @@ impl Resource for GlIndexBuffer {
 #[allow(dead_code)]
 struct GlActiveAttrib {
 	location: u32,
-	namelen: u8,
-	namebuf: [u8; 64],
 	size: GLint,
 	ty: GLenum,
-}
-impl GlActiveAttrib {
-	fn name(&self) -> &str {
-		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
-	}
 }
 
 #[allow(dead_code)]
 struct GlActiveUniform {
 	location: GLint,
-	namelen: u8,
-	namebuf: [u8; 64],
 	size: GLint,
 	ty: GLenum,
 	texture_unit: i8, // Texture unit, -1 if not a sampler
 }
-impl GlActiveUniform {
-	fn name(&self) -> &str {
-		str::from_utf8(&self.namebuf[..self.namelen as usize]).unwrap_or("err")
-	}
-}
 
 struct GlShader {
 	program: GLuint,
-	attribs: Vec<GlActiveAttrib>,
-	uniforms: Vec<GlActiveUniform>,
+	attribs: HashMap<NameBuf, GlActiveAttrib>,
+	uniforms: HashMap<NameBuf, GlActiveUniform>,
 }
 impl Resource for GlShader {
 	type Handle = crate::Shader;
-}
-impl GlShader {
-	fn get_attrib(&self, name: &str) -> Option<&GlActiveAttrib> {
-		self.attribs.iter().find(|a| a.name() == name)
-	}
-	fn get_uniform(&self, name: &str) -> Option<&GlActiveUniform> {
-		self.uniforms.iter().find(|u| u.name() == name)
-	}
 }
 
 struct GlTexture2D {
