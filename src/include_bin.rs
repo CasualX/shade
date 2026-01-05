@@ -2,7 +2,7 @@
 /// Macro to include binary files at compile time.
 ///
 /// ```
-/// shade::include_bin!(pub DATA: [u16] = "macros.rs");
+/// shade::include_bin!(pub DATA: [u16] = "include_bin.rs");
 /// ```
 #[macro_export]
 macro_rules! include_bin {

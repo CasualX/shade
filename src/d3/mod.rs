@@ -3,9 +3,6 @@
 use super::*;
 use cvmath::*;
 
-#[macro_use]
-mod macros;
-
 mod camera;
 pub use self::camera::*;
 
