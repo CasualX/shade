@@ -22,7 +22,7 @@ keywords = ["gfx", "shader", "opengl", "2d"]
 categories = ["rendering", "graphics", "game-development", "gui"]
 
 [features]
-default = ["gl", "png", "gif", "msdfgen"]
+default = ["gl", "png", "gif", "jpeg", "msdfgen"]
 webgl = []
 msdfgen = ["serde"]
 jpeg = ["dep:zune-jpeg"]

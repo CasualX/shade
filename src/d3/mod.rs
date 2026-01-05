@@ -19,3 +19,4 @@ pub mod submesh;
 
 pub mod axes;
 pub mod frustum;
+pub mod icosahedron;
