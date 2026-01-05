@@ -30,15 +30,15 @@ fn load_file(path: &path::Path) -> Result<AnimatedImage, LoadImageError> {
 fn load_memory(data: &[u8]) -> Result<AnimatedImage, LoadImageError> {
 	#![allow(unused_variables)]
 	#[cfg(feature = "png")]
-	if data.starts_with(b"\x89PNG\r\n\x1a\n") {
+	if data.starts_with(io::png::PNG_SIGNATURE) {
 		return AnimatedImage::load_memory_png(data).map_err(Into::into);
 	}
 	#[cfg(feature = "gif")]
-	if data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a") {
+	if data.starts_with(io::gif::GIF_SIGNATURE_87A) || data.starts_with(io::gif::GIF_SIGNATURE_89A) {
 		return AnimatedImage::load_memory_gif(data).map_err(Into::into);
 	}
 	#[cfg(feature = "jpeg")]
-	if data.starts_with(b"\xFF\xD8\xFF") {
+	if data.starts_with(io::jpeg::JPEG_SIGNATURE) {
 		return AnimatedImage::load_memory_jpeg(data).map_err(Into::into);
 	}
 	Err(LoadImageError::UnsupportedFormat)

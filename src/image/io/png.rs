@@ -2,6 +2,8 @@ use std::{fs, io, mem, path};
 
 use super::{AnimatedImage, DecodedImage, Image};
 
+pub const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+
 //----------------------------------------------------------------
 // Loading PNG files
 

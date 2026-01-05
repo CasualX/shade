@@ -5,6 +5,8 @@ use super::{AnimatedImage, DecodedImage, Image};
 use zune_jpeg::{errors::DecodeErrors, JpegDecoder, ImageInfo};
 use zune_jpeg::zune_core::bytestream::{ZByteIoError, ZCursor};
 
+pub const JPEG_SIGNATURE: &[u8] = b"\xFF\xD8\xFF";
+
 //----------------------------------------------------------------
 // Loading JPEG files
 

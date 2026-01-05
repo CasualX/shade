@@ -2,6 +2,9 @@ use std::{fs, io, path};
 
 use super::{AnimatedImage, DecodedImage, Image};
 
+pub const GIF_SIGNATURE_87A: &[u8] = b"GIF87a";
+pub const GIF_SIGNATURE_89A: &[u8] = b"GIF89a";
+
 //----------------------------------------------------------------
 // Animated GIF loading
 
