@@ -77,9 +77,13 @@ void main()
 
 const POST_PROCESS_FS: &str = r#"\
 #version 330 core
+
 out vec4 o_fragColor;
+
 in vec2 v_uv;
+
 uniform sampler2D u_texture;
+
 void main() {
 	o_fragColor = texture(u_texture, v_uv);
 }
@@ -163,7 +167,7 @@ impl BunnyModel {
 		BunnyModel { shader, vertices, vertices_len, bounds }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &BunnyInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &BunnyInstance) {
 		let transform = camera.view_proj * instance.model;
 		let light_dir = instance.light_dir;
 		let uniforms = BunnyUniforms { transform, light_dir };
@@ -326,7 +330,7 @@ impl App {
 
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
+			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Rotate the bunny

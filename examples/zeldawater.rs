@@ -33,7 +33,8 @@ unsafe impl shade::TVertex for Vertex {
 
 const FRAGMENT_SHADER: &str = r#"
 #version 330 core
-out vec4 FragColor;
+
+out vec4 o_fragColor;
 
 in vec2 v_uv;
 
@@ -65,12 +66,13 @@ void main()
 	// Composite: shadow appears under water
 	vec3 finalColor = mainColor - shadowColor * 0.5;
 
-	FragColor = vec4(finalColor, 1.0);
+	o_fragColor = vec4(finalColor, 1.0);
 }
 "#;
 
 const VERTEX_SHADER: &str = r#"
 #version 330 core
+
 in vec2 a_pos;
 in vec2 a_uv;
 

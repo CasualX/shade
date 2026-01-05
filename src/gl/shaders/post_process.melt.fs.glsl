@@ -1,12 +1,12 @@
 #version 330 core
 
+out vec4 o_fragColor;
+
 in vec2 v_uv;
 
 uniform sampler2D u_scene;
 uniform sampler2D u_delays; // 1D delay texture stored as 1×N or N×1
 uniform float u_time;
-
-layout(location = 0) out vec4 fragColor;
 
 void main()
 {
@@ -23,5 +23,5 @@ void main()
 		discard;
 	}
 
-	fragColor = texture(u_scene, uv);
+	o_fragColor = texture(u_scene, uv);
 }

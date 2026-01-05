@@ -7,7 +7,8 @@ use shade::cvmath::*;
 
 const FRAGMENT_SHADER: &str = r#"
 #version 330
-out vec4 o_fragcolor;
+
+out vec4 o_fragColor;
 
 in vec2 v_pos;
 
@@ -15,18 +16,18 @@ uniform sampler2D u_gradient;
 
 float mandelbrot(vec2 c)
 {
-	const int max_iter = 100;
+	const int maxIter = 100;
 	vec2 z = vec2(0.0);
 	int iter = 0;
 
-	for (; iter < max_iter; ++iter) {
+	for (; iter < maxIter; ++iter) {
 		if (dot(z, z) > 4.0) break;
 		z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
 	}
 
-	return float(iter) / float(max_iter);
+	return float(iter) / float(maxIter);
 
-	// if (iter == max_iter) {
+	// if (iter == maxIter) {
 	// 	// Inside the set
 	// 	return 1.0;
 	// }
@@ -45,12 +46,13 @@ float mandelbrot(vec2 c)
 void main()
 {
 	float s = mandelbrot(v_pos);
-	o_fragcolor = texture(u_gradient, vec2(s, 0.0));
+	o_fragColor = texture(u_gradient, vec2(s, 0.0));
 }
 "#;
 
 const VERTEX_SHADER: &str = r#"
 #version 330 core
+
 in vec2 a_pos;
 
 out vec2 v_pos;

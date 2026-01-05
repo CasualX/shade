@@ -28,7 +28,7 @@ unsafe impl shade::TVertex for Vertex {
 const FRAGMENT_SHADER: &str = r#"\
 #version 330 core
 
-out vec4 FragColor;
+out vec4 o_fragColor;
 
 in vec3 v_normal;
 in vec4 v_color;
@@ -39,7 +39,7 @@ uniform vec3 u_lightPos;
 void main() {
 	vec3 lightDir = normalize(u_lightPos - v_fragPos);
 	float diff = max(dot(v_normal, lightDir), 0.0);
-	FragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diff * 0.5) * v_color;
+	o_fragColor = vec4(1.0, 1.0, 1.0, 1.0) * (0.2 + diff * 0.5) * v_color;
 }
 "#;
 
@@ -116,7 +116,7 @@ impl ColorTreeModel {
 
 		ColorTreeModel { shader, vertices, vertices_len, bounds }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ColorTreeInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &ColorTreeInstance) {
 		let transform = camera.view_proj * instance.model;
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -168,7 +168,7 @@ impl Scene {
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		let light_pos = Vec3f::new(10000.0, 10000.0, 10000.0);

@@ -7,14 +7,13 @@ attribute vec2 a_uv;
 attribute vec4 a_color1;
 
 uniform mat3 u_transform;
-uniform vec4 u_colormod;
-uniform vec4 u_color_add;
+uniform vec4 u_colorModulation;
 
 varying vec4 v_color;
 varying vec2 v_uv;
 
 void main() {
-	v_color = a_color * u_colormod + u_color_add;
+	v_color = a_color1 * u_colorModulation;
 	v_uv = a_uv;
 
 	vec3 pos = u_transform * vec3(a_pos, 1.0);

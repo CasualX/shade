@@ -35,7 +35,7 @@ in vec2 v_uv;
 in vec3 v_fragPos;
 
 uniform sampler2D u_diffuse;
-uniform vec3 u_position;
+uniform vec3 u_cameraPosition;
 uniform vec3 u_lightPos;
 
 void main() {
@@ -56,7 +56,7 @@ void main() {
 	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 
-	vec3 viewDir = normalize(u_position - v_fragPos);
+	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
 	float rim = 1.0 - max(dot(viewDir, norm), 0.0);
 	rim = smoothstep(0.5, 0.6, rim);
 	finalColor += vec3(1.0, 0.8, 0.5) * rim * 0.2;  // warm rim glow
@@ -80,7 +80,7 @@ out vec2 v_uv;
 
 uniform mat4x3 u_model;
 
-uniform mat4 u_view_proj;
+uniform mat4 u_viewProjMatrix;
 
 void main()
 {
@@ -94,13 +94,14 @@ void main()
 	v_uv = a_uv;
 
 	// Final position for rasterization
-	gl_Position = u_view_proj * vec4(v_fragPos, 1.0);
+	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
 }
 "#;
 
 
 const PARALLAX_SHADER: &str = r#"
 #version 330 core
+
 out vec4 o_fragColor;
 
 in vec2 v_uv;
@@ -110,7 +111,7 @@ in vec3 v_fragPos;
 uniform sampler2D u_diffuse;
 uniform sampler2D u_normalMap;
 uniform sampler2D u_heightMap;
-uniform vec3 u_position;
+uniform vec3 u_cameraPosition;
 uniform vec3 u_lightPos;
 
 uniform float u_heightScale;
@@ -156,7 +157,7 @@ vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent) {
 void main() {
 	// Compute TBN matrix
 	mat3 TBN = computeTBN(normalize(v_normal), v_fragPos, v_uv);
-	vec3 viewDir = normalize(u_position - v_fragPos);
+	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
 	vec3 viewDirTangent = TBN * viewDir;
 
 	// Perform Parallax Occlusion Mapping
@@ -242,7 +243,7 @@ impl OldTreeModel {
 
 		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &OldTreeInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &OldTreeInstance) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -340,7 +341,7 @@ impl ParallaxModel {
 		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
 		ParallaxModel { shader, diffuse, normal_map, height_map, height_scale: 0.04 }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &ParallaxInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &ParallaxInstance) {
 		let vertices = [
 			Vertex { position: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
 			Vertex { position: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
@@ -447,7 +448,7 @@ impl Scene {
 			let view_proj = projection * view;
 			frustum_view_proj = projection * self.view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		let radius = 5000.0;
@@ -460,7 +461,7 @@ impl Scene {
 
 		// Draw the models
 		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: Transform3f::IDENTITY,
+			model: Transform3f::translate(Vec3(0.0, 0.0, -0.125/4.0)),
 			light_pos,
 		});
 

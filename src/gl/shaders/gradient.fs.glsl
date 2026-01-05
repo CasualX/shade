@@ -1,5 +1,7 @@
 #version 330 core
 
+out vec4 o_fragColor;
+
 const float PI = 3.14159265358979323846;
 const float TAU = PI + PI;
 
@@ -10,8 +12,6 @@ in vec2 v_uv;
 #ifdef SOURCE_TEXTURE
 uniform sampler2D u_texture;
 #endif
-
-out vec4 FragColor;
 
 // -- Compute Gradient Distance -----------------------------------
 float compute_distance(vec2 uv) {
@@ -62,5 +62,5 @@ vec4 get_gradient_color(float s) {
 void main() {
 	float d = compute_distance(v_uv);
 	float s = apply_repeat(d);
-	FragColor = get_gradient_color(s);
+	o_fragColor = get_gradient_color(s);
 }

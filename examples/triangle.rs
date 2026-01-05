@@ -37,9 +37,9 @@ unsafe impl shade::TVertex for TriangleVertex {
 const FRAGMENT_SHADER: &str = r#"
 #version 330 core
 
-in vec4 v_color;
-
 out vec4 o_fragColor;
+
+in vec4 v_color;
 
 void main()
 {

@@ -14,8 +14,7 @@ varying vec2 v_pos;
 // Uniforms
 uniform mat3 u_transform;
 uniform mat3 u_pattern;
-uniform vec4 u_colormod;
-uniform vec4 u_color_add;
+uniform vec4 u_colorModulation;
 
 void main() {
 	vec3 pos = u_transform * vec3(a_pos, 1.0);
@@ -25,6 +24,6 @@ void main() {
 
 	v_uv = uv.xy;
 	v_pos = pos.xy;
-	v_color1 = a_color1 * u_colormod + u_color_add;
-	v_color2 = a_color2 * u_colormod + u_color_add;
+	v_color1 = a_color1 * u_colorModulation;
+	v_color2 = a_color2 * u_colorModulation;
 }

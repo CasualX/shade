@@ -87,11 +87,11 @@ impl UniformVisitor for TextUniform {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
 		set.value("u_texture", &self.texture);
-		set.value("u_unit_range", &self.unit_range);
+		set.value("u_unitRange", &self.unit_range);
 		set.value("u_threshold", &self.threshold);
-		set.value("u_out_bias", &self.out_bias);
-		set.value("u_outline_width_absolute", &self.outline_width_absolute);
-		set.value("u_outline_width_relative", &self.outline_width_relative);
+		set.value("u_outBias", &self.out_bias);
+		set.value("u_outlineWidthAbsolute", &self.outline_width_absolute);
+		set.value("u_outlineWidthRelative", &self.outline_width_relative);
 		set.value("u_gamma", &self.gamma);
 	}
 }

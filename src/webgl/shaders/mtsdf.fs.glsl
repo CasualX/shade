@@ -8,12 +8,12 @@ varying vec4 v_color;
 varying vec4 v_outline;
 
 uniform sampler2D u_texture;
-uniform vec2 u_unit_range;
+uniform vec2 u_unitRange;
 uniform float u_width;
 uniform float u_threshold;
-uniform float u_out_bias;
-uniform float u_outline_width_absolute;
-uniform float u_outline_width_relative;
+uniform float u_outBias;
+uniform float u_outlineWidthAbsolute;
+uniform float u_outlineWidthRelative;
 uniform float u_gamma;
 
 float median(vec3 distances) {
@@ -22,7 +22,7 @@ float median(vec3 distances) {
 
 float screen_px_range() {
 	vec2 screenTexSize = vec2(1.0) / fwidth(v_uv);
-	return max(0.5 * dot(u_unit_range, screenTexSize), 1.0);
+	return max(0.5 * dot(u_unitRange, screenTexSize), 1.0);
 }
 
 void main() {
@@ -35,8 +35,8 @@ void main() {
 	if (d_sdf <= 0.0)
 		discard;
 
-	float inner = width * (d_sdf - u_threshold) + 0.5 + u_out_bias;
-	float outer = width * (d_sdf - u_threshold + u_outline_width_relative) + 0.5 + u_out_bias + u_outline_width_absolute;
+	float inner = width * (d_sdf - u_threshold) + 0.5 + u_outBias;
+	float outer = width * (d_sdf - u_threshold + u_outlineWidthRelative) + 0.5 + u_outBias + u_outlineWidthAbsolute;
 
 	inner = clamp(inner, 0.0, 1.0);
 	outer = clamp(outer, 0.0, 1.0);

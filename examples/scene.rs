@@ -22,9 +22,9 @@ unsafe impl shade::TVertex for MyVertex3 {
 		size: mem::size_of::<MyVertex3>() as u16,
 		alignment: mem::align_of::<MyVertex3>() as u16,
 		attributes: &[
-			shade::VertexAttribute::with::<Vec3f>("aPos", dataview::offset_of!(MyVertex3.position)),
-			shade::VertexAttribute::with::<Vec2f>("aTexCoord", dataview::offset_of!(MyVertex3.tex_coord)),
-			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("aColor", dataview::offset_of!(MyVertex3.color)),
+			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(MyVertex3.position)),
+			shade::VertexAttribute::with::<Vec2f>("a_uv", dataview::offset_of!(MyVertex3.tex_coord)),
+			shade::VertexAttribute::with::<[shade::Norm<u8>; 4]>("a_color", dataview::offset_of!(MyVertex3.color)),
 		],
 	};
 }
@@ -34,40 +34,41 @@ unsafe impl shade::TVertex for MyVertex3 {
 
 const FRAGMENT_SHADER: &str = r#"
 #version 330 core
-out vec4 FragColor;
 
-in vec4 VertexColor;
-in vec2 TexCoord;
+out vec4 o_fragColor;
 
-uniform sampler2D tex;
+in vec4 v_color;
+in vec2 v_uv;
+
+uniform sampler2D u_texture;
 
 void main() {
-	ivec2 texSize = textureSize(tex, 0);
-	vec4 color = texture(tex, TexCoord / texSize) * VertexColor;
+	ivec2 texSize = textureSize(u_texture, 0);
+	vec4 color = texture(u_texture, v_uv / texSize) * v_color;
 	if (color.a < 0.5) {
 		discard;
 	}
 	color.a = 1.0;
-	FragColor = color;
+	o_fragColor = color;
 }
 "#;
 
 const VERTEX_SHADER: &str = r#"
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoord;
-layout (location = 2) in vec4 aColor;
+in vec3 a_pos;
+in vec2 a_uv;
+in vec4 a_color;
 
-out vec4 VertexColor;
-out vec2 TexCoord;
+out vec4 v_color;
+out vec2 v_uv;
 
-uniform mat4x4 transform;
+uniform mat4x4 u_transform;
 
 void main()
 {
-	VertexColor = aColor;
-	TexCoord = aTexCoord;
-	gl_Position = transform * vec4(aPos, 1.0);
+	v_color = a_color;
+	v_uv = a_uv;
+	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
 "#;
 
@@ -88,8 +89,8 @@ impl Default for MyUniform3 {
 
 impl shade::UniformVisitor for MyUniform3 {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("transform", &self.transform);
-		set.value("tex", &self.texture);
+		set.value("u_transform", &self.transform);
+		set.value("u_texture", &self.texture);
 	}
 }
 

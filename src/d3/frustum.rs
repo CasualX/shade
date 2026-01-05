@@ -31,11 +31,10 @@ impl FrustumModel {
 		FrustumModel { shader, vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &FrustumInstance) {
+	pub fn draw(&self, g: &mut Graphics, camera: &camera::Camera, instance: &FrustumInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.view_proj.inverse(),
 			colormod: Vec4f::ONE,
-			color_add: Vec4f::ZERO,
 		};
 
 		g.draw_indexed(&DrawIndexedArgs {

@@ -8,10 +8,10 @@ out vec4 v_color;
 out vec2 v_uv;
 
 uniform mat3x2 u_transform;
-uniform vec4 u_colormod;
+uniform vec4 u_colorModulation;
 
 void main() {
-	v_color = a_color * u_colormod;
+	v_color = a_color * u_colorModulation;
 	v_uv = a_uv;
 
 	vec2 pos = u_transform * vec3(a_pos, 1.0);

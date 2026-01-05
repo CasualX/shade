@@ -25,11 +25,10 @@ impl AxesModel {
 		AxesModel { shader, vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &AxesInstance) {
+	pub fn draw(&self, g: &mut Graphics, camera: &camera::Camera, instance: &AxesInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.local,
 			colormod: Vec4f::ONE,
-			color_add: Vec4f::ZERO,
 		};
 
 		g.draw_indexed(&DrawIndexedArgs {

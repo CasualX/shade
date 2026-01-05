@@ -53,7 +53,6 @@ pub struct ColorUniform {
 	pub transform: Transform2f,
 	pub pattern: Transform2f,
 	pub colormod: Vec4f,
-	pub color_add: Vec4f,
 	/// Gradient texture.
 	pub texture: Texture2D,
 }
@@ -65,7 +64,6 @@ impl Default for ColorUniform {
 			transform: Transform2f::IDENTITY,
 			pattern: Transform2f::IDENTITY,
 			colormod: Vec4f::ONE,
-			color_add: Vec4f::ZERO,
 			texture: Texture2D::INVALID,
 		}
 	}
@@ -75,8 +73,7 @@ impl UniformVisitor for ColorUniform {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
 		set.value("u_pattern", &self.pattern);
-		set.value("u_colormod", &self.colormod);
-		set.value("u_color_add", &self.color_add);
+		set.value("u_colorModulation", &self.colormod);
 		set.value("u_texture", &self.texture);
 	}
 }

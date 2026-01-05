@@ -81,7 +81,7 @@ static INDICES: [u8; 36] = [
 const CUBE_FS: &str = r#"\
 #version 330 core
 
-layout(location = 0) out vec4 o_fragColor;
+out vec4 o_fragColor;
 
 in vec4 v_color;
 in vec2 v_uv;
@@ -159,7 +159,7 @@ impl CubeModel {
 
 		CubeModel { shader, texture, vertices, indices, indices_len }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &CubeInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &CubeInstance) {
 		let transform = camera.view_proj * instance.model;
 		let uniforms = CubeUniforms { transform, texture: self.texture };
 
@@ -284,7 +284,7 @@ impl App {
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (Hand::RH, Clip::NO));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
+			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip: Clip::NO }
 		};
 
 		// Draw the cube

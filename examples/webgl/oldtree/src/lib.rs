@@ -31,7 +31,7 @@ varying vec2 v_uv;
 varying vec3 v_fragPos;
 
 uniform sampler2D u_diffuse;
-uniform vec3 u_position;
+uniform vec3 u_cameraPosition;
 
 void main() {
 	// Define light direction (normalized)
@@ -51,7 +51,7 @@ void main() {
 	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 
-	vec3 viewDir = normalize(u_position - v_fragPos);
+	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
 	float rim = 1.0 - max(dot(viewDir, norm), 0.0);
 	rim = smoothstep(0.5, 0.6, rim);
 	finalColor += vec3(1.0, 0.8, 0.5) * rim * 0.2;  // warm rim glow
@@ -74,7 +74,7 @@ varying vec3 v_normal;
 varying vec2 v_uv;
 
 uniform mat4 u_model;
-uniform mat4 u_view_proj;
+uniform mat4 u_viewProjMatrix;
 
 uniform mat3 u_normalMatrix;
 
@@ -90,7 +90,7 @@ void main()
 	v_uv = aUV;
 
 	// Final position for rasterization
-	gl_Position = u_view_proj * vec4(v_fragPos, 1.0);
+	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
 }
 "#;
 
@@ -160,7 +160,7 @@ impl OldTreeModel {
 		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &OldTreeInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &OldTreeInstance) {
 		// Draw the model
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -273,7 +273,7 @@ impl Context {
 			};
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		self.tree.draw(g, &camera, &OldTreeInstance {

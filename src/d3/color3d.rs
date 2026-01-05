@@ -22,13 +22,11 @@ unsafe impl TVertex for ColorVertex3 {
 pub struct ColorUniform3 {
 	pub transform: Mat4f,
 	pub colormod: Vec4f,
-	pub color_add: Vec4f,
 }
 
 impl UniformVisitor for ColorUniform3 {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_colormod", &self.colormod);
-		set.value("u_color_add", &self.color_add);
+		set.value("u_colorModulation", &self.colormod);
 	}
 }

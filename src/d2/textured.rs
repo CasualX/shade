@@ -71,7 +71,7 @@ impl UniformVisitor for TexturedUniform {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
 		set.value("u_texture", &self.texture);
-		set.value("u_colormod", &self.colormod);
+		set.value("u_colorModulation", &self.colormod);
 	}
 }
 

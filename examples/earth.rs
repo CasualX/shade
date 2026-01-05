@@ -10,12 +10,13 @@ use shade::cvmath::*;
 const SPHERE_FS: &str = r#"\
 #version 330 core
 
-in vec3 vWorldPos;
-out vec4 FragColor;
+out vec4 o_fragColor;
 
-uniform vec3 u_camera_pos;
-uniform vec3 u_sphere_center;
-uniform float u_sphere_radius;
+in vec3 v_worldPos;
+
+uniform vec3 u_cameraPosition;
+uniform vec3 u_globePosition;
+uniform float u_globeRadius;
 uniform sampler2D u_texture;
 
 const float PI = 3.141592653589793;
@@ -23,20 +24,20 @@ const float PI = 3.141592653589793;
 void main()
 {
 	// Ray from camera through fragment
-	vec3 rayDir = normalize(vWorldPos - u_camera_pos);
-	vec3 rayOrigin = u_camera_pos;
+	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
+	vec3 rayOrigin = u_cameraPosition;
 
-	// Sphere centered at `u_sphere_center` (world space)
-	vec3 oc = rayOrigin - u_sphere_center;
+	// Sphere centered at globePosition (world space)
+	vec3 oc = rayOrigin - u_globePosition;
 
 	float a = dot(rayDir, rayDir);
 	float b = 2.0 * dot(oc, rayDir);
-	float c = dot(oc, oc) - u_sphere_radius * u_sphere_radius;
+	float c = dot(oc, oc) - u_globeRadius * u_globeRadius;
 
 	float discriminant = b*b - 4.0*a*c;
 	if (discriminant < 0.0) {
 	// Purple debug color
-		FragColor = vec4(0.5, 0.0, 0.5, 1.0);
+		o_fragColor = vec4(0.5, 0.0, 0.5, 1.0);
 		return;
 		discard;
 	}
@@ -48,7 +49,7 @@ void main()
 	if (t < 0.0) discard;
 
 	vec3 hitPos = rayOrigin + t * rayDir;
-	vec3 n = normalize(hitPos - u_sphere_center);
+	vec3 n = normalize(hitPos - u_globePosition);
 
 	// Spherical UVs (equirectangular)
 	// World is Z-up in this demo (see ArcballCamera::new(..., up = Z)).
@@ -64,30 +65,30 @@ void main()
 	u = fract(u);
 
 	vec3 color = texture(u_texture, vec2(u, v)).rgb;
-	FragColor = vec4(color, 1.0);
+	o_fragColor = vec4(color, 1.0);
 }
 "#;
 
 const SPHERE_VS: &str = r#"\
 #version 330 core
 
-layout (location = 0) in vec3 a_pos;
+in vec3 a_pos;
 
-uniform mat4x3 u_view;
-uniform mat4 u_projection;
+uniform mat4x3 u_viewMatrix;
+uniform mat4 u_projMatrix;
 
-uniform vec3 u_sphere_center;
-uniform float u_sphere_radius;
+uniform vec3 u_globePosition;
+uniform float u_globeRadius;
 
-out vec3 vWorldPos;
+out vec3 v_worldPos;
 
 void main()
 {
 	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
-	vec3 world = u_sphere_center + a_pos * (1.27 * u_sphere_radius);
+	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
 	vec4 worldPos = vec4(world, 1.0);
-	vWorldPos = worldPos.xyz;
-	gl_Position = u_projection * mat4(u_view) * worldPos;
+	v_worldPos = worldPos.xyz;
+	gl_Position = u_projMatrix * mat4(u_viewMatrix) * worldPos;
 }
 "#;
 
@@ -95,14 +96,14 @@ void main()
 // Model and instance
 
 struct SphereInstance {
-	sphere_center: Vec3f,
-	sphere_radius: f32,
+	position: Vec3f,
+	radius: f32,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for SphereInstance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_sphere_center", &self.sphere_center);
-		set.value("u_sphere_radius", &self.sphere_radius);
+		set.value("u_globePosition", &self.position);
+		set.value("u_globeRadius", &self.radius);
 		set.value("u_texture", &self.texture);
 	}
 }
@@ -128,7 +129,7 @@ impl SphereModel {
 		SphereModel { shader, texture, mesh }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::CameraSetup, instance: &SphereInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &SphereInstance) {
 		self.mesh.draw(g, self.shader, &[camera, instance]);
 	}
 }
@@ -162,12 +163,12 @@ impl Scene {
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::CameraSetup { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
 		};
 
 		self.demo.draw(g, &camera, &SphereInstance {
-			sphere_center: Vec3f::ZERO,
-			sphere_radius: 0.8,
+			position: Vec3f::ZERO,
+			radius: 0.8,
 			texture: self.demo.texture,
 		});
 

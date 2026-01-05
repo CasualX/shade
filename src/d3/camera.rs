@@ -13,7 +13,7 @@ pub use self::firstperson::FirstPersonCamera;
 
 /// Contains camera matrices and parameters.
 #[derive(Clone, Debug)]
-pub struct CameraSetup {
+pub struct Camera {
 	pub viewport: Bounds2<i32>,
 	pub aspect_ratio: f32,
 	pub position: Vec3f,
@@ -26,7 +26,7 @@ pub struct CameraSetup {
 	pub clip: Clip,
 }
 
-impl CameraSetup {
+impl Camera {
 	/// Projects a 3D world-space point into 2D viewport-space (in pixels), or returns None if behind the camera.
 	pub fn world_to_viewport(&self, pt: Vec3f) -> Option<Vec2f> {
 		// Transform world-space point into clip space
@@ -68,20 +68,20 @@ impl CameraSetup {
 	}
 }
 
-impl UniformVisitor for CameraSetup {
+impl UniformVisitor for Camera {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_viewport", &self.viewport);
-		set.value("u_aspect_ratio", &self.aspect_ratio);
-		set.value("u_camera_pos", &self.position);
-		set.value("u_near", &self.near);
-		set.value("u_far", &self.far);
-		set.value("u_view", &self.view);
-		set.value("u_projection", &self.projection);
-		set.value("u_view_proj", &self.view_proj);
-		set.value("u_inv_view_proj", &self.inv_view_proj);
+		set.value("u_aspectRatio", &self.aspect_ratio);
+		set.value("u_cameraPosition", &self.position);
+		set.value("u_zNear", &self.near);
+		set.value("u_zFar", &self.far);
+		set.value("u_viewMatrix", &self.view);
+		set.value("u_projMatrix", &self.projection);
+		set.value("u_viewProjMatrix", &self.view_proj);
+		set.value("u_invViewProjMatrix", &self.inv_view_proj);
 
 		let ndc_near: f32 = match self.clip { Clip::NO => -1.0, Clip::ZO => 0.0 };
-		set.value("u_ndc_near", &ndc_near);
+		set.value("u_ndcNear", &ndc_near);
 	}
 }
 
