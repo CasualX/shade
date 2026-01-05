@@ -5,6 +5,7 @@ members = [
 	"examples/webgl/oldtree",
 	"examples/webgl/text",
 	"examples/webgl/zeldawater",
+	"examples/webgl/globe",
 ]
 
 [package]

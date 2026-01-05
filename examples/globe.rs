@@ -37,9 +37,9 @@ void main()
 	float discriminant = b*b - 4.0*a*c;
 	if (discriminant < 0.0) {
 	// Purple debug color
-		o_fragColor = vec4(0.5, 0.0, 0.5, 1.0);
-		return;
+		// o_fragColor = vec4(0.5, 0.0, 0.5, 1.0);
 		discard;
+		return;
 	}
 	// Nearest positive intersection (handles camera-inside-sphere too)
 	float sqrtD = sqrt(discriminant);

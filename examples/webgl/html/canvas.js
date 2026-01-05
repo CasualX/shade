@@ -36,7 +36,7 @@ class HandleTable {
 
 document.addEventListener("DOMContentLoaded", () => {
 	if (!MODULE_NAME) {
-		alert("No module specified. Please provide a module name in the URL hash, e.g., #module=your_module.wasm");
+		alert("No module specified. Please provide a module name in the URL query, e.g., ?module=your_module.wasm");
 		return;
 	}
 
@@ -66,6 +66,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	let wasmInstance;
 	let drawFn;
+
+	function toggleFullscreen() {
+		if (document.fullscreenElement) {
+			document.exitFullscreen?.();
+			return;
+		}
+		// Fullscreen the document element so overlays aren't clipped.
+		document.documentElement.requestFullscreen?.();
+	}
+
+	window.addEventListener('keydown', (e) => {
+		// Let embedded demos toggle fullscreen with "F".
+		if (e.key === 'f' || e.key === 'F') {
+			e.preventDefault();
+			toggleFullscreen();
+		}
+	});
 
 	async function loadWasm() {
 		try {
@@ -278,6 +295,31 @@ document.addEventListener("DOMContentLoaded", () => {
 				wasmInstance.exports.resize(ctx, width, height);
 			};
 			updatesize(canvas.width, canvas.height);
+
+			// Mouse controls (if the module exports them)
+			let lastX = 0, lastY = 0;
+			canvas.addEventListener('mousemove', (e) => {
+				const dx = e.clientX - lastX;
+				const dy = e.clientY - lastY;
+				lastX = e.clientX;
+				lastY = e.clientY;
+				if (wasmInstance.exports.mousemove) {
+					wasmInstance.exports.mousemove(ctx, dx, dy);
+				}
+			});
+			canvas.addEventListener('mousedown', (e) => {
+				lastX = e.clientX;
+				lastY = e.clientY;
+				if (wasmInstance.exports.mousedown) {
+					wasmInstance.exports.mousedown(ctx, e.button);
+				}
+			});
+			canvas.addEventListener('mouseup', (e) => {
+				if (wasmInstance.exports.mouseup) {
+					wasmInstance.exports.mouseup(ctx, e.button);
+				}
+			});
+			canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 			drawFn = function() {
 				wasmInstance.exports.draw(ctx, performance.now() / 1000.0);

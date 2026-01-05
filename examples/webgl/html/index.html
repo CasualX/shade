@@ -2,135 +2,496 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>WebGL Demos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shade WebGL</title>
 <style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg2: #070c16;
+  --card: rgba(255, 255, 255, 0.06);
+  --card2: rgba(255, 255, 255, 0.04);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.65);
+  --border: rgba(255, 255, 255, 0.10);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --primary: #4ea0ff;
+  --primary-hover: #2e8cff;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: var(--bg2);
+}
+
 body {
-  font-family: sans-serif;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
   margin: 0;
-  padding: 1em;
-  background: #f0f0f0;
+  padding: 18px;
+  background:
+    radial-gradient(1200px 700px at 20% 0%, rgba(78, 160, 255, 0.20), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgba(167, 139, 250, 0.18), transparent 60%),
+    linear-gradient(to bottom, var(--bg), var(--bg2));
+  color: var(--text);
+  min-height: 100vh;
 }
 
 .container {
-  max-width: 800px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
-h1 {
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 18px 0;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85rem;
+  padding: 3px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 920px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+.list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  cursor: pointer;
   text-align: left;
 }
 
-.demo {
-  background: white;
-  margin: 1em 0;
-  padding: 1em;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.row-title:hover {
+  color: rgba(255,255,255,0.98);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.demo-header {
+.row-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-side {
+  flex: none;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
 }
 
-.demo-header h2 {
-  margin: 0 0 1em 0;
-  font-size: 1.5em;
-}
-
-.demo-header a {
+.row-side a {
   text-decoration: none;
-  color: #007acc;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.row-side a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 0 0;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--primary);
+  color: rgba(0,0,0,0.92);
+}
+
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: rgba(255,255,255,0.96);
+}
+
+.btn-danger:hover { background: var(--danger-hover); }
+
+.stage {
+  margin-top: 12px;
 }
 
 .iframe-container {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 ratio */
+  padding-top: 56.25%;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 10px;
   background: #000;
-  display: none; /* hidden initially */
+  border: 1px solid var(--border);
+  display: none;
+}
+
+.iframe-container.is-loading::after {
+  content: "Loading…";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.8);
+  font: inherit;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.35));
+  pointer-events: none;
 }
 
 .iframe-container iframe {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  border: none;
+  border: 0;
 }
 
-.load-btn {
+.player {
+  display: none;
+}
+
+.player.is-active {
   display: block;
-  padding: 0.5em 1em;
-  font-size: 1em;
-  cursor: pointer;
-  border: none;
-  background: #007acc;
-  color: white;
-  border-radius: 4px;
+}
+
+.gallery.is-hidden {
+  display: none;
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: var(--shadow);
+}
+
+.player-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-meta h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.player-meta p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.player-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: none;
+}
+
+.player-actions a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.player-stage {
+  margin-top: 14px;
+}
+
+.player-stage .iframe-container {
+  display: block;
+  padding-top: 62vh;
+  min-height: 420px;
+}
+
+@media (max-width: 640px) {
+  .player-stage .iframe-container {
+    padding-top: 70vh;
+    min-height: 360px;
+  }
 }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>WebGL Demos</h1>
 
-  <div class="demo">
-    <div class="demo-header">
-      <h2>Triangle</h2>
-      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/triangle" target="_blank">Source Code</a>
+  <div class="topbar">
+    <div class="brand">
+      <h1>Shade WebGL</h1>
+      <p>Pick a demo. Press <span class="kbd">F</span> to toggle fullscreen.</p>
     </div>
-    <button class="load-btn" data-module="triangle.wasm">Load the demo</button>
-    <div class="iframe-container"></div>
   </div>
 
-  <div class="demo">
-    <div class="demo-header">
-      <h2>Old Tree</h2>
-      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/oldtree" target="_blank">Source Code</a>
-    </div>
-    <button class="load-btn" data-module="oldtree.wasm">Load the demo</button>
-    <div class="iframe-container"></div>
+  <div class="gallery" id="gallery">
+    <div class="list" id="demoList" aria-label="Demo list"></div>
   </div>
 
-  <div class="demo">
-    <div class="demo-header">
-      <h2>Text</h2>
-      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/text" target="_blank">Source Code</a>
+  <div class="player" id="player">
+    <div class="player-header">
+      <div class="player-meta">
+        <h2 id="playerTitle">Demo</h2>
+        <p id="playerHint"> </p>
+      </div>
+      <div class="player-actions">
+        <a id="playerSource" href="#" target="_blank" rel="noreferrer">Source</a>
+        <button class="btn btn-danger" id="backBtn" type="button">Back</button>
+      </div>
     </div>
-    <button class="load-btn" data-module="webtext.wasm">Load the demo</button>
-    <div class="iframe-container"></div>
-  </div>
-
-  <div class="demo">
-    <div class="demo-header">
-      <h2>Zelda Water</h2>
-      <a href="https://github.com/CasualX/shade/tree/master/examples/webgl/zeldawater" target="_blank">Source Code</a>
+    <div class="player-stage">
+      <div class="iframe-container is-loading" id="playerStage" aria-label="Demo stage"></div>
     </div>
-    <button class="load-btn" data-module="zeldawater.wasm">Load the demo</button>
-    <div class="iframe-container"></div>
   </div>
 </div>
 
 <script>
-  document.querySelectorAll('.load-btn').forEach(button => {
-    button.addEventListener('click', () => {
-      const module = button.dataset.module;
-      const iframeContainer = button.nextElementSibling;
+  const DEMOS = [
+    {
+      id: 'triangle',
+      title: 'Triangle',
+      hint: 'Minimal pipeline + draw call',
+      module: 'triangle.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/triangle',
+    },
+    {
+      id: 'oldtree',
+      title: 'Old Tree',
+      hint: 'Stylized scene rendering',
+      module: 'oldtree.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/oldtree',
+    },
+    {
+      id: 'text',
+      title: 'Text',
+      hint: 'Signed distance field text',
+      module: 'webtext.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/text',
+    },
+    {
+      id: 'zeldawater',
+      title: 'Zelda Water',
+      hint: 'Water shader experiment',
+      module: 'zeldawater.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/zeldawater',
+    },
+    {
+      id: 'globe',
+      title: 'Globe',
+      hint: 'Texturing + camera',
+      module: 'globe.wasm',
+      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/globe',
+    },
+  ];
 
-      const iframe = document.createElement('iframe');
-      iframe.src = `canvas.html?module=${encodeURIComponent(module)}`;
+  const galleryEl = document.getElementById('gallery');
+  const demoListEl = document.getElementById('demoList');
+  const playerEl = document.getElementById('player');
+  const playerTitleEl = document.getElementById('playerTitle');
+  const playerHintEl = document.getElementById('playerHint');
+  const playerSourceEl = document.getElementById('playerSource');
+  const playerStageEl = document.getElementById('playerStage');
+  const backBtn = document.getElementById('backBtn');
 
-      iframeContainer.appendChild(iframe);
-      iframeContainer.style.display = 'block';
-      button.style.display = 'none';
-    });
-  });
+  function stopActiveDemo() {
+    if (!playerStageEl) return;
+    const iframe = playerStageEl.querySelector('iframe');
+    if (iframe) {
+      try { iframe.src = 'about:blank'; } catch (_) {}
+      iframe.remove();
+    }
+    playerStageEl.classList.add('is-loading');
+  }
+
+  function showGallery() {
+    stopActiveDemo();
+    playerEl?.classList.remove('is-active');
+    galleryEl?.classList.remove('is-hidden');
+  }
+
+  function showPlayer(demo) {
+    if (!demo || !playerStageEl) return;
+    stopActiveDemo();
+
+    galleryEl?.classList.add('is-hidden');
+    playerEl?.classList.add('is-active');
+
+    if (playerTitleEl) playerTitleEl.textContent = demo.title;
+    if (playerHintEl) playerHintEl.textContent = `${demo.hint} • Press F for fullscreen`;
+    if (playerSourceEl) playerSourceEl.href = demo.source;
+
+    const iframe = document.createElement('iframe');
+    iframe.title = `Demo: ${demo.title}`;
+    iframe.setAttribute('allow', 'fullscreen; pointer-lock');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('tabindex', '0');
+
+    iframe.addEventListener('load', () => {
+      playerStageEl.classList.remove('is-loading');
+      try { iframe.focus(); } catch (_) {}
+      try { iframe.contentWindow?.focus(); } catch (_) {}
+    }, { once: true });
+
+    iframe.src = `canvas.html?module=${encodeURIComponent(demo.module)}`;
+
+    playerStageEl.appendChild(iframe);
+  }
+
+  function renderGallery() {
+    if (!demoListEl) return;
+    demoListEl.textContent = '';
+    for (const demo of DEMOS) {
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const main = document.createElement('div');
+      main.className = 'row-main';
+
+      const titleBtn = document.createElement('button');
+      titleBtn.className = 'row-title';
+      titleBtn.type = 'button';
+      titleBtn.textContent = demo.title;
+      titleBtn.addEventListener('click', () => showPlayer(demo));
+
+      const hint = document.createElement('p');
+      hint.className = 'row-hint';
+      hint.textContent = demo.hint;
+
+      main.appendChild(titleBtn);
+      main.appendChild(hint);
+
+      const side = document.createElement('div');
+      side.className = 'row-side';
+      const link = document.createElement('a');
+      link.href = demo.source;
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      link.textContent = 'Source';
+      side.appendChild(link);
+
+      row.appendChild(main);
+      row.appendChild(side);
+      demoListEl.appendChild(row);
+    }
+  }
+
+  backBtn?.addEventListener('click', () => showGallery());
+  renderGallery();
+  showGallery();
 </script>
 
 </body>

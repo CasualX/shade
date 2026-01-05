@@ -1,0 +1,11 @@
+[package]
+name = "globe"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dataview = "1.0"
+shade = { path = "../../..", features = ["webgl"] }
