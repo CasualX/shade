@@ -127,6 +127,7 @@ impl Context {
 			let file_png = include_bytes!("../../../zeldawater/water.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
+				mip_levels: 1,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
@@ -139,6 +140,7 @@ impl Context {
 			let file_png = include_bytes!("../../../zeldawater/distort.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
+				mip_levels: 1,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,

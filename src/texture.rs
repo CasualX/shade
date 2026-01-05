@@ -51,22 +51,24 @@ pub enum TextureFilter {
 }
 
 /// Texture properties.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct TextureProps {
+	pub mip_levels: u8,
 	pub filter_min: TextureFilter,
 	pub filter_mag: TextureFilter,
 	pub wrap_u: TextureWrap,
 	pub wrap_v: TextureWrap,
 }
 
-impl TextureProps {
+impl Default for TextureProps {
 	#[inline]
-	pub const fn from(filter: TextureFilter, wrap: TextureWrap) -> TextureProps {
+	fn default() -> TextureProps {
 		TextureProps {
-			filter_min: filter,
-			filter_mag: filter,
-			wrap_u: wrap,
-			wrap_v: wrap,
+			mip_levels: 1,
+			filter_min: TextureFilter::Linear,
+			filter_mag: TextureFilter::Linear,
+			wrap_u: TextureWrap::Edge,
+			wrap_v: TextureWrap::Edge,
 		}
 	}
 }
@@ -109,7 +111,6 @@ define_handle!(Texture2D);
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 pub struct Texture2DInfo {
 	pub format: TextureFormat,
-	pub levels: u8,
 	pub width: i32,
 	pub height: i32,
 	pub props: TextureProps,

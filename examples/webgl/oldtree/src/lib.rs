@@ -146,6 +146,7 @@ impl OldTreeModel {
 			let file_png = include_bytes!("../../../oldtree/texture.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
+				mip_levels: 1,
 				filter_min: shade::TextureFilter::Nearest,
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,

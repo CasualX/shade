@@ -118,10 +118,10 @@ impl App {
 			}
 			let info = shade::Texture2DInfo {
 				format: shade::TextureFormat::R8,
-				levels: 1,
 				width: SCREEN_MELT_COLUMNS,
 				height: 1,
 				props: shade::TextureProps {
+					mip_levels: 1,
 					filter_min: shade::TextureFilter::Nearest,
 					filter_mag: shade::TextureFilter::Nearest,
 					wrap_u: shade::TextureWrap::Edge,

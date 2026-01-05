@@ -150,10 +150,10 @@ impl GlGraphics {
 					texture: default_texture2d,
 					info: crate::Texture2DInfo {
 						format: crate::TextureFormat::RGBA8,
-						levels: 1,
 						width: 1,
 						height: 1,
 						props: crate::TextureProps {
+							mip_levels: 1,
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
@@ -300,7 +300,7 @@ impl crate::IGraphics for GlGraphics {
 			crate::TextureFormat::Depth32F => gl::DEPTH_COMPONENT32F,
 			crate::TextureFormat::Depth24Stencil8 => gl::DEPTH24_STENCIL8,
 		};
-		gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.levels as GLsizei, internal_format, info.width, info.height));
+		gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.props.mip_levels as GLsizei, internal_format, info.width, info.height));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		let id = self.textures.textures2d.insert(name, GlTexture2D { texture, info: *info });
 		return id;
@@ -319,7 +319,7 @@ impl crate::IGraphics for GlGraphics {
 
 	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
-		assert!(level < texture.info.levels, "Invalid mip level {}", level);
+		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		let (_internal_format, format, type_, align) = match texture.info.format {
@@ -340,7 +340,7 @@ impl crate::IGraphics for GlGraphics {
 
 	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
-		assert!(level < texture.info.levels, "Invalid mip level {}", level);
+		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 		self.metrics.bytes_downloaded = usize::wrapping_add(self.metrics.bytes_downloaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		let (format, type_, align) = match texture.info.format {

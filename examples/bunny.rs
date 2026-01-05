@@ -278,10 +278,10 @@ impl App {
 		let start_time = time::Instant::now();
 		let texture = g.texture2d_create(None, &shade::Texture2DInfo {
 			format: shade::TextureFormat::RGBA8,
-			levels: 1,
 			width: SIZE,
 			height: SIZE,
 			props: shade::TextureProps {
+				mip_levels: 1,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
@@ -290,7 +290,6 @@ impl App {
 		});
 		let texture_depth = g.texture2d_create(None, &shade::Texture2DInfo {
 			format: shade::TextureFormat::Depth24,
-			levels: 1,
 			width: SIZE,
 			height: SIZE,
 			props: shade::TextureProps::default(),

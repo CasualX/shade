@@ -134,11 +134,11 @@ impl WebGLGraphics {
 				textures2d_default: WebGLTexture2D {
 					texture: default_texture2d,
 					info: crate::Texture2DInfo {
-						levels: 1,
 						width: 1,
 						height: 1,
 						format: crate::TextureFormat::RGBA8,
 						props: crate::TextureProps {
+							mip_levels: 1,
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
@@ -287,7 +287,7 @@ impl crate::IGraphics for WebGLGraphics {
 
 	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
-		assert!(level < texture.info.levels, "Invalid mip level {}", level);
+		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
