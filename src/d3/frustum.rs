@@ -45,7 +45,7 @@ impl FrustumModel {
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Lines,
 			shader: self.shader,
-			uniforms: &[&uniforms],
+			uniforms: &[camera, &uniforms],
 			vertices: &[DrawVertexBuffer {
 				buffer: self.vertices,
 				divisor: VertexDivisor::PerVertex,

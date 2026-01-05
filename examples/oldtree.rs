@@ -1,29 +1,9 @@
-use std::{mem, time};
+use std::time;
 use std::ffi::CString;
 use std::num::NonZeroU32;
 
 use glutin::prelude::*;
 use shade::cvmath::*;
-
-#[derive(Copy, Clone, Default, dataview::Pod)]
-#[repr(C)]
-struct Vertex {
-	position: Vec3f,
-	normal: Vec3f,
-	uv: Vec2f,
-}
-
-unsafe impl shade::TVertex for Vertex {
-	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: mem::size_of::<Vertex>() as u16,
-		alignment: mem::align_of::<Vertex>() as u16,
-		attributes: &[
-			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<Vec3f>("a_normal", dataview::offset_of!(Vertex.normal)),
-			shade::VertexAttribute::with::<Vec2f>("a_uv", dataview::offset_of!(Vertex.uv)),
-		],
-	};
-}
 
 const FRAGMENT_SHADER: &str = r#"\
 #version 330 core
@@ -190,44 +170,42 @@ void main() {
 
 //----------------------------------------------------------------
 
-struct OldTreeInstance {
-	model: Transform3f,
-	light_pos: Vec3f,
-}
-
-impl shade::UniformVisitor for OldTreeInstance {
-	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_model", &self.model);
-		set.value("u_lightPos", &self.light_pos);
-	}
-}
-
-struct OldTreeModel {
+struct OldTreeMaterial {
 	shader: shade::Shader,
-	vertices: shade::VertexBuffer,
-	vertices_len: u32,
 	texture: shade::Texture2D,
-	bounds: Bounds3<f32>,
 }
-
-impl shade::UniformVisitor for OldTreeModel {
+impl shade::UniformVisitor for OldTreeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_diffuse", &self.texture);
 	}
 }
 
-shade::include_bin!(VERTICES: [Vertex] = "oldtree/vertices.bin");
+struct OldTreeInstance {
+	model: Transform3f,
+}
+impl shade::UniformVisitor for OldTreeInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+	}
+}
 
-impl OldTreeModel {
-	fn create(g: &mut shade::Graphics) -> OldTreeModel {
-		let vertices: &[Vertex] = VERTICES.as_slice();
+struct OldTreeRenderable {
+	mesh: shade::d3::VertexMesh,
+	material: OldTreeMaterial,
+	instance: OldTreeInstance,
+}
+impl OldTreeRenderable {
+	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
+		shade::include_bin!(VERTICES: [shade::d3::TexturedVertexN] = "oldtree/vertices.bin");
+
+		let vertices: &[shade::d3::TexturedVertexN] = VERTICES.as_slice();
 		let vertices_len = vertices.len() as u32;
 
 		let mut mins = Vec3::dup(f32::INFINITY);
 		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {
-			mins = mins.min(v.position);
-			maxs = maxs.max(v.position);
+			mins = mins.min(v.pos);
+			maxs = maxs.max(v.pos);
 			// println!("Vertex {}: {:?}", i, v);
 		}
 		let bounds = Bounds3(mins, maxs);
@@ -241,9 +219,22 @@ impl OldTreeModel {
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
+		let mesh = shade::d3::VertexMesh {
+			origin: Vec3f::ZERO,
+			bounds,
+			vertices,
+			vertices_len,
+		};
+
+		let material = OldTreeMaterial { shader, texture };
+
+		let instance = OldTreeInstance {
+			model: Transform3f::IDENTITY,
+		};
+
+		OldTreeRenderable { mesh, material, instance }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &OldTreeInstance) {
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, light: &Light) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -258,43 +249,29 @@ impl OldTreeModel {
 				stencil: 0,
 			},
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[camera, self, instance],
+			uniforms: &[camera, &self.material, &self.instance, light],
 			vertex_start: 0,
-			vertex_end: self.vertices_len,
+			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
-
 	}
 }
 
 //----------------------------------------------------------------
 
-struct ParallaxInstance {
-	model: Transform3f,
-	light_pos: Vec3f,
-}
-
-impl shade::UniformVisitor for ParallaxInstance {
-	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_model", &self.model);
-		set.value("u_lightPos", &self.light_pos);
-	}
-}
-
-struct ParallaxModel {
+struct ParallaxMaterial {
 	shader: shade::Shader,
 	diffuse: shade::Texture2D,
 	normal_map: shade::Texture2D,
 	height_map: shade::Texture2D,
 	height_scale: f32,
 }
-
-impl shade::UniformVisitor for ParallaxModel {
+impl shade::UniformVisitor for ParallaxMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_diffuse", &self.diffuse);
 		set.value("u_normalMap", &self.normal_map);
@@ -303,8 +280,24 @@ impl shade::UniformVisitor for ParallaxModel {
 	}
 }
 
-impl ParallaxModel {
-	fn create(g: &mut shade::Graphics) -> ParallaxModel {
+struct ParallaxInstance {
+	model: Transform3f,
+}
+
+impl shade::UniformVisitor for ParallaxInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+	}
+}
+
+struct ParallaxRenderable {
+	mesh: shade::d3::VertexMesh,
+	material: ParallaxMaterial,
+	instance: ParallaxInstance,
+}
+
+impl ParallaxRenderable {
+	fn create(g: &mut shade::Graphics) -> ParallaxRenderable {
 		let diffuse = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
 			let props = shade::TextureProps {
@@ -342,18 +335,38 @@ impl ParallaxModel {
 		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
-		ParallaxModel { shader, diffuse, normal_map, height_map, height_scale: 0.04 }
-	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &ParallaxInstance) {
 		let vertices = [
-			Vertex { position: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
-			Vertex { position: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
-			Vertex { position: Vec3f(5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 0.0) },
-			Vertex { position: Vec3f(-5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 0.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 0.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 0.0) },
 		];
 		let indices = [0, 1, 2, 0, 2, 3];
 		let vertices = indices.map(|i| vertices[i]);
 		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
+
+		let material = ParallaxMaterial {
+			shader,
+			diffuse,
+			normal_map,
+			height_map,
+			height_scale: 0.04,
+		};
+
+		let mesh = shade::d3::VertexMesh {
+			origin: Vec3f::ZERO,
+			bounds: Bounds3(Vec3f(-5.0, -5.0, 0.0), Vec3f(5.0, 5.0, 0.0)),
+			vertices: vb,
+			vertices_len: vertices.len() as u32,
+		};
+
+		let instance = ParallaxInstance {
+			model: Transform3f::IDENTITY,
+		};
+
+		ParallaxRenderable { mesh, material, instance }
+	}
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, light: &Light) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -361,21 +374,29 @@ impl ParallaxModel {
 			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask::ALL,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: vb,
+				buffer: self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[camera, self, instance],
+			uniforms: &[camera, &self.material, &self.instance, light],
 			vertex_start: 0,
-			vertex_end: vertices.len() as u32,
+			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
-		g.vertex_buffer_free(vb, shade::FreeMode::Delete);
 	}
 }
 
 //----------------------------------------------------------------
+
+struct Light {
+	light_pos: Vec3f,
+}
+impl shade::UniformVisitor for Light {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_lightPos", &self.light_pos);
+	}
+}
 
 #[allow(dead_code)]
 enum ProjectionType {
@@ -395,8 +416,8 @@ struct Scene {
 	screen_size: Vec2i,
 	projection_type: ProjectionType,
 	camera: shade::d3::ArcballCamera,
-	tree: OldTreeModel,
-	floor: ParallaxModel,
+	tree: OldTreeRenderable,
+	floor: ParallaxRenderable,
 	axes: shade::d3::axes::AxesModel,
 	frustum: shade::d3::frustum::FrustumModel,
 	view: Transform3f,
@@ -404,9 +425,9 @@ struct Scene {
 
 impl Scene {
 	fn create(g: &mut shade::Graphics, screen_size: Vec2i) -> Scene {
-		let tree = OldTreeModel::create(g);
+		let tree = OldTreeRenderable::create(g);
 
-		let floor = ParallaxModel::create(g);
+		let floor = ParallaxRenderable::create(g);
 
 		let (axes, frustum) = {
 			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
@@ -414,9 +435,8 @@ impl Scene {
 		};
 
 		let camera = {
-			let pivot = tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + Vec3::<f32>::X * tree.bounds.size().xy().vmax();
-
+			let pivot = tree.mesh.bounds.center().set_x(0.0).set_y(0.0);
+			let position = pivot + Vec3::<f32>::X * tree.mesh.bounds.size().xy().vmax();
 			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
@@ -461,17 +481,12 @@ impl Scene {
 			radius * angle.sin(),
 			40.0, // Fixed elevation, adjust if needed
 		);
+		let light = Light { light_pos };
 
 		// Draw the models
-		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: Transform3f::translate(Vec3(0.0, 0.0, -0.125/4.0)),
-			light_pos,
-		});
+		self.tree.draw(g, &camera, &light);
 
-		self.floor.draw(g, &camera, &ParallaxInstance {
-			model: Transform3f::IDENTITY,
-			light_pos,
-		});
+		self.floor.draw(g, &camera, &light);
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
 			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),

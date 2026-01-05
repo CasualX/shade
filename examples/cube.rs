@@ -113,55 +113,68 @@ void main()
 }
 "#;
 
-#[derive(Clone, Debug)]
-struct CubeUniforms {
-	transform: Mat4f,
+//----------------------------------------------------------------
+// Cube renderable
+
+struct CubeMaterial {
+	shader: shade::Shader,
 	texture: shade::Texture2D,
 }
-
-impl shade::UniformVisitor for CubeUniforms {
+impl shade::UniformVisitor for CubeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_transform", &self.transform);
 		set.value("u_texture", &self.texture);
 	}
 }
 
-//----------------------------------------------------------------
-// Model and instance
-
 struct CubeInstance {
 	model: Transform3f,
 }
-
-struct CubeModel {
-	shader: shade::Shader,
-	texture: shade::Texture2D,
-	vertices: shade::VertexBuffer,
-	indices: shade::IndexBuffer,
-	indices_len: u32,
+impl shade::UniformVisitor for CubeInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+	}
 }
 
-impl CubeModel {
-	fn create(g: &mut shade::Graphics) -> CubeModel {
+struct CubeRenderable {
+	mesh: shade::d3::VertexIndexedMesh,
+	material: CubeMaterial,
+	instance: CubeInstance,
+}
+
+impl CubeRenderable {
+	fn create(g: &mut shade::Graphics) -> CubeRenderable {
+		// Create the vertex and index buffers
+		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+		let vertices_len: u32 = VERTICES.len() as u32;
+		let indices = g.index_buffer(None, &INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
+		let indices_len = INDICES.len() as u32;
+
+		let mesh = shade::d3::VertexIndexedMesh {
+			origin: Vec3f::ZERO,
+			bounds: Bounds3f(Vec3f(X_MIN, Y_MIN, Z_MIN), Vec3f(X_MAX, Y_MAX, Z_MAX)),
+			vertices,
+			vertices_len,
+			indices,
+			indices_len,
+		};
+
 		// Load the texture
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/brick 24 - 256x256.png").unwrap();
 			g.image(Some("brick 24"), &image)
 		};
 
-		// Create the vertex and index buffers
-		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
-		let indices = g.index_buffer(None, &INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
-		let indices_len = INDICES.len() as u32;
-
 		// Create the shader
 		let shader = g.shader_create(None, CUBE_VS, CUBE_FS);
 
-		CubeModel { shader, texture, vertices, indices, indices_len }
+		let material = CubeMaterial { shader, texture };
+
+		let instance = CubeInstance { model: Transform3f::IDENTITY };
+
+		CubeRenderable { mesh, material, instance }
 	}
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &CubeInstance) {
 		let transform = camera.view_proj * instance.model;
-		let uniforms = CubeUniforms { transform, texture: self.texture };
 
 		// Draw the cube
 		g.draw_indexed(&shade::DrawIndexedArgs {
@@ -171,15 +184,20 @@ impl CubeModel {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: self.indices,
-			uniforms: &[&uniforms],
+			indices: self.mesh.indices,
+			uniforms: &[
+				camera,
+				&self.material,
+				&self.instance,
+				&("u_transform", &transform),
+			],
 			index_start: 0,
-			index_end: self.indices_len,
+			index_end: self.mesh.indices_len,
 			instances: -1,
 		});
 	}
@@ -194,7 +212,7 @@ struct App {
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
 	g: shade::gl::GlGraphics,
-	cube: CubeModel,
+	cube: CubeRenderable,
 	model: Transform3f,
 }
 
@@ -256,7 +274,7 @@ impl App {
 		});
 
 		let mut g = shade::gl::GlGraphics::new();
-		let cube = CubeModel::create(&mut g);
+		let cube = CubeRenderable::create(&mut g);
 		let model = Transform3::IDENTITY;
 
 		Box::new(App { size, window, surface, context, g, cube, model })

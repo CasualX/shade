@@ -68,36 +68,37 @@ void main()
 "#;
 
 //----------------------------------------------------------------
+// ColorTree renderable
 
-struct ColorTreeInstance {
-	model: Transform3f,
+struct ColorTreeMaterial {
+	shader: shade::Shader,
 	light_pos: Vec3f,
 }
-
-impl shade::UniformVisitor for ColorTreeInstance {
+impl shade::UniformVisitor for ColorTreeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_model", &self.model);
 		set.value("u_lightPos", &self.light_pos);
 	}
 }
 
-struct ColorTreeModel {
-	shader: shade::Shader,
-	vertices: shade::VertexBuffer,
-	vertices_len: u32,
-	bounds: Bounds3<f32>,
+struct ColorTreeInstance {
+	model: Transform3f,
+}
+impl shade::UniformVisitor for ColorTreeInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+	}
 }
 
-impl shade::UniformVisitor for ColorTreeModel {
-	fn visit(&self, _set: &mut dyn shade::UniformSetter) {
-		// No additional uniforms needed for this model
-	}
+struct ColorTreeRenderable {
+	mesh: shade::d3::VertexMesh,
+	material: ColorTreeMaterial,
+	instance: ColorTreeInstance,
 }
 
 shade::include_bin!(VERTICES: [Vertex] = "colortree/vertices.bin");
 
-impl ColorTreeModel {
-	fn create(g: &mut shade::Graphics) -> ColorTreeModel {
+impl ColorTreeRenderable {
+	fn create(g: &mut shade::Graphics) -> ColorTreeRenderable {
 		let vertices: &[Vertex] = VERTICES.as_slice();
 		let mut mins = Vec3::dup(f32::INFINITY);
 		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
@@ -111,13 +112,29 @@ impl ColorTreeModel {
 		let vertices_len = vertices.len() as u32;
 		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
 
+		let mesh = shade::d3::VertexMesh {
+			origin: Vec3f::ZERO,
+			bounds,
+			vertices,
+			vertices_len,
+		};
+
 		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		ColorTreeModel { shader, vertices, vertices_len, bounds }
+		let material = ColorTreeMaterial {
+			shader,
+			light_pos: Vec3f::new(10000.0, 10000.0, 10000.0),
+		};
+
+		let instance = ColorTreeInstance {
+			model: Transform3f::IDENTITY,
+		};
+
+		ColorTreeRenderable { mesh, material, instance }
 	}
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &ColorTreeInstance) {
-		let transform = camera.view_proj * instance.model;
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera) {
+		let transform = camera.view_proj * self.instance.model;
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -125,14 +142,14 @@ impl ColorTreeModel {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[camera, self, instance, &("u_transform", &transform)],
+			uniforms: &[camera, &self.material, &self.instance, &("u_transform", &transform)],
 			vertex_start: 0,
-			vertex_end: self.vertices_len,
+			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
 	}
@@ -143,7 +160,7 @@ impl ColorTreeModel {
 struct Scene {
 	screen_size: Vec2i,
 	camera: shade::d3::ArcballCamera,
-	color_tree: ColorTreeModel,
+	color_tree: ColorTreeRenderable,
 	axes: shade::d3::axes::AxesModel,
 }
 
@@ -171,13 +188,8 @@ impl Scene {
 			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		let light_pos = Vec3f::new(10000.0, 10000.0, 10000.0);
-
 		// Draw the model
-		self.color_tree.draw(g, &camera, &ColorTreeInstance {
-			model: Transform3f::IDENTITY,
-			light_pos,
-		});
+		self.color_tree.draw(g, &camera);
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
 			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),
@@ -261,7 +273,7 @@ impl App {
 
 		// Create the scene
 		let scene = {
-			let color_tree = ColorTreeModel::create(&mut g);
+			let color_tree = ColorTreeRenderable::create(&mut g);
 
 			let axes = {
 				let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
@@ -269,8 +281,8 @@ impl App {
 			};
 
 			let camera = {
-				let pivot = color_tree.bounds.center().set_x(0.0).set_y(0.0);
-				let position = pivot + Vec3::<f32>::X * color_tree.bounds.size().xy().vmax() * 1.0;
+				let pivot = color_tree.mesh.bounds.center().set_x(0.0).set_y(0.0);
+				let position = pivot + Vec3::<f32>::X * color_tree.mesh.bounds.size().xy().vmax() * 1.0;
 
 				shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 			};

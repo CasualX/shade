@@ -87,45 +87,72 @@ void main()
 "#;
 
 //----------------------------------------------------------------
-// Model and instance
+// Globe renderable
 
-struct SphereInstance {
-	position: Vec3f,
-	radius: f32,
+struct GlobeMaterial {
+	shader: shade::Shader,
 	texture: shade::Texture2D,
 }
-impl shade::UniformVisitor for SphereInstance {
+impl shade::UniformVisitor for GlobeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_globePosition", &self.position);
-		set.value("u_globeRadius", &self.radius);
 		set.value("u_texture", &self.texture);
 	}
 }
 
-type MeshModel = shade::d3::icosahedron::IcosahedronFlatModel;
-
-struct SphereModel {
-	shader: shade::Shader,
-	texture: shade::Texture2D,
-	mesh: MeshModel,
+struct GlobeInstance {
+	position: Vec3f,
+	radius: f32,
+}
+impl shade::UniformVisitor for GlobeInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_globePosition", &self.position);
+		set.value("u_globeRadius", &self.radius);
+	}
 }
 
-impl SphereModel {
-	fn create(g: &mut shade::Graphics) -> SphereModel {
+struct GlobeRenderable {
+	mesh: shade::d3::VertexMesh,
+	instance: GlobeInstance,
+	material: GlobeMaterial,
+}
+impl GlobeRenderable {
+	fn create(g: &mut shade::Graphics) -> GlobeRenderable {
+		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
+
+		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
 		let texture = {
 			let file_jpg = include_bytes!("../../../textures/2k_earth_daymap.jpg");
-			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap().rgb().unwrap();
+			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap().to_rgb();
 			g.image(None, &image)
 		};
+		let material = GlobeMaterial { shader, texture };
 
-		let mesh = MeshModel::create(g);
-		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
+		let instance = GlobeInstance {
+			position: Vec3f::ZERO,
+			radius: 0.8,
+		};
 
-		SphereModel { shader, texture, mesh }
+		GlobeRenderable { mesh, instance, material }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &SphereInstance) {
-		self.mesh.draw(g, self.shader, &[camera, instance]);
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera) {
+		g.draw(&shade::DrawArgs {
+			scissor: None,
+			blend_mode: shade::BlendMode::Solid,
+			depth_test: Some(shade::DepthTest::LessEqual),
+			cull_mode: Some(shade::CullMode::CW),
+			mask: shade::DrawMask::ALL,
+			prim_type: shade::PrimType::Triangles,
+			shader: self.material.shader,
+			uniforms: &[camera, &self.material, &self.instance],
+			vertices: &[shade::DrawVertexBuffer {
+				buffer: self.mesh.vertices,
+				divisor: shade::VertexDivisor::PerVertex,
+			}],
+			vertex_start: 0,
+			vertex_end: self.mesh.vertices_len,
+			instances: -1,
+		});
 	}
 }
 
@@ -136,7 +163,7 @@ pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: Vec2i,
 	camera: shade::d3::ArcballCamera,
-	sphere: SphereModel,
+	globe: GlobeRenderable,
 	auto_rotate: bool,
 	left_click: bool,
 	right_click: bool,
@@ -151,7 +178,7 @@ impl Context {
 
 		let ref mut g = shade::Graphics(&mut webgl);
 
-		let sphere = SphereModel::create(g);
+		let globe = GlobeRenderable::create(g);
 
 		let camera = shade::d3::ArcballCamera::new(Vec3(0.0, 3.2, 1.8), Vec3::ZERO, Vec3f::Z);
 
@@ -159,7 +186,7 @@ impl Context {
 			webgl,
 			screen_size: Vec2::ZERO,
 			camera,
-			sphere,
+			globe,
 			auto_rotate: true,
 			left_click: false,
 			right_click: false,
@@ -232,11 +259,7 @@ impl Context {
 			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
 		};
 
-		self.sphere.draw(g, &camera, &SphereInstance {
-			position: Vec3f::ZERO,
-			radius: 0.8,
-			texture: self.sphere.texture,
-		});
+		self.globe.draw(g, &camera);
 
 		// Finish the frame
 		g.end();

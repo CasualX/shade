@@ -1,27 +1,6 @@
-use std::mem;
 use shade::cvmath::*;
 
 mod api;
-
-#[derive(Copy, Clone, Default, dataview::Pod)]
-#[repr(C)]
-struct Vertex {
-	position: Vec3f,
-	normal: Vec3f,
-	uv: Vec2f,
-}
-
-unsafe impl shade::TVertex for Vertex {
-	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: mem::size_of::<Vertex>() as u16,
-		alignment: mem::align_of::<Vertex>() as u16,
-		attributes: &[
-			shade::VertexAttribute::with::<Vec3f>("aPos", dataview::offset_of!(Vertex.position)),
-			shade::VertexAttribute::with::<Vec3f>("aNormal", dataview::offset_of!(Vertex.normal)),
-			shade::VertexAttribute::with::<Vec2f>("aUV", dataview::offset_of!(Vertex.uv)),
-		],
-	};
-}
 
 const FRAGMENT_SHADER: &str = r#"
 precision mediump float;
@@ -95,46 +74,44 @@ void main()
 "#;
 
 //----------------------------------------------------------------
+// OldTree renderable
 
-struct OldTreeInstance {
-	model: Transform3f,
-	light_pos: Vec3f,
-}
-
-impl shade::UniformVisitor for OldTreeInstance {
-	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_model", &self.model);
-		let normal_matrix = self.model.mat3().inverse().transpose();
-		set.value("u_normalMatrix", &normal_matrix);
-		set.value("lightPos", &self.light_pos);
-	}
-}
-
-struct OldTreeModel {
+struct OldTreeMaterial {
 	shader: shade::Shader,
-	vertices: shade::VertexBuffer,
-	vertices_len: u32,
 	texture: shade::Texture2D,
-	bounds: Bounds3<f32>,
 }
-
-impl shade::UniformVisitor for OldTreeModel {
+impl shade::UniformVisitor for OldTreeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_diffuse", &self.texture);
 	}
 }
 
-shade::include_bin!(VERTICES_DATA: [Vertex] = "../../../oldtree/vertices.bin");
+struct OldTreeInstance {
+	model: Transform3f,
+}
+impl shade::UniformVisitor for OldTreeInstance {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+		let normal_matrix = self.model.mat3().inverse().transpose();
+		set.value("u_normalMatrix", &normal_matrix);
+	}
+}
 
-impl OldTreeModel {
-	fn create(g: &mut shade::Graphics) -> OldTreeModel {
-		let vertices: &[Vertex] = VERTICES_DATA.as_slice();
+struct OldTreeRenderable {
+	mesh: shade::d3::VertexMesh,
+	material: OldTreeMaterial,
+	instance: OldTreeInstance,
+}
+impl OldTreeRenderable {
+	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
+		shade::include_bin!(VERTICES_DATA: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
+		let vertices: &[shade::d3::TexturedVertexN] = VERTICES_DATA.as_slice();
 
 		let mut mins = Vec3::dup(f32::INFINITY);
 		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
 		for v in vertices {
-			mins = mins.min(v.position);
-			maxs = maxs.max(v.position);
+			mins = mins.min(v.pos);
+			maxs = maxs.max(v.pos);
 			// println!("Vertex {}: {:?}", i, v);
 		}
 		let bounds = Bounds3(mins, maxs);
@@ -158,10 +135,20 @@ impl OldTreeModel {
 		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		OldTreeModel { shader, vertices, vertices_len, texture, bounds }
-	}
+		let mesh = shade::d3::VertexMesh {
+			origin: Vec3f::ZERO,
+			bounds,
+			vertices,
+			vertices_len,
+		};
+		let material = OldTreeMaterial { shader, texture };
+		let instance = OldTreeInstance {
+			model: Transform3f::IDENTITY,
+		};
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, instance: &OldTreeInstance) {
+		OldTreeRenderable { mesh, material, instance }
+	}
+	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, light: &Light) {
 		// Draw the model
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -177,20 +164,29 @@ impl OldTreeModel {
 				stencil: 0,
 			},
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[self, camera, instance],
+			uniforms: &[camera, &self.material, &self.instance, light],
 			vertex_start: 0,
-			vertex_end: self.vertices_len,
+			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
 	}
 }
 
 //----------------------------------------------------------------
+
+struct Light {
+	light_pos: Vec3f,
+}
+impl shade::UniformVisitor for Light {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_lightPos", &self.light_pos);
+	}
+}
 
 #[allow(dead_code)]
 enum ProjectionType {
@@ -212,7 +208,7 @@ pub struct Context {
 	screen_size: Vec2i,
 	projection_type: ProjectionType,
 	camera: shade::d3::ArcballCamera,
-	tree: OldTreeModel,
+	tree: OldTreeRenderable,
 	auto_rotate: bool,
 }
 
@@ -224,12 +220,11 @@ impl Context {
 
 		let ref mut g = shade::Graphics(&mut webgl);
 
-		let tree = OldTreeModel::create(g);
+		let tree = OldTreeRenderable::create(g);
 
 		let camera = {
-			let pivot = tree.bounds.center().set_x(0.0).set_y(0.0);
-			let position = pivot + Vec3::<f32>::X * tree.bounds.size().xy().vmax();
-
+			let pivot = tree.mesh.bounds.center().set_x(0.0).set_y(0.0);
+			let position = pivot + Vec3::<f32>::X * tree.mesh.bounds.size().xy().vmax();
 			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
@@ -277,10 +272,11 @@ impl Context {
 			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		self.tree.draw(g, &camera, &OldTreeInstance {
-			model: Transform3f::IDENTITY,
+		let light = Light {
 			light_pos: Vec3(4.0, 0.0, -230.0),
-		});
+		};
+
+		self.tree.draw(g, &camera, &light);
 
 		// Finish the frame
 		g.end();
