@@ -72,7 +72,7 @@ impl UniformVisitor for CameraSetup {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_viewport", &self.viewport);
 		set.value("u_aspect_ratio", &self.aspect_ratio);
-		set.value("u_position", &self.position);
+		set.value("u_camera_pos", &self.position);
 		set.value("u_near", &self.near);
 		set.value("u_far", &self.far);
 		set.value("u_view", &self.view);

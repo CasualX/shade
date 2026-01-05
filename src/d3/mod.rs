@@ -9,7 +9,12 @@ mod macros;
 mod camera;
 pub use self::camera::*;
 
-pub mod color3d;
+mod textured;
+pub use self::textured::*;
+
+mod color3d;
+pub use self::color3d::*;
+
 pub mod submesh;
 
 pub mod axes;

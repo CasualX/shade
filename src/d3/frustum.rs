@@ -1,7 +1,5 @@
 use super::*;
 
-use color3d::*;
-
 #[derive(Clone, Debug)]
 pub struct FrustumInstance {
 	/// The view-projection matrix defining the camera frustum to visualize.
@@ -34,7 +32,7 @@ impl FrustumModel {
 	}
 
 	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &FrustumInstance) {
-		let uniforms = Uniforms {
+		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.view_proj.inverse(),
 			colormod: Vec4f::ONE,
 			color_add: Vec4f::ZERO,
@@ -83,26 +81,26 @@ impl FrustumModel {
 const NEAR: [u8; 4] = [100, 149, 237, 255];
 const FAR: [u8; 4] = [255, 223, 128, 0];
 
-static VERTICES: [Vertex; 16] = [
+static VERTICES: [ColorVertex3; 16] = [
 	// Clip::NO vertices
-	Vertex { position: Vec3f(-1.0, -1.0, -1.0), color: NEAR }, // Near BL
-	Vertex { position: Vec3f(-1.0,  1.0, -1.0), color: NEAR }, // Near TL
-	Vertex { position: Vec3f( 1.0,  1.0, -1.0), color: NEAR }, // Near TR
-	Vertex { position: Vec3f( 1.0, -1.0, -1.0), color: NEAR }, // Near BR
-	Vertex { position: Vec3f(-1.0, -1.0,  1.0), color: FAR  }, // Far BL
-	Vertex { position: Vec3f(-1.0,  1.0,  1.0), color: FAR  }, // Far TL
-	Vertex { position: Vec3f( 1.0,  1.0,  1.0), color: FAR  }, // Far TR
-	Vertex { position: Vec3f( 1.0, -1.0,  1.0), color: FAR  }, // Far BR
+	ColorVertex3 { pos: Vec3f(-1.0, -1.0, -1.0), color: NEAR }, // Near BL
+	ColorVertex3 { pos: Vec3f(-1.0,  1.0, -1.0), color: NEAR }, // Near TL
+	ColorVertex3 { pos: Vec3f( 1.0,  1.0, -1.0), color: NEAR }, // Near TR
+	ColorVertex3 { pos: Vec3f( 1.0, -1.0, -1.0), color: NEAR }, // Near BR
+	ColorVertex3 { pos: Vec3f(-1.0, -1.0,  1.0), color: FAR  }, // Far BL
+	ColorVertex3 { pos: Vec3f(-1.0,  1.0,  1.0), color: FAR  }, // Far TL
+	ColorVertex3 { pos: Vec3f( 1.0,  1.0,  1.0), color: FAR  }, // Far TR
+	ColorVertex3 { pos: Vec3f( 1.0, -1.0,  1.0), color: FAR  }, // Far BR
 
 	// Clip::ZO vertices
-	Vertex { position: Vec3f(-1.0, -1.0,  0.0), color: NEAR }, // Near BL
-	Vertex { position: Vec3f(-1.0,  1.0,  0.0), color: NEAR }, // Near TL
-	Vertex { position: Vec3f( 1.0,  1.0,  0.0), color: NEAR }, // Near TR
-	Vertex { position: Vec3f( 1.0, -1.0,  0.0), color: NEAR }, // Near BR
-	Vertex { position: Vec3f(-1.0, -1.0,  1.0), color: FAR  }, // Far BL
-	Vertex { position: Vec3f(-1.0,  1.0,  1.0), color: FAR  }, // Far TL
-	Vertex { position: Vec3f( 1.0,  1.0,  1.0), color: FAR  }, // Far TR
-	Vertex { position: Vec3f( 1.0, -1.0,  1.0), color: FAR  }, // Far BR
+	ColorVertex3 { pos: Vec3f(-1.0, -1.0,  0.0), color: NEAR }, // Near BL
+	ColorVertex3 { pos: Vec3f(-1.0,  1.0,  0.0), color: NEAR }, // Near TL
+	ColorVertex3 { pos: Vec3f( 1.0,  1.0,  0.0), color: NEAR }, // Near TR
+	ColorVertex3 { pos: Vec3f( 1.0, -1.0,  0.0), color: NEAR }, // Near BR
+	ColorVertex3 { pos: Vec3f(-1.0, -1.0,  1.0), color: FAR  }, // Far BL
+	ColorVertex3 { pos: Vec3f(-1.0,  1.0,  1.0), color: FAR  }, // Far TL
+	ColorVertex3 { pos: Vec3f( 1.0,  1.0,  1.0), color: FAR  }, // Far TR
+	ColorVertex3 { pos: Vec3f( 1.0, -1.0,  1.0), color: FAR  }, // Far BR
 ];
 
 static INDICES: [u8; 24 + 36] = [

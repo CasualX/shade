@@ -1,7 +1,5 @@
 use super::*;
 
-use color3d::*;
-
 #[derive(Clone, Debug)]
 pub struct AxesInstance {
 	pub local: Transform3f,
@@ -28,7 +26,7 @@ impl AxesModel {
 	}
 
 	pub fn draw(&self, g: &mut Graphics, camera: &camera::CameraSetup, instance: &AxesInstance) {
-		let uniforms = Uniforms {
+		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.local,
 			colormod: Vec4f::ONE,
 			color_add: Vec4f::ZERO,
@@ -59,39 +57,39 @@ const RED: [u8; 4] = [245, 59, 39, 255];
 const GREEN: [u8; 4] = [181, 255, 104, 255];
 const BLUE: [u8; 4] = [7, 111, 255, 255];
 
-static VERTICES: [Vertex; 27] = [
+static VERTICES: [ColorVertex3; 27] = [
 	// X axis [0]
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: RED },
-	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
-	Vertex { position: Vec3f::new(0.9, 0.05, 0.0), color: RED },
-	Vertex { position: Vec3f::new(1.0, 0.0, 0.0), color: RED },
-	Vertex { position: Vec3f::new(0.9, -0.05, 0.0), color: RED },
-	Vertex { position: Vec3f::new(1.1, 0.04, 0.04), color: RED },
-	Vertex { position: Vec3f::new(1.1, -0.04, -0.04), color: RED },
-	Vertex { position: Vec3f::new(1.1, 0.04, -0.04), color: RED },
-	Vertex { position: Vec3f::new(1.1, -0.04, 0.04), color: RED },
+	ColorVertex3 { pos: Vec3f::new(0.0, 0.0, 0.0), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	ColorVertex3 { pos: Vec3f::new(0.9, 0.05, 0.0), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.0, 0.0, 0.0), color: RED },
+	ColorVertex3 { pos: Vec3f::new(0.9, -0.05, 0.0), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.1, 0.04, 0.04), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.1, -0.04, -0.04), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.1, 0.04, -0.04), color: RED },
+	ColorVertex3 { pos: Vec3f::new(1.1, -0.04, 0.04), color: RED },
 
 	// Y axis [9]
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(0.05, 0.9, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(-0.05, 0.9, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(0.03, 1.1, 0.04), color: GREEN },
-	Vertex { position: Vec3f::new(0.0, 1.1, 0.0), color: GREEN },
-	Vertex { position: Vec3f::new(-0.03, 1.1, 0.04), color: GREEN },
-	Vertex { position: Vec3f::new(0.0, 1.1, -0.04), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.0, 0.0, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.05, 0.9, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.0, 1.0, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(-0.05, 0.9, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.03, 1.1, 0.04), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.0, 1.1, 0.0), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(-0.03, 1.1, 0.04), color: GREEN },
+	ColorVertex3 { pos: Vec3f::new(0.0, 1.1, -0.04), color: GREEN },
 
 	// Z axis [18]
-	Vertex { position: Vec3f::new(0.0, 0.0, 0.0), color: BLUE },
-	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
-	Vertex { position: Vec3f::new(0.05, 0.0, 0.9), color: BLUE },
-	Vertex { position: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
-	Vertex { position: Vec3f::new(-0.05, 0.0, 0.9), color: BLUE },
-	Vertex { position: Vec3f::new(-0.04, 0.04, 1.1), color: BLUE },
-	Vertex { position: Vec3f::new(0.04, 0.04, 1.1), color: BLUE },
-	Vertex { position: Vec3f::new(-0.04, -0.04, 1.1), color: BLUE },
-	Vertex { position: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.0, 0.0, 0.0), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.05, 0.0, 0.9), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.0, 0.0, 1.0), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(-0.05, 0.0, 0.9), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(-0.04, 0.04, 1.1), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.04, 0.04, 1.1), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(-0.04, -0.04, 1.1), color: BLUE },
+	ColorVertex3 { pos: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
 ];
 
 static INDICES: [u8; 34] = [
