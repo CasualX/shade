@@ -194,7 +194,9 @@ impl CubeRenderable {
 				camera,
 				&self.material,
 				&self.instance,
-				&("u_transform", &transform),
+				&shade::UniformFn(|set| {
+					set.value("u_transform", &transform);
+				}),
 			],
 			index_start: 0,
 			index_end: self.mesh.indices_len,

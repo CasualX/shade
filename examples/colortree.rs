@@ -188,8 +188,10 @@ impl ColorTreeRenderable {
 				light,
 				&self.material,
 				&self.instance,
-				&("u_transform", &transform),
-				&("u_lightTransform", &light_transform),
+				&shade::UniformFn(|set| {
+					set.value("u_transform", &transform);
+					set.value("u_lightTransform", &light_transform);
+				}),
 			],
 			vertex_start: 0,
 			vertex_end: self.mesh.vertices_len,

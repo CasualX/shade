@@ -47,11 +47,13 @@ pub trait UniformVisitor {
 	fn visit(&self, set: &mut dyn UniformSetter);
 }
 
-impl<'a, T: TUniformValue + ?Sized> UniformVisitor for (&'a str, &'a T) {
+/// Uniform visitor from closure.
+pub struct UniformFn<F: Fn(&mut dyn UniformSetter)>(pub F);
+
+impl<'a, F: Fn(&mut dyn UniformSetter)> UniformVisitor for UniformFn<F> {
 	#[inline]
 	fn visit(&self, set: &mut dyn UniformSetter) {
-		let (name, value) = self;
-		value.set(name, set);
+		(self.0)(set);
 	}
 }
 
