@@ -197,35 +197,13 @@ struct OldTreeRenderable {
 impl OldTreeRenderable {
 	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
 		shade::include_bin!(VERTICES: [shade::d3::TexturedVertexN] = "oldtree/vertices.bin");
+		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
-		let vertices: &[shade::d3::TexturedVertexN] = VERTICES.as_slice();
-		let vertices_len = vertices.len() as u32;
-
-		let mut mins = Vec3::dup(f32::INFINITY);
-		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
-		for v in vertices {
-			mins = mins.min(v.pos);
-			maxs = maxs.max(v.pos);
-			// println!("Vertex {}: {:?}", i, v);
-		}
-		let bounds = Bounds3(mins, maxs);
-
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
-
+		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/oldtree/texture.png").unwrap();
 			g.image(None, &image)
 		};
-
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
-		let mesh = shade::d3::VertexMesh {
-			origin: Vec3f::ZERO,
-			bounds,
-			vertices,
-			vertices_len,
-		};
-
 		let material = OldTreeMaterial { shader, texture };
 
 		let instance = OldTreeInstance {
@@ -298,6 +276,17 @@ struct ParallaxRenderable {
 
 impl ParallaxRenderable {
 	fn create(g: &mut shade::Graphics) -> ParallaxRenderable {
+		let vertices = [
+			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 0.0) },
+			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 0.0) },
+		];
+		let indices = [0, 1, 2, 0, 2, 3];
+		let vertices = indices.map(|i| vertices[i]);
+
+		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
+
 		let diffuse = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
 			let props = shade::TextureProps {
@@ -335,29 +324,12 @@ impl ParallaxRenderable {
 		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
-		let vertices = [
-			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 2.0) },
-			shade::d3::TexturedVertexN { pos: Vec3f(5.0, -5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 2.0) },
-			shade::d3::TexturedVertexN { pos: Vec3f(5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(2.0, 0.0) },
-			shade::d3::TexturedVertexN { pos: Vec3f(-5.0, 5.0, 0.0), normal: Vec3f(0.0, 0.0, 1.0), uv: Vec2f(0.0, 0.0) },
-		];
-		let indices = [0, 1, 2, 0, 2, 3];
-		let vertices = indices.map(|i| vertices[i]);
-		let vb = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
-
 		let material = ParallaxMaterial {
 			shader,
 			diffuse,
 			normal_map,
 			height_map,
 			height_scale: 0.04,
-		};
-
-		let mesh = shade::d3::VertexMesh {
-			origin: Vec3f::ZERO,
-			bounds: Bounds3(Vec3f(-5.0, -5.0, 0.0), Vec3f(5.0, 5.0, 0.0)),
-			vertices: vb,
-			vertices_len: vertices.len() as u32,
 		};
 
 		let instance = ParallaxInstance {

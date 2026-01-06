@@ -3,7 +3,7 @@ use shade::cvmath::*;
 mod api;
 
 const FRAGMENT_SHADER: &str = r#"
-precision mediump float;
+precision highp float;
 
 varying vec3 v_normal;
 varying vec2 v_uv;
@@ -42,7 +42,7 @@ void main() {
 "#;
 
 const VERTEX_SHADER: &str = r#"
-precision mediump float;
+precision highp float;
 
 attribute vec3 aPos;
 attribute vec3 aNormal;
@@ -104,20 +104,8 @@ struct OldTreeRenderable {
 }
 impl OldTreeRenderable {
 	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
-		shade::include_bin!(VERTICES_DATA: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
-		let vertices: &[shade::d3::TexturedVertexN] = VERTICES_DATA.as_slice();
-
-		let mut mins = Vec3::dup(f32::INFINITY);
-		let mut maxs = Vec3::dup(f32::NEG_INFINITY);
-		for v in vertices {
-			mins = mins.min(v.pos);
-			maxs = maxs.max(v.pos);
-			// println!("Vertex {}: {:?}", i, v);
-		}
-		let bounds = Bounds3(mins, maxs);
-
-		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, &vertices, shade::BufferUsage::Static);
+		shade::include_bin!(VERTICES: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
+		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let texture = {
 			let file_png = include_bytes!("../../../oldtree/texture.png");
@@ -135,12 +123,6 @@ impl OldTreeRenderable {
 		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		let mesh = shade::d3::VertexMesh {
-			origin: Vec3f::ZERO,
-			bounds,
-			vertices,
-			vertices_len,
-		};
 		let material = OldTreeMaterial { shader, texture };
 		let instance = OldTreeInstance {
 			model: Transform3f::IDENTITY,

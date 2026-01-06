@@ -4,6 +4,10 @@ pub unsafe trait TVertex: Copy + Default + dataview::Pod {
 	const LAYOUT: &'static VertexLayout;
 }
 
+pub trait TVertex3: TVertex {
+	fn position(&self) -> cvmath::Vec3<f32>;
+}
+
 /// VertexAttribute size.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum VertexAttributeSize {

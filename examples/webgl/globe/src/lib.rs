@@ -6,7 +6,7 @@ mod api;
 // Uniforms and shaders
 
 const SPHERE_FS: &str = r#"
-precision mediump float;
+precision highp float;
 
 uniform vec3 u_cameraPosition;
 uniform vec3 u_globePosition;
@@ -64,7 +64,7 @@ void main()
 "#;
 
 const SPHERE_VS: &str = r#"
-precision mediump float;
+precision highp float;
 
 attribute vec3 a_pos;
 

@@ -19,3 +19,10 @@ unsafe impl TVertex for TexturedVertexN {
 		],
 	};
 }
+
+impl TVertex3 for TexturedVertexN {
+	#[inline]
+	fn position(&self) -> cvmath::Vec3<f32> {
+		self.pos
+	}
+}

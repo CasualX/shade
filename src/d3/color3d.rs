@@ -18,6 +18,13 @@ unsafe impl TVertex for ColorVertex3 {
 	};
 }
 
+impl TVertex3 for ColorVertex3 {
+	#[inline]
+	fn position(&self) -> cvmath::Vec3<f32> {
+		self.pos
+	}
+}
+
 #[derive(Clone, Debug)]
 pub struct ColorUniform3 {
 	pub transform: Mat4f,

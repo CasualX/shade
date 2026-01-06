@@ -2,7 +2,7 @@ use super::*;
 
 pub fn icosahedron(g: &mut Graphics) -> VertexIndexedMesh {
 	let origin = Vec3f::ZERO;
-	let bounds = Bounds3f(Vec3f::dup(-1.0), Vec3f::dup(1.0));
+	let bounds = Bounds3f(-Vec3f::ONE, Vec3f::ONE);
 	let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static);
 	let vertices_len = VERTICES.len() as u32;
 	let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static);
@@ -12,7 +12,7 @@ pub fn icosahedron(g: &mut Graphics) -> VertexIndexedMesh {
 
 pub fn icosahedron_flat(g: &mut Graphics) -> VertexMesh {
 	let origin = Vec3f::ZERO;
-	let bounds = Bounds3f(Vec3f::dup(-1.0), Vec3f::dup(1.0));
+	let bounds = Bounds3f(-Vec3f::ONE, Vec3f::ONE);
 	let vertices = g.vertex_buffer(None, &FLAT_VERTICES, BufferUsage::Static);
 	let vertices_len = FLAT_VERTICES.len() as u32;
 	VertexMesh { origin, bounds, vertices, vertices_len }
