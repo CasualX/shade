@@ -11,6 +11,9 @@ pub use self::arcball::ArcballCamera;
 mod firstperson;
 pub use self::firstperson::FirstPersonCamera;
 
+mod planar;
+pub use self::planar::PlanarCamera;
+
 /// Contains camera matrices and parameters.
 #[derive(Clone, Debug)]
 pub struct Camera {
