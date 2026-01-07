@@ -28,6 +28,7 @@ impl Context {
 				let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 				let props = shade::TextureProps {
 					mip_levels: 1,
+					usage: shade::TextureUsage::TEXTURE,
 					filter_min: shade::TextureFilter::Linear,
 					filter_mag: shade::TextureFilter::Linear,
 					wrap_u: shade::TextureWrap::Edge,

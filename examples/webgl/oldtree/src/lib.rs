@@ -112,6 +112,7 @@ impl OldTreeRenderable {
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
+				usage: shade::TextureUsage::TEXTURE,
 				filter_min: shade::TextureFilter::Nearest,
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,

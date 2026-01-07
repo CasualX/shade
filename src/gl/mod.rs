@@ -154,6 +154,7 @@ impl GlGraphics {
 						height: 1,
 						props: crate::TextureProps {
 							mip_levels: 1,
+							usage: crate::TextureUsage::TEXTURE,
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
@@ -292,9 +293,14 @@ impl crate::IGraphics for GlGraphics {
 		}
 		// Allocate texture storage (required for framebuffer attachments)
 		let internal_format = match info.format {
-			crate::TextureFormat::RGB8 => gl::RGB8,
 			crate::TextureFormat::RGBA8 => gl::RGBA8,
+			crate::TextureFormat::RGB8 => gl::RGB8,
+			crate::TextureFormat::RG8 => gl::RG8,
 			crate::TextureFormat::R8 => gl::R8,
+			crate::TextureFormat::RGBA32F => gl::RGBA32F,
+			crate::TextureFormat::RGB32F => gl::RGB32F,
+			crate::TextureFormat::RG32F => gl::RG32F,
+			crate::TextureFormat::R32F => gl::R32F,
 			crate::TextureFormat::Depth16 => gl::DEPTH_COMPONENT16,
 			crate::TextureFormat::Depth24 => gl::DEPTH_COMPONENT24,
 			crate::TextureFormat::Depth32F => gl::DEPTH_COMPONENT32F,
@@ -320,12 +326,18 @@ impl crate::IGraphics for GlGraphics {
 	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
 		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
+		assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		let (_internal_format, format, type_, align) = match texture.info.format {
-			crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
 			crate::TextureFormat::RGBA8 => (gl::RGBA8 as GLint, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RG8 => (gl::RG8 as GLint, gl::RG, gl::UNSIGNED_BYTE, 1),
 			crate::TextureFormat::R8 => (gl::R8 as GLint, gl::RED, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGBA32F => (gl::RGBA32F as GLint, gl::RGBA, gl::FLOAT, 4),
+			crate::TextureFormat::RGB32F => (gl::RGB32F as GLint, gl::RGB, gl::FLOAT, 4),
+			crate::TextureFormat::RG32F => (gl::RG32F as GLint, gl::RG, gl::FLOAT, 4),
+			crate::TextureFormat::R32F => (gl::R32F as GLint, gl::RED, gl::FLOAT, 4),
 			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT16 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
 			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT24 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
 			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT32F as GLint, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
@@ -341,12 +353,18 @@ impl crate::IGraphics for GlGraphics {
 	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
 		let Some(texture) = self.textures.textures2d.get(id) else { return };
 		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
+		assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 		self.metrics.bytes_downloaded = usize::wrapping_add(self.metrics.bytes_downloaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
 		let (format, type_, align) = match texture.info.format {
-			crate::TextureFormat::RGB8 => (gl::RGB, gl::UNSIGNED_BYTE, 1),
 			crate::TextureFormat::RGBA8 => (gl::RGBA, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGB8 => (gl::RGB, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RG8 => (gl::RG, gl::UNSIGNED_BYTE, 1),
 			crate::TextureFormat::R8 => (gl::RED, gl::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::RGBA32F => (gl::RGBA, gl::FLOAT, 4),
+			crate::TextureFormat::RGB32F => (gl::RGB, gl::FLOAT, 4),
+			crate::TextureFormat::RG32F => (gl::RG, gl::FLOAT, 4),
+			crate::TextureFormat::R32F => (gl::RED, gl::FLOAT, 4),
 			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
 			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
 			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT, gl::FLOAT, 4),

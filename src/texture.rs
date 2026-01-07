@@ -1,3 +1,4 @@
+use super::*;
 
 /// Texture format.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
@@ -7,7 +8,13 @@ pub enum TextureFormat {
 	#[default]
 	RGBA8,
 	RGB8,
+	RG8,
 	R8,
+
+	RGBA32F,
+	RGB32F,
+	RG32F,
+	R32F,
 
 	// Depth formats
 	Depth16,
@@ -23,7 +30,12 @@ impl TextureFormat {
 		match self {
 			TextureFormat::RGBA8 => 4,
 			TextureFormat::RGB8 => 3,
+			TextureFormat::RG8 => 2,
 			TextureFormat::R8 => 1,
+			TextureFormat::RGBA32F => 16,
+			TextureFormat::RGB32F => 12,
+			TextureFormat::RG32F => 8,
+			TextureFormat::R32F => 4,
 			TextureFormat::Depth16 => 2,
 			TextureFormat::Depth24 => 4, // Although the internal format is 24-bit, write/readback uses 32-bit values
 			TextureFormat::Depth32F => 4,
@@ -50,10 +62,64 @@ pub enum TextureFilter {
 	Nearest,
 }
 
+/// Texture usage flags.
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+pub struct TextureUsage(u8);
+impl TextureUsage {
+	pub const NONE: TextureUsage = TextureUsage(0x0);
+	pub const WRITE: TextureUsage = TextureUsage(0x1);
+	pub const READBACK: TextureUsage = TextureUsage(0x2);
+	pub const SAMPLED: TextureUsage = TextureUsage(0x4);
+	pub const COLOR_TARGET: TextureUsage = TextureUsage(0x8);
+	pub const DEPTH_STENCIL_TARGET: TextureUsage = TextureUsage(0x10);
+
+	/// Common usage for textures used as sampled textures.
+	pub const TEXTURE: TextureUsage = TextureUsage::WRITE.or(TextureUsage::SAMPLED);
+
+	/// Combines usage flags.
+	#[inline]
+	pub const fn or(self, other: TextureUsage) -> TextureUsage {
+		TextureUsage(self.0 | other.0)
+	}
+
+	/// Checks if all of the specified usage flags are set.
+	#[inline]
+	pub const fn all(self, other: TextureUsage) -> bool {
+		(self.0 & other.0) == other.0
+	}
+
+	/// Checks if any of the specified usage flags are set.
+	#[inline]
+	pub const fn has(self, other: TextureUsage) -> bool {
+		(self.0 & other.0) != 0
+	}
+}
+impl Default for TextureUsage {
+	#[inline]
+	fn default() -> TextureUsage {
+		TextureUsage::TEXTURE
+	}
+}
+impl ops::BitOr for TextureUsage {
+	type Output = TextureUsage;
+	#[inline]
+	fn bitor(self, rhs: TextureUsage) -> TextureUsage {
+		TextureUsage(self.0 | rhs.0)
+	}
+}
+/// Macro to create TextureUsage flags.
+#[macro_export]
+macro_rules! TextureUsage {
+	($($flag:ident)|+ $(|)?) => {
+		const { ::shade::TextureUsage::NONE $(.or(::shade::TextureUsage::$flag))+ }
+	};
+}
+
 /// Texture properties.
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub struct TextureProps {
 	pub mip_levels: u8,
+	pub usage: TextureUsage,
 	pub filter_min: TextureFilter,
 	pub filter_mag: TextureFilter,
 	pub wrap_u: TextureWrap,
@@ -65,6 +131,7 @@ impl Default for TextureProps {
 	fn default() -> TextureProps {
 		TextureProps {
 			mip_levels: 1,
+			usage: TextureUsage::TEXTURE,
 			filter_min: TextureFilter::Linear,
 			filter_mag: TextureFilter::Linear,
 			wrap_u: TextureWrap::Edge,

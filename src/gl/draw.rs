@@ -271,6 +271,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 			// Bind textures to texture units
 			for (i, &id) in textures.iter().enumerate() {
 				let texture = self.textures.get2d(id);
+				assert!(texture.info.props.usage.has(crate::TextureUsage::SAMPLED), "Texture was not created with SAMPLED usage");
 				let texture_unit = (base_unit + i as i32) as u32;
 				gl_check!(gl::ActiveTexture(gl::TEXTURE0 + texture_unit));
 				gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
@@ -290,6 +291,7 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], depth: cr
 	let mut draw_buffers: [GLenum; 16] = [gl::NONE; 16];
 	for (i, &tex_id) in color.iter().enumerate() {
 		let texture = this.textures.get2d(tex_id);
+		assert!(texture.info.props.usage.has(crate::TextureUsage::COLOR_TARGET), "Texture was not created with COLOR_TARGET usage");
 		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, gl::TEXTURE_2D, texture.texture, 0));
 		draw_buffers[i] = gl::COLOR_ATTACHMENT0 + i as u32;
 	}
@@ -306,6 +308,7 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], depth: cr
 	// Attach depth texture if valid
 	if depth != crate::Texture2D::INVALID {
 		let depth_tex = this.textures.get2d(depth);
+		assert!(depth_tex.info.props.usage.has(crate::TextureUsage::DEPTH_STENCIL_TARGET), "Texture was not created with DEPTH_STENCIL_TARGET usage");
 		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, depth_tex.texture, 0));
 	}
 

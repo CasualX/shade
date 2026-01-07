@@ -291,6 +291,7 @@ impl ParallaxRenderable {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
+				usage: shade::TextureUsage::TEXTURE,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
@@ -303,6 +304,7 @@ impl ParallaxRenderable {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.normal.png").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
+				usage: shade::TextureUsage::TEXTURE,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
@@ -315,6 +317,7 @@ impl ParallaxRenderable {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.height.png").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
+				usage: shade::TextureUsage::TEXTURE,
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,

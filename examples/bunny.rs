@@ -282,6 +282,7 @@ impl App {
 			height: SIZE,
 			props: shade::TextureProps {
 				mip_levels: 1,
+				usage: shade::TextureUsage!(SAMPLED | COLOR_TARGET),
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
@@ -292,7 +293,14 @@ impl App {
 			format: shade::TextureFormat::Depth24,
 			width: SIZE,
 			height: SIZE,
-			props: shade::TextureProps::default(),
+			props: shade::TextureProps {
+				mip_levels: 1,
+				usage: shade::TextureUsage::DEPTH_STENCIL_TARGET,
+				filter_min: shade::TextureFilter::Nearest,
+				filter_mag: shade::TextureFilter::Nearest,
+				wrap_u: shade::TextureWrap::Edge,
+				wrap_v: shade::TextureWrap::Edge,
+			},
 		});
 
 		let post_process_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, POST_PROCESS_FS);

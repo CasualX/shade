@@ -139,6 +139,7 @@ impl WebGLGraphics {
 						format: crate::TextureFormat::RGBA8,
 						props: crate::TextureProps {
 							mip_levels: 1,
+							usage: crate::TextureUsage::TEXTURE,
 							filter_min: crate::TextureFilter::Nearest,
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
@@ -292,8 +293,8 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
 		let format = match texture.info.format {
-			crate::TextureFormat::RGB8 => api::RGB,
 			crate::TextureFormat::RGBA8 => api::RGBA,
+			crate::TextureFormat::RGB8 => api::RGB,
 			crate::TextureFormat::R8 => api::LUMINANCE,
 			_ => unimplemented!()
 		};
