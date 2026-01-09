@@ -117,6 +117,7 @@ impl OldTreeRenderable {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,
 				wrap_v: shade::TextureWrap::Edge,
+				border_color: [0, 0, 0, 0],
 			};
 			g.image(None, &(&image, &props))
 		};
@@ -230,7 +231,7 @@ impl Context {
 
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);

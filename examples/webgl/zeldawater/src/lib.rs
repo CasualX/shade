@@ -133,6 +133,7 @@ impl Context {
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
 			};
 			g.image(None, &(&image, &props))
 		};
@@ -147,6 +148,7 @@ impl Context {
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
 			};
 			g.image(None, &(&image, &props))
 		};
@@ -176,7 +178,7 @@ impl Context {
 		let g = shade::Graphics(&mut self.webgl);
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));

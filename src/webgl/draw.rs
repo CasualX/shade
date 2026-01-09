@@ -282,7 +282,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 }
 
-pub fn begin(this: &mut WebGLGraphics, args: &crate::RenderPassArgs) {
+pub fn begin(this: &mut WebGLGraphics, args: &crate::BeginArgs) {
 	if this.drawing {
 		panic!("{}: draw call already in progress", name_of(&begin));
 	}
@@ -290,10 +290,10 @@ pub fn begin(this: &mut WebGLGraphics, args: &crate::RenderPassArgs) {
 	this.drawing = true;
 
 	match args {
-		&crate::RenderPassArgs::BackBuffer { ref viewport } => {
+		&crate::BeginArgs::BackBuffer { ref viewport } => {
 			gl_viewport(viewport);
 		}
-		&crate::RenderPassArgs::Immediate { color: _, depth: _, viewport: _ } => {
+		&crate::BeginArgs::Immediate { color: _, depth: _, viewport: _ } => {
 			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
 		}
 	}

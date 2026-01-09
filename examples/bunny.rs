@@ -287,6 +287,7 @@ impl App {
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
 			},
 		});
 		let texture_depth = g.texture2d_create(None, &shade::Texture2DInfo {
@@ -300,6 +301,7 @@ impl App {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,
 				wrap_v: shade::TextureWrap::Edge,
+				border_color: [0, 0, 0, 0],
 			},
 		});
 
@@ -311,7 +313,7 @@ impl App {
 
 	fn draw(&mut self) {
 		let viewport = Bounds2::c(0, 0, SIZE, SIZE);
-		self.g.begin(&shade::RenderPassArgs::Immediate {
+		self.g.begin(&shade::BeginArgs::Immediate {
 			color: &[self.texture],
 			depth: self.texture_depth,
 			viewport,
@@ -358,7 +360,7 @@ impl App {
 
 		// Render the frame
 		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
-		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(self.g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);

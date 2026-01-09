@@ -183,6 +183,7 @@ impl App {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
 			},
 		};
 
@@ -209,7 +210,7 @@ impl App {
 		let dst = self.state[1 - self.ping];
 
 		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
-		self.g.begin(&shade::RenderPassArgs::Immediate {
+		self.g.begin(&shade::BeginArgs::Immediate {
 			color: &[dst],
 			depth: shade::Texture2D::INVALID,
 			viewport,
@@ -229,7 +230,7 @@ impl App {
 		self.step();
 
 		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
-		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(self.g, color: Vec4(0.0, 0.0, 0.0, 1.0));
 		self.pp.draw(
 			&mut self.g,

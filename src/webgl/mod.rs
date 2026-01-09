@@ -144,6 +144,7 @@ impl WebGLGraphics {
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
 							wrap_v: crate::TextureWrap::Edge,
+							border_color: [0, 0, 0, 0],
 						},
 					},
 				},
@@ -155,7 +156,7 @@ impl WebGLGraphics {
 }
 
 impl crate::IGraphics for WebGLGraphics {
-	fn begin(&mut self, args: &crate::RenderPassArgs) {
+	fn begin(&mut self, args: &crate::BeginArgs) {
 		draw::begin(self, args)
 	}
 

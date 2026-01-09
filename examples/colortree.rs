@@ -236,6 +236,7 @@ impl Scene {
 					filter_mag: shade::TextureFilter::Linear,
 					wrap_u: shade::TextureWrap::Edge,
 					wrap_v: shade::TextureWrap::Edge,
+					border_color: [0, 0, 0, 0],
 				},
 			});
 		}
@@ -249,7 +250,7 @@ impl Scene {
 
 		// Render shadow map
 		let viewport = Bounds2::vec(Vec2::dup(SHADOW_MAP_SIZE));
-		g.begin(&shade::RenderPassArgs::Immediate {
+		g.begin(&shade::BeginArgs::Immediate {
 			color: &[],
 			depth: self.shadow_map,
 			viewport,
@@ -279,7 +280,7 @@ impl Scene {
 
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);

@@ -178,6 +178,7 @@ impl App {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,
 				wrap_v: shade::TextureWrap::Edge,
+				border_color: [0, 0, 0, 0],
 			};
 			g.image(Some("scene tiles"), &(&image, &props))
 		};
@@ -195,7 +196,7 @@ impl App {
 
 		// Render the frame
 		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
-		self.g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(self.g, color: Vec4(0.2, 0.2, 0.5, 1.0), depth: 1.0);

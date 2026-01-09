@@ -1,7 +1,7 @@
 use super::*;
 
 /// Arguments for [begin](IGraphics::begin).
-pub enum RenderPassArgs<'a> {
+pub enum BeginArgs<'a> {
 	/// Begin drawing on the back buffer.
 	BackBuffer {
 		viewport: cvmath::Bounds2<i32>,
@@ -170,7 +170,7 @@ pub struct DrawMetrics {
 /// See [Graphics](struct@Graphics) for a type-erased version.
 pub trait IGraphics {
 	/// Begin drawing.
-	fn begin(&mut self, args: &RenderPassArgs);
+	fn begin(&mut self, args: &BeginArgs);
 	/// Clear the surface.
 	fn clear(&mut self, args: &ClearArgs);
 	/// Draw primitives.
@@ -182,44 +182,44 @@ pub trait IGraphics {
 	/// Get drawing statistics.
 	fn get_draw_metrics(&mut self, reset: bool) -> DrawMetrics;
 
-	/// Create a buffer.
+	/// Creates a vertex buffer.
 	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
-	/// Find a vertex buffer by name.
+	/// Finds a vertex buffer by name.
 	fn vertex_buffer_find(&mut self, name: &str) -> VertexBuffer;
-	/// Set the data of a vertex buffer.
+	/// Writes data to the vertex buffer.
 	fn vertex_buffer_write(&mut self, id: VertexBuffer, data: &[u8]);
-	/// Release the resources of a vertex buffer.
+	/// Releases the resources of the vertex buffer.
 	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode);
 
-	/// Create a buffer.
+	/// Creates an index buffer.
 	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
-	/// Find a vertex buffer by name.
+	/// Finds an index buffer by name.
 	fn index_buffer_find(&mut self, name: &str) -> IndexBuffer;
-	/// Set the data of a vertex buffer.
+	/// Writes data to the index buffer.
 	fn index_buffer_write(&mut self, id: IndexBuffer, data: &[u8]);
-	/// Release the resources of a vertex buffer.
+	/// Releases the resources of the index buffer.
 	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode);
 
-	/// Create and compile a shader.
+	/// Creates and compiles a shader.
 	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Shader;
-	/// Find a shader by name.
+	/// Finds a shader by name.
 	fn shader_find(&mut self, name: &str) -> Shader;
-	/// Release the resources of a shader.
+	/// Releases the resources of the shader.
 	fn shader_free(&mut self, id: Shader);
 
-	/// Create a 2D texture.
+	/// Creates a 2D texture.
 	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Texture2D;
-	/// Find a 2D texture by name.
+	/// Finds a 2D texture by name.
 	fn texture2d_find(&mut self, name: &str) -> Texture2D;
-	/// Get the info of a 2D texture.
+	/// Returns the info of the 2D texture.
 	fn texture2d_get_info(&mut self, id: Texture2D) -> Texture2DInfo;
-	/// Generate mipmap for a 2D texture.
+	/// Generates mipmap for the 2D texture.
 	fn texture2d_generate_mipmap(&mut self, id: Texture2D);
-	/// Set the data of a 2D texture.
+	/// Writes data to the 2D texture.
 	fn texture2d_write(&mut self, id: Texture2D, level: u8, data: &[u8]);
-	/// Read the data of a 2D texture into a buffer.
+	/// Reads the data of the 2D texture into the buffer.
 	fn texture2d_read_into(&mut self, id: Texture2D, level: u8, data: &mut [u8]);
-	/// Release the resources of a 2D texture.
+	/// Releases the resources of the 2D texture.
 	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
 }
 
@@ -254,7 +254,7 @@ impl ops::DerefMut for Graphics {
 }
 
 impl Graphics {
-	/// Create a texture from an image.
+	/// Creates a texture from an image.
 	#[inline]
 	pub fn image<F: image::ImageToTexture>(&mut self, name: Option<&str>, image: &F) -> Texture2D {
 		let info = image.info();
@@ -264,7 +264,7 @@ impl Graphics {
 		self.texture2d_generate_mipmap(tex);
 		return tex;
 	}
-	/// Create an animated texture from an animated image.
+	/// Creates an animated texture from an animated image.
 	pub fn animated_image(&mut self, image: &image::AnimatedImage, props: &crate::TextureProps) -> crate::AnimatedTexture2D {
 		let mut frames = Vec::with_capacity(image.frames.len());
 		for frame in &image.frames {
@@ -280,7 +280,7 @@ impl Graphics {
 			repeat: image.repeat,
 		}
 	}
-	/// Create and assign data to a 2D texture.
+	/// Creates and writes data to the 2D texture.
 	#[inline]
 	pub fn texture2d(&mut self, name: Option<&str>, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
 		let texture = self.texture2d_create(name, info);
@@ -288,7 +288,7 @@ impl Graphics {
 		self.texture2d_generate_mipmap(texture);
 		return texture;
 	}
-	/// Read the data of a 2D texture into an image.
+	/// Reads the data of the 2D texture into an image.
 	pub fn texture2d_read<T: dataview::Pod>(&mut self, id: Texture2D, level: u8) -> image::Image<T> {
 		let info = self.texture2d_get_info(id);
 		let (mip_width, mip_height, byte_size) = info.mip_size(level);
@@ -304,7 +304,7 @@ impl Graphics {
 			data: vec,
 		};
 	}
-	/// Create and assign data to a vertex buffer.
+	/// Creates and writes data to the vertex buffer.
 	#[inline]
 	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> VertexBuffer {
 		let this = &mut self.inner;
@@ -312,12 +312,12 @@ impl Graphics {
 		this.vertex_buffer_write(id, dataview::bytes(data));
 		return id;
 	}
-	/// Set the data of a vertex buffer.
+	/// Writes data to the vertex buffer.
 	#[inline]
 	pub fn vertex_buffer_write<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) {
 		self.inner.vertex_buffer_write(id, dataview::bytes(data))
 	}
-	/// Create and assign data to an index buffer.
+	/// Creates and writes data to the index buffer.
 	#[inline]
 	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], _nverts: T, usage: BufferUsage) -> IndexBuffer {
 		#[cfg(debug_assertions)]
@@ -333,7 +333,7 @@ impl Graphics {
 		this.index_buffer_write(id, dataview::bytes(data));
 		return id;
 	}
-	/// Set the data of an index buffer.
+	/// Writes data to the index buffer.
 	#[inline]
 	pub fn index_buffer_write<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) {
 		self.inner.index_buffer_write(id, dataview::bytes(data))

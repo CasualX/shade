@@ -174,7 +174,7 @@ struct Scene {
 impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		shade::clear!(g, color: Vec4(0.1, 0.1, 0.1, 1.0), depth: 1.0);
 

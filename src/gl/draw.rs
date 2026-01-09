@@ -323,7 +323,7 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], depth: cr
 	this.immediate_fbo = Some(fbo);
 }
 
-pub fn begin(this: &mut GlGraphics, args: &crate::RenderPassArgs) {
+pub fn begin(this: &mut GlGraphics, args: &crate::BeginArgs) {
 	this.draw_begin = time::Instant::now();
 
 	if this.drawing {
@@ -333,11 +333,11 @@ pub fn begin(this: &mut GlGraphics, args: &crate::RenderPassArgs) {
 	this.drawing = true;
 
 	match args {
-		&crate::RenderPassArgs::BackBuffer { ref viewport } => {
+		&crate::BeginArgs::BackBuffer { ref viewport } => {
 			gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
 			gl_viewport(viewport);
 		}
-		&crate::RenderPassArgs::Immediate { color, depth, ref viewport } => {
+		&crate::BeginArgs::Immediate { color, depth, ref viewport } => {
 			gl_immediate_fbo(this, color, depth);
 			gl_viewport(viewport);
 		}

@@ -236,7 +236,7 @@ impl Context {
 
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(g, color: Vec4(0.05, 0.05, 0.1, 1.0), depth: 1.0);

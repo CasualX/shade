@@ -33,6 +33,7 @@ impl Context {
 					filter_mag: shade::TextureFilter::Linear,
 					wrap_u: shade::TextureWrap::Edge,
 					wrap_v: shade::TextureWrap::Edge,
+					border_color: [0, 0, 0, 0],
 				};
 				g.image(Some("font"), &(&image, &props))
 			};
@@ -58,7 +59,7 @@ impl Context {
 
 		// Render the frame
 		let viewport = Bounds2::c(0, 0, size.x, size.y);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
 		shade::clear!(g, color: Vec4(0.4, 0.4, 0.7, 1.0), depth: 1.0);

@@ -102,7 +102,7 @@ impl Context {
 	pub fn draw(&mut self, time: f64) {
 		let g = shade::Graphics(&mut self.webgl);
 		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::RenderPassArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
 
