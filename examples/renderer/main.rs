@@ -1,182 +1,136 @@
+use std::time;
 use std::ffi::CString;
 use std::num::NonZeroU32;
 
 use glutin::prelude::*;
 use shade::cvmath::*;
 
-//----------------------------------------------------------------
-// Uniforms and shaders
+mod bunny;
+mod colortree;
+mod globe;
+mod cube;
+mod oldtree;
+mod parallax;
 
-const SPHERE_FS: &str = r#"\
-#version 330 core
-
-out vec4 o_fragColor;
-
-in vec3 v_worldPos;
-
-uniform vec3 u_cameraPosition;
-uniform vec3 u_globePosition;
-uniform float u_globeRadius;
-uniform sampler2D u_texture;
-
-const float PI = 3.141592653589793;
-
-void main()
-{
-	// Ray from camera through fragment
-	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
-	vec3 rayOrigin = u_cameraPosition;
-
-	// Sphere centered at globePosition (world space)
-	vec3 oc = rayOrigin - u_globePosition;
-
-	float a = dot(rayDir, rayDir);
-	float b = 2.0 * dot(oc, rayDir);
-	float c = dot(oc, oc) - u_globeRadius * u_globeRadius;
-
-	float discriminant = b*b - 4.0*a*c;
-	if (discriminant < 0.0) {
-	// Purple debug color
-		// o_fragColor = vec4(0.5, 0.0, 0.5, 1.0);
-		discard;
-		return;
-	}
-	// Nearest positive intersection (handles camera-inside-sphere too)
-	float sqrtD = sqrt(discriminant);
-	float t0 = (-b - sqrtD) / (2.0 * a);
-	float t1 = (-b + sqrtD) / (2.0 * a);
-	float t = (t0 > 0.0) ? t0 : t1;
-	if (t < 0.0) discard;
-
-	vec3 hitPos = rayOrigin + t * rayDir;
-	vec3 n = normalize(hitPos - u_globePosition);
-
-	// Spherical UVs (equirectangular)
-	// World is Z-up in this demo (see ArcballCamera::new(..., up = Z)).
-	// Longitude around +Z axis, latitude from equator toward +Z.
-	float u = 0.5 + atan(n.y, n.x) / (2.0 * PI);
-	float v = 0.5 + asin(n.z) / PI;
-
-	// PNG rows decode top-to-bottom; OpenGL UV (0,0) samples the first row.
-	// Flip V so the image appears upright.
-	v = 1.0 - v;
-
-	// Keep within [0,1) for wrapping samplers.
-	u = fract(u);
-
-	vec3 color = texture(u_texture, vec2(u, v)).rgb;
-	o_fragColor = vec4(color, 1.0);
+struct Light {
+	light_pos: Vec3f,
+	light_view_proj: Mat4f,
+	shadow_map: shade::Texture2D,
+	shadow_texel_scale: f32,
 }
-"#;
-
-const SPHERE_VS: &str = r#"\
-#version 330 core
-
-in vec3 a_pos;
-
-uniform mat4x3 u_viewMatrix;
-uniform mat4 u_projMatrix;
-
-uniform vec3 u_globePosition;
-uniform float u_globeRadius;
-
-out vec3 v_worldPos;
-
-void main()
-{
-	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
-	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
-	vec4 worldPos = vec4(world, 1.0);
-	v_worldPos = worldPos.xyz;
-	gl_Position = u_projMatrix * mat4(u_viewMatrix) * worldPos;
-}
-"#;
-
-//----------------------------------------------------------------
-// Globe renderable
-
-struct GlobeMaterial {
-	shader: shade::Shader,
-	texture: shade::Texture2D,
-}
-impl shade::UniformVisitor for GlobeMaterial {
+impl shade::UniformVisitor for Light {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_texture", &self.texture);
+		set.value("u_lightPos", &self.light_pos);
+		set.value("u_shadowMap", &self.shadow_map);
+		set.value("u_shadowTexelScale", &self.shadow_texel_scale);
 	}
 }
 
-struct GlobeInstance {
-	position: Vec3f,
-	radius: f32,
+struct Globals {
+	time: f32,
 }
-impl shade::UniformVisitor for GlobeInstance {
+impl shade::UniformVisitor for Globals {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_globePosition", &self.position);
-		set.value("u_globeRadius", &self.radius);
-	}
-}
-
-struct GlobeRenderable {
-	mesh: shade::d3::VertexMesh,
-	material: GlobeMaterial,
-	instance: GlobeInstance,
-}
-impl GlobeRenderable {
-	fn create(g: &mut shade::Graphics) -> GlobeRenderable {
-		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
-
-		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
-		let texture = {
-			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap().to_rgb();
-			g.image(None, &image)
-		};
-		let material = GlobeMaterial { shader, texture };
-
-		let instance = GlobeInstance {
-			position: Vec3f::ZERO,
-			radius: 0.8,
-		};
-
-		GlobeRenderable { mesh, material, instance }
-	}
-
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera) {
-		g.draw(&shade::DrawArgs {
-			scissor: None,
-			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::LessEqual),
-			cull_mode: Some(shade::CullMode::CW),
-			mask: shade::DrawMask::ALL,
-			prim_type: shade::PrimType::Triangles,
-			shader: self.material.shader,
-			uniforms: &[camera, &self.material, &self.instance],
-			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
-				divisor: shade::VertexDivisor::PerVertex,
-			}],
-			vertex_start: 0,
-			vertex_end: self.mesh.vertices_len,
-			instances: -1,
-		});
+		set.value("u_time", &self.time);
 	}
 }
 
 //----------------------------------------------------------------
-// Scene
+
+const SHADOW_MAP_SIZE: i32 = 4096;
+
+fn animate_light_pos(t: f32) -> Vec3f {
+	let center = Vec3f(0.0, 0.0, 80.0);
+	let radius = 40.0;
+	let period_s = 10.0;
+	let angle = Angle::TURN / period_s * t;
+	(center.xy() + angle.vec2() * radius).vec3(center.z)
+}
 
 struct Scene {
 	screen_size: Vec2i,
+	epoch: time::Instant,
 	camera: shade::d3::ArcballCamera,
-	globe: GlobeRenderable,
-	axes: shade::d3::axes::AxesModel,
-}
+	shadow_map: shade::Texture2D,
 
+	axes: shade::d3::axes::AxesModel,
+	cube: cube::Renderable,
+	bunny: bunny::Renderable,
+	color_tree: colortree::Renderable,
+	oldtree: oldtree::Renderable,
+	parallax: parallax::Renderable,
+	globe: globe::Renderable,
+}
 impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
+		let time = self.epoch.elapsed().as_secs_f32();
+
+		if self.shadow_map == shade::Texture2D::INVALID {
+			self.shadow_map = g.texture2d_create(None, &shade::Texture2DInfo {
+				width: SHADOW_MAP_SIZE,
+				height: SHADOW_MAP_SIZE,
+				format: shade::TextureFormat::Depth32F,
+				props: shade::TextureProps {
+					mip_levels: 1,
+					usage: shade::TextureUsage!(SAMPLED | DEPTH_STENCIL_TARGET),
+					filter_min: shade::TextureFilter::Linear,
+					filter_mag: shade::TextureFilter::Linear,
+					wrap_u: shade::TextureWrap::Edge,
+					wrap_v: shade::TextureWrap::Edge,
+					border_color: [0, 0, 0, 0],
+				},
+			});
+		}
+
+		let globals = Globals { time };
+		let mut light = Light {
+			light_pos: animate_light_pos(time),
+			light_view_proj: Mat4::IDENTITY,
+			shadow_map: self.shadow_map,
+			shadow_texel_scale: 2.0,
+		};
+
+		// Render shadow map
+		let viewport = Bounds2::vec(Vec2::dup(SHADOW_MAP_SIZE));
+		g.begin(&shade::BeginArgs::Immediate {
+			color: &[],
+			depth: self.shadow_map,
+			viewport,
+		});
+
+		// Light camera setup
+		let light_camera = {
+			let aspect_ratio = 1.0;
+			let position = light.light_pos;
+			let hand = Hand::RH;
+			let view = Transform3f::look_at(position, Vec3(0.0, 0.0, 0.0), Vec3::Z, hand);
+			let clip = Clip::NO;
+			let (near, far) = (10.0, 10000.0);
+			// let bounds = self.color_tree.mesh.bounds;
+			// let projection = Transform3::ortho(bounds, (hand, clip)).mat4();
+			let projection = Mat4::perspective(Angle::deg(90.0), aspect_ratio, near, far, (hand, clip));
+			let view_proj = projection * view;
+			let inv_view_proj = view_proj.inverse();
+			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+		};
+
+		light.light_view_proj = light_camera.view_proj;
+
+		shade::clear!(g, depth: 1.0);
+		self.cube.draw(g, &globals, &light_camera, &light, true);
+		self.bunny.draw(g, &globals, &light_camera, &light, true);
+		self.color_tree.draw(g, &globals, &light_camera, &light, true);
+		self.oldtree.draw(g, &globals, &light_camera, &light, true);
+		self.parallax.draw(g, &globals, &light_camera, &light, true);
+		self.globe.draw(g, &globals, &light_camera, &light, true);
+		g.end();
+
+		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(g, color: Vec4(0.1, 0.1, 0.1, 1.0), depth: 1.0);
+		// Clear the screen
+		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);
 
 		// Camera setup
 		let camera = {
@@ -185,28 +139,33 @@ impl Scene {
 			let hand = Hand::RH;
 			let view = self.camera.view_matrix(hand);
 			let clip = Clip::NO;
-			let (near, far) = (0.1, 100.0);
-			let fov_y = Angle::deg(45.0);
+			let (near, far) = (0.1, 1000.0);
+			let fov_y = Angle::deg(90.0);
 			let projection = Mat4::perspective(fov_y, aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		self.globe.draw(g, &camera);
+		// Draw the model
+		self.cube.draw(g, &globals, &camera, &light, false);
+		self.bunny.draw(g, &globals, &camera, &light, false);
+		self.color_tree.draw(g, &globals, &camera, &light, false);
+		self.oldtree.draw(g, &globals, &camera, &light, false);
+		self.parallax.draw(g, &globals, &camera, &light, false);
+		self.globe.draw(g, &globals, &camera, &light, false);
 
-		// Axes gizmo (fixed scale; no dynamic scaling)
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: Transform3f::IDENTITY,
-			depth_test: Some(shade::DepthTest::Less),
+			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),
+			depth_test: None,
 		});
 
+		// Finish the frame
 		g.end();
 	}
 }
 
 //----------------------------------------------------------------
-// Application state
 
 struct App {
 	size: winit::dpi::PhysicalSize<u32>,
@@ -227,9 +186,12 @@ impl App {
 
 		let size = winit::dpi::PhysicalSize::new(800, 600);
 
-		let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_multisampling(4);
+		let template = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
 
-		let window_attributes = winit::window::WindowAttributes::default().with_inner_size(size);
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
 
 		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
 			.with_window_attributes(Some(window_attributes))
@@ -237,7 +199,10 @@ impl App {
 			.expect("Failed to build window and GL config");
 
 		let window = window.expect("DisplayBuilder did not build a Window");
-		let raw_window_handle = window.window_handle().expect("Failed to get raw window handle").as_raw();
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed to get raw window handle")
+			.as_raw();
 
 		let context_attributes = ContextAttributesBuilder::new()
 			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
@@ -245,8 +210,9 @@ impl App {
 
 		let gl_display = gl_config.display();
 
-		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
-			.expect("Failed to create GL context");
+		let not_current = unsafe {
+			gl_display.create_context(&gl_config, &context_attributes)
+		}.expect("Failed to create GL context");
 
 		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
 			raw_window_handle,
@@ -254,10 +220,13 @@ impl App {
 			NonZeroU32::new(size.height.max(1)).unwrap(),
 		);
 
-		let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs) }
-			.expect("Failed to create GL surface");
+		let surface = unsafe {
+			gl_display.create_window_surface(&gl_config, &attrs)
+		}.expect("Failed to create GL surface");
 
-		let context = not_current.make_current(&surface).expect("Failed to make GL context current");
+		let context = not_current
+			.make_current(&surface)
+			.expect("Failed to make GL context current");
 
 		shade::gl::capi::load_with(|s| {
 			let c = CString::new(s).unwrap();
@@ -266,15 +235,33 @@ impl App {
 
 		let mut g = shade::gl::GlGraphics::new();
 
+		// Create the scene
 		let scene = {
-			let demo = GlobeRenderable::create(&mut g);
+			let screen_size = Vec2::new(size.width as i32, size.height as i32);
+			let epoch = time::Instant::now();
+
+			let camera = {
+				let pivot = Vec3f::ZERO;
+				let position = Vec3f(0.0, -50.0, 30.0);
+
+				shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
+			};
+
+			let shadow_map = shade::Texture2D::INVALID;
+
 			let axes = {
 				let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 				shade::d3::axes::AxesModel::create(&mut g, shader)
 			};
-			let camera = shade::d3::ArcballCamera::new(Vec3(0.0, 3.2, 1.8), Vec3::ZERO, Vec3f::Z);
-			let screen_size = Vec2::new(size.width as i32, size.height as i32);
-			Scene { screen_size, camera, globe: demo, axes }
+
+			let cube = cube::Renderable::create(&mut g);
+			let bunny = bunny::Renderable::create(&mut g);
+			let color_tree = colortree::Renderable::create(&mut g);
+			let oldtree = oldtree::Renderable::create(&mut g);
+			let parallax = parallax::Renderable::create(&mut g);
+			let globe = globe::Renderable::create(&mut g);
+
+			Scene { screen_size, epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe }
 		};
 
 		Box::new(App { size, window, surface, context, g, scene })
@@ -332,7 +319,6 @@ fn main() {
 							app.scene.camera.pan(-dx, dy);
 						}
 						if middle_click {
-							auto_rotate = false;
 							app.scene.camera.zoom(dy * 0.01);
 						}
 					}
