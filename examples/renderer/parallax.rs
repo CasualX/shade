@@ -90,7 +90,7 @@ mat3 computeTBN(vec3 normal, vec3 pos, vec2 uv) {
 }
 
 // Parallax Occlusion Mapping
-vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent) {
+vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent, vec2 uv_dx, vec2 uv_dy) {
 	const int numLayers = 32;
 	const float minLayers = 8.0;
 	const float maxLayers = 32.0;
@@ -103,38 +103,41 @@ vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent) {
 
 	vec2 currUV = uv;
 	float currDepth = 0.0;
-	float heightFromMap = texture(u_heightMap, currUV).r;
+	float heightFromMap = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
 
 	// Step until depth of map is below current layer
 	while (currDepth < heightFromMap && num > 0.0) {
 		currUV += deltaUV;
 		currDepth += layerDepth;
-		heightFromMap = texture(u_heightMap, currUV).r;
+		heightFromMap = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
 	}
 
 	return currUV;
 }
 
 void main() {
+	vec2 uv_dx = dFdx(v_uv);
+	vec2 uv_dy = dFdy(v_uv);
+
 	// Compute TBN matrix
 	mat3 TBN = computeTBN(normalize(v_normal), v_fragPos, v_uv);
 	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
 	vec3 viewDirTangent = TBN * viewDir;
 
 	// Perform Parallax Occlusion Mapping
-	vec2 displacedUV = parallaxOcclusionMap(v_uv, viewDirTangent);
+	vec2 displacedUV = parallaxOcclusionMap(v_uv, viewDirTangent, uv_dx, uv_dy);
 
 	// Optional: Clamp UVs to avoid artifacts at the edges
 	// if (displacedUV.x < 0.0 || displacedUV.x > 1.0 || displacedUV.y < 0.0 || displacedUV.y > 1.0)
 	// 	discard;
 
 	// Sample diffuse texture
-	vec4 texColor = texture(u_diffuse, displacedUV);
+	vec4 texColor = textureGrad(u_diffuse, displacedUV, uv_dx, uv_dy);
 	if (texColor.a < 0.1)
 		discard;
 
 	// Sample and decode the normal map (assumed in [0,1] range)
-	vec3 normalTangent = texture(u_normalMap, displacedUV).rgb * 2.0 - 1.0;
+	vec3 normalTangent = textureGrad(u_normalMap, displacedUV, uv_dx, uv_dy).rgb * 2.0 - 1.0;
 
 	// Transform to world space
 	vec3 perturbedNormal = normalize(TBN * normalTangent);
@@ -208,45 +211,28 @@ impl Renderable {
 
 		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
 
+		let props = shade::TextureProps {
+			mip_levels: 8,
+			usage: shade::TextureUsage::TEXTURE,
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+			border_color: [0, 0, 0, 0],
+		};
+
 		let diffuse = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
-			let props = shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
-			};
 			g.image(None, &(&image, &props))
 		};
 
 		let normal_map = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.normal.png").unwrap();
-			let props = shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
-			};
 			g.image(None, &(&image, &props))
 		};
 
 		let height_map = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.height.png").unwrap();
-			let props = shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
-			};
 			g.image(None, &(&image, &props))
 		};
 

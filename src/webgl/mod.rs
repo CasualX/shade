@@ -28,10 +28,25 @@ fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 		crate::TextureWrap::Mirror => api::MIRRORED_REPEAT,
 	}) as GLint
 }
-fn gl_texture_filter(filter: crate::TextureFilter) -> GLint {
+fn gl_texture_filter_mag(filter: crate::TextureFilter) -> GLint {
 	(match filter {
 		crate::TextureFilter::Nearest => api::NEAREST,
 		crate::TextureFilter::Linear => api::LINEAR,
+	}) as GLint
+}
+
+fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
+	(if props.mip_levels > 1 {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => api::NEAREST_MIPMAP_NEAREST,
+			crate::TextureFilter::Linear => api::LINEAR_MIPMAP_LINEAR,
+		}
+	}
+	else {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => api::NEAREST,
+			crate::TextureFilter::Linear => api::LINEAR,
+		}
 	}) as GLint
 }
 
@@ -269,8 +284,8 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
 		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
 		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter(info.props.filter_min)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter(info.props.filter_mag)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)) };
+		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)) };
 		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 		let id = self.textures.textures2d.insert(name, WebGLTexture2D { texture, info: info.clone() });
 		return id;

@@ -212,7 +212,16 @@ impl Renderable {
 		// Load the texture
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/brick 24 - 256x256.png").unwrap();
-			g.image(Some("brick 24"), &image)
+			let props = shade::TextureProps {
+				mip_levels: 8,
+				usage: shade::TextureUsage::TEXTURE,
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
+			};
+			g.image(Some("brick 24"), &(&image, &props))
 		};
 
 		// Create the shader

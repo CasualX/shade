@@ -43,10 +43,25 @@ fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 		crate::TextureWrap::Mirror => gl::MIRRORED_REPEAT,
 	}) as GLint
 }
-fn gl_texture_filter(filter: crate::TextureFilter) -> GLint {
+fn gl_texture_filter_mag(filter: crate::TextureFilter) -> GLint {
 	(match filter {
 		crate::TextureFilter::Nearest => gl::NEAREST,
 		crate::TextureFilter::Linear => gl::LINEAR,
+	}) as GLint
+}
+
+fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
+	(if props.mip_levels > 1 {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => gl::NEAREST_MIPMAP_NEAREST,
+			crate::TextureFilter::Linear => gl::LINEAR_MIPMAP_LINEAR,
+		}
+	}
+	else {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => gl::NEAREST,
+			crate::TextureFilter::Linear => gl::LINEAR,
+		}
 	}) as GLint
 }
 
@@ -285,8 +300,8 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)));
 		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter(info.props.filter_mag)));
-		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter(info.props.filter_min)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)));
 		if matches!(info.format, crate::TextureFormat::R8) {
 			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_G, gl::RED as GLint));
 			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_B, gl::RED as GLint));

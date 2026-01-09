@@ -88,7 +88,14 @@ void main()
 	// Keep within [0,1) for wrapping samplers.
 	u = fract(u);
 
-	vec3 color = texture(u_texture, vec2(u, v)).rgb;
+	vec2 uv = vec2(u, v);
+	vec2 uv_dx = dFdx(uv);
+	vec2 uv_dy = dFdy(uv);
+	// Fix discontinuity at the wrap seam so implicit mip selection doesn't explode.
+	if (abs(uv_dx.x) > 0.5) uv_dx.x -= sign(uv_dx.x);
+	if (abs(uv_dy.x) > 0.5) uv_dy.x -= sign(uv_dy.x);
+
+	vec3 color = textureGrad(u_texture, uv, uv_dx, uv_dy).rgb;
 	float ambient = 0.2;
 	float direct_intensity = 0.6;
 	float lighting = ambient + visibility * (diff * direct_intensity);
@@ -199,7 +206,16 @@ impl Renderable {
 		let shadow_shader = g.shader_create(None, SPHERE_VS, SPHERE_SHADOW_FS);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap().to_rgb();
-			g.image(None, &image)
+			let props = shade::TextureProps {
+				mip_levels: 8,
+				usage: shade::TextureUsage::TEXTURE,
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
+			};
+			g.image(None, &(&image, &props))
 		};
 		let material = Material { shader, shadow_shader, texture };
 

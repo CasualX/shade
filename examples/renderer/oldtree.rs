@@ -148,7 +148,16 @@ impl Renderable {
 		let shadow_shader = g.shader_create(None, VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/oldtree/texture.png").unwrap();
-			g.image(None, &image)
+			let props = shade::TextureProps {
+				mip_levels: 8,
+				usage: shade::TextureUsage::TEXTURE,
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
+			};
+			g.image(None, &(&image, &props))
 		};
 		let material = Material { shader, shadow_shader, texture };
 
