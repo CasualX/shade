@@ -69,6 +69,44 @@ impl Camera {
 		let direction = (far - near).norm();
 		Ray3 { origin: near, direction, distance: cvmath::Interval(0.0, f32::INFINITY) }
 	}
+
+	/// Returns true if the given bounds intersect the camera's view frustum.
+	pub fn is_visible(&self, bounds: &Bounds3f, local_to_world: Option<&Transform3f>) -> bool {
+		let transform = if let Some(&local_to_world) = local_to_world {
+			self.view_proj * local_to_world
+		}
+		else {
+			self.view_proj
+		};
+
+		static INDICES: [[bool; 3]; 8] = [
+			[false, false, false],
+			[false, false, true ],
+			[false, true,  false],
+			[false, true,  true ],
+			[true,  false, false],
+			[true,  false, true ],
+			[true,  true,  false],
+			[true,  true,  true ],
+		];
+
+		// Transform to clip space
+		let pts: &[Vec3f; 2] = bounds.as_ref();
+		let clip_pts = INDICES.map(|[x, y, z]| transform * Vec3f(pts[x as usize].x, pts[y as usize].y, pts[z as usize].z).vec4(1.0));
+
+		// Perform frustum culling using the clip space coordinates
+		if clip_pts.iter().all(|p| p.x < -p.w) { return false }
+		if clip_pts.iter().all(|p| p.x >  p.w) { return false }
+		if clip_pts.iter().all(|p| p.y < -p.w) { return false }
+		if clip_pts.iter().all(|p| p.y >  p.w) { return false }
+		match self.clip {
+			Clip::NO => if clip_pts.iter().all(|p| p.z < -p.w) { return false },
+			Clip::ZO => if clip_pts.iter().all(|p| p.z < 0.0) { return false },
+		}
+		if clip_pts.iter().all(|p| p.z > p.w) { return false }
+
+		return true;
+	}
 }
 
 impl UniformVisitor for Camera {
