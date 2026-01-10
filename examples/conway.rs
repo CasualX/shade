@@ -75,11 +75,89 @@ impl shade::UniformVisitor for StateUniforms {
 	}
 }
 
-struct App {
+/// OpenGL Window wrapper.
+struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
 	window: winit::window::Window,
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
+}
+
+impl GlWindow {
+	fn new(
+		event_loop: &winit::event_loop::ActiveEventLoop,
+		size: winit::dpi::PhysicalSize<u32>,
+	) -> GlWindow {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let template_builder = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let config_picker = |configs: Box<dyn Iterator<Item = glutin::config::Config> + '_>| {
+			configs
+				.filter(|c| c.srgb_capable())
+				.max_by_key(|c| c.num_samples())
+				.expect("No GL configs found")
+		};
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template_builder, config_picker)
+			.expect("Failed DisplayBuilder.build");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed Window.window_handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
+			.expect("Failed Display.create_context");
+
+		let surface_attributes_builder = SurfaceAttributesBuilder::<WindowSurface>::new()
+			.with_srgb(Some(true));
+		let surface_attributes = surface_attributes_builder.build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
+			.expect("Failed Display.create_window_surface");
+
+		let context = not_current.make_current(&surface)
+			.expect("Failed NotCurrentContext.make_current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		GlWindow { size, window, surface, context }
+	}
+
+	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+		let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+		self.size = new_size;
+		self.surface.resize(&self.context, width, height);
+	}
+}
+
+struct ConwayDemo {
 	g: shade::gl::GlGraphics,
 	pp: shade::d2::PostProcessQuad,
 	conway_shader: shade::Shader,
@@ -87,6 +165,84 @@ struct App {
 	field_size: Vec2i,
 	ping: usize,
 	state: [shade::Texture2D; 2],
+}
+
+impl ConwayDemo {
+	fn new() -> ConwayDemo {
+		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
+
+		let pp = shade::d2::PostProcessQuad::create(&mut g);
+		let conway_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
+		let display_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
+
+		let field_size = Vec2::new(FIELD_WIDTH.max(1), FIELD_HEIGHT.max(1));
+		let seed = seed_data(field_size.x, field_size.y);
+		let info = shade::Texture2DInfo {
+			format: shade::TextureFormat::R8,
+			width: field_size.x,
+			height: field_size.y,
+			props: shade::TextureProps {
+				mip_levels: 1,
+				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
+				filter_min: shade::TextureFilter::Nearest,
+				filter_mag: shade::TextureFilter::Nearest,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+				border_color: [0, 0, 0, 0],
+			},
+		};
+
+		let state0 = g.texture2d(Some("conway_state0"), &info, &seed);
+		let state1 = g.texture2d_create(Some("conway_state1"), &info);
+
+		ConwayDemo {
+			g,
+			pp,
+			conway_shader,
+			display_shader,
+			field_size,
+			ping: 0,
+			state: [state0, state1],
+		}
+	}
+
+	fn step(&mut self) {
+		let src = self.state[self.ping];
+		let dst = self.state[1 - self.ping];
+
+		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
+		self.g.begin(&shade::BeginArgs::Immediate {
+			color: &[dst],
+			depth: shade::Texture2D::INVALID,
+			viewport,
+		});
+		self.pp.draw(
+			&mut self.g,
+			self.conway_shader,
+			shade::BlendMode::Solid,
+			&[&StateUniforms { state: src }],
+		);
+		self.g.end();
+
+		self.ping = 1 - self.ping;
+	}
+
+	fn draw(&mut self, window: &GlWindow) {
+		self.step();
+
+		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
+		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+		shade::clear!(self.g, color: Vec4(0.0, 0.0, 0.0, 1.0));
+		self.pp.draw(
+			&mut self.g,
+			self.display_shader,
+			shade::BlendMode::Solid,
+			&[&StateUniforms {
+				state: self.state[self.ping],
+			}],
+		);
+		self.g.end();
+	}
 }
 
 fn seed_data(width: i32, height: i32) -> Vec<u8> {
@@ -114,138 +270,25 @@ fn seed_data(width: i32, height: i32) -> Vec<u8> {
 	data
 }
 
+struct App {
+	window: GlWindow,
+	demo: ConwayDemo,
+}
+
 impl App {
-	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
-		use glutin::config::ConfigTemplateBuilder;
-		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
-		use glutin::display::GetGlDisplay;
-		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
-		use raw_window_handle::HasWindowHandle;
-
-		let size = winit::dpi::PhysicalSize::new(800, 600);
-
-		let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_multisampling(4);
-
-		let window_attributes = winit::window::WindowAttributes::default().with_inner_size(size);
-
-		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-			.with_window_attributes(Some(window_attributes))
-			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
-			.expect("Failed to build window and GL config");
-
-		let window = window.expect("DisplayBuilder did not build a Window");
-		let raw_window_handle = window
-			.window_handle()
-			.expect("Failed to get raw window handle")
-			.as_raw();
-
-		let context_attributes = ContextAttributesBuilder::new()
-			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
-			.build(Some(raw_window_handle));
-
-		let gl_display = gl_config.display();
-
-		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
-			.expect("Failed to create GL context");
-
-		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
-			raw_window_handle,
-			NonZeroU32::new(size.width.max(1)).unwrap(),
-			NonZeroU32::new(size.height.max(1)).unwrap(),
-		);
-
-		let surface = unsafe { gl_display.create_window_surface(&gl_config, &attrs) }
-			.expect("Failed to create GL surface");
-
-		let context = not_current.make_current(&surface).expect("Failed to make GL context current");
-
-		shade::gl::capi::load_with(|s| {
-			let c = CString::new(s).unwrap();
-			gl_display.get_proc_address(&c)
-		});
-
-		let mut g = shade::gl::GlGraphics::new();
-
-		let pp = shade::d2::PostProcessQuad::create(&mut g);
-		let conway_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
-		let display_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
-
-		let field_size = Vec2::new(FIELD_WIDTH.max(1), FIELD_HEIGHT.max(1));
-		let seed = seed_data(field_size.x, field_size.y);
-		let info = shade::Texture2DInfo {
-			format: shade::TextureFormat::R8,
-			width: field_size.x,
-			height: field_size.y,
-			props: shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
-				filter_min: shade::TextureFilter::Nearest,
-				filter_mag: shade::TextureFilter::Nearest,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
-			},
-		};
-
-		let state0 = g.texture2d(Some("conway_state0"), &info, &seed);
-		let state1 = g.texture2d_create(Some("conway_state1"), &info);
-
-		Box::new(App {
-			size,
-			window,
-			surface,
-			context,
-			g,
-			pp,
-			conway_shader,
-			display_shader,
-			field_size,
-			ping: 0,
-			state: [state0, state1],
-		})
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
+		let window = GlWindow::new(event_loop, size);
+		let demo = ConwayDemo::new();
+		Box::new(App { window, demo })
 	}
-
-	fn step(&mut self) {
-		let src = self.state[self.ping];
-		let dst = self.state[1 - self.ping];
-
-		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
-		self.g.begin(&shade::BeginArgs::Immediate {
-			color: &[dst],
-			depth: shade::Texture2D::INVALID,
-			viewport,
-		});
-		self.pp.draw(
-			&mut self.g,
-			self.conway_shader,
-			shade::BlendMode::Solid,
-			&[&StateUniforms { state: src }],
-		);
-		self.g.end();
-
-		self.ping = 1 - self.ping;
-	}
-
 	fn draw(&mut self) {
-		self.step();
-
-		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
-		shade::clear!(self.g, color: Vec4(0.0, 0.0, 0.0, 1.0));
-		self.pp.draw(
-			&mut self.g,
-			self.display_shader,
-			shade::BlendMode::Solid,
-			&[&StateUniforms {
-				state: self.state[self.ping],
-			}],
-		);
-		self.g.end();
+		self.demo.draw(&self.window);
 	}
 }
 
 fn main() {
 	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+	let size = winit::dpi::PhysicalSize::new(800, 600);
 
 	let mut app: Option<Box<App>> = None;
 
@@ -256,30 +299,27 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					app = Some(App::new(event_loop));
+					app = Some(App::new(event_loop, size));
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
-						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
-						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
-						app.size = new_size;
-						app.surface.resize(&app.context, width, height);
+						app.window.resize(new_size);
 					}
 				}
 				WindowEvent::CloseRequested => event_loop.exit(),
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						app.draw();
-						app.surface.swap_buffers(&app.context).unwrap();
+						app.window.surface.swap_buffers(&app.window.context).unwrap();
 					}
 				}
 				_ => {}
 			},
 			Event::AboutToWait => {
 				if let Some(app) = app.as_deref() {
-					app.window.request_redraw();
+					app.window.window.request_redraw();
 				}
 			}
 			_ => {}

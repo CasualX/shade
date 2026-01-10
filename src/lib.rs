@@ -31,6 +31,7 @@ pub mod d2;
 pub mod d3;
 pub mod im;
 
+pub mod color;
 pub mod image;
 
 #[cfg(feature = "gl")]

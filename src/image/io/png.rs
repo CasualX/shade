@@ -1,6 +1,6 @@
 use std::{fs, io, mem, path};
 
-use super::{AnimatedImage, DecodedImage, Image};
+use super::{AnimatedImage, DecodedImage, Image, ImageRGB, ImageRGBA};
 
 pub const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 
@@ -185,7 +185,7 @@ fn save_stream(stream: impl io::Write, color: png::ColorType, width: u32, height
 	Ok(())
 }
 
-impl Image<[u8; 4]> {
+impl ImageRGBA {
 	/// Saves the image as a PNG file.
 	#[inline]
 	pub fn save_file_png(&self, path: impl AsRef<path::Path>) -> Result<(), png::EncodingError> {
@@ -194,7 +194,7 @@ impl Image<[u8; 4]> {
 	}
 }
 
-impl Image<[u8; 3]> {
+impl ImageRGB {
 	/// Saves the image as a PNG file.
 	#[inline]
 	pub fn save_file_png(&self, path: impl AsRef<path::Path>) -> Result<(), png::EncodingError> {

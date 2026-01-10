@@ -1,6 +1,6 @@
 use std::{fs, io, path};
 
-use super::{AnimatedImage, DecodedImage, Image};
+use super::{AnimatedImage, DecodedImage, Image, ImageRGBA};
 
 pub const GIF_SIGNATURE_87A: &[u8] = b"GIF87a";
 pub const GIF_SIGNATURE_89A: &[u8] = b"GIF89a";
@@ -76,13 +76,13 @@ impl AnimatedImage {
 //----------------------------------------------------------------
 // Single-frame GIF loading
 
-fn load_single_file(path: &path::Path) -> Result<Image<[u8; 4]>, gif::DecodingError> {
+fn load_single_file(path: &path::Path) -> Result<ImageRGBA, gif::DecodingError> {
 	let file = fs::File::open(path).map_err(gif::DecodingError::Io)?;
 	let reader = io::BufReader::new(file);
 	load_single_stream(reader)
 }
 
-fn load_single_stream(stream: impl io::Read) -> Result<Image<[u8; 4]>, gif::DecodingError> {
+fn load_single_stream(stream: impl io::Read) -> Result<ImageRGBA, gif::DecodingError> {
 	let mut opts = gif::DecodeOptions::new();
 	opts.set_color_output(gif::ColorOutput::RGBA);
 	let mut decoder = opts.read_info(stream)?;

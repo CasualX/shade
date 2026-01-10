@@ -167,41 +167,47 @@ impl Scene {
 
 //----------------------------------------------------------------
 
-struct App {
+/// OpenGL Window wrapper.
+struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
 	window: winit::window::Window,
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
-	g: shade::gl::GlGraphics,
-	scene: Scene,
 }
 
-impl App {
-	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+impl GlWindow {
+	fn new(
+		event_loop: &winit::event_loop::ActiveEventLoop,
+		size: winit::dpi::PhysicalSize<u32>,
+	) -> GlWindow {
 		use glutin::config::ConfigTemplateBuilder;
 		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
 		use glutin::display::GetGlDisplay;
 		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
 		use raw_window_handle::HasWindowHandle;
 
-		let size = winit::dpi::PhysicalSize::new(800, 600);
-
-		let template = ConfigTemplateBuilder::new()
+		let template_builder = ConfigTemplateBuilder::new()
 			.with_alpha_size(8)
 			.with_multisampling(4);
 
 		let window_attributes = winit::window::WindowAttributes::default()
 			.with_inner_size(size);
 
+		let config_picker = |configs: Box<dyn Iterator<Item = glutin::config::Config> + '_>| {
+			configs
+				.filter(|c| c.srgb_capable())
+				.max_by_key(|c| c.num_samples())
+				.expect("No GL configs found")
+		};
 		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
 			.with_window_attributes(Some(window_attributes))
-			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
-			.expect("Failed to build window and GL config");
+			.build(event_loop, template_builder, config_picker)
+			.expect("Failed DisplayBuilder.build");
 
 		let window = window.expect("DisplayBuilder did not build a Window");
 		let raw_window_handle = window
 			.window_handle()
-			.expect("Failed to get raw window handle")
+			.expect("Failed Window.window_handle")
 			.as_raw();
 
 		let context_attributes = ContextAttributesBuilder::new()
@@ -210,40 +216,54 @@ impl App {
 
 		let gl_display = gl_config.display();
 
-		let not_current = unsafe {
-			gl_display.create_context(&gl_config, &context_attributes)
-		}.expect("Failed to create GL context");
+		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
+			.expect("Failed Display.create_context");
 
-		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+		let surface_attributes_builder = SurfaceAttributesBuilder::<WindowSurface>::new()
+			.with_srgb(Some(true));
+		let surface_attributes = surface_attributes_builder.build(
 			raw_window_handle,
 			NonZeroU32::new(size.width.max(1)).unwrap(),
 			NonZeroU32::new(size.height.max(1)).unwrap(),
 		);
 
-		let surface = unsafe {
-			gl_display.create_window_surface(&gl_config, &attrs)
-		}.expect("Failed to create GL surface");
+		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
+			.expect("Failed Display.create_window_surface");
 
-		let context = not_current
-			.make_current(&surface)
-			.expect("Failed to make GL context current");
+		let context = not_current.make_current(&surface)
+			.expect("Failed NotCurrentContext.make_current");
 
 		shade::gl::capi::load_with(|s| {
 			let c = CString::new(s).unwrap();
 			gl_display.get_proc_address(&c)
 		});
 
-		let mut g = shade::gl::GlGraphics::new();
+		GlWindow { size, window, surface, context }
+	}
 
-		// Create the scene
+	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+		let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+		self.size = new_size;
+		self.surface.resize(&self.context, width, height);
+	}
+}
+
+struct RendererDemo {
+	g: shade::gl::GlGraphics,
+	scene: Scene,
+}
+
+impl RendererDemo {
+	fn new(screen_size: Vec2i) -> RendererDemo {
+		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
+
 		let scene = {
-			let screen_size = Vec2::new(size.width as i32, size.height as i32);
 			let epoch = time::Instant::now();
 
 			let camera = {
 				let pivot = Vec3f::ZERO;
 				let position = Vec3f(0.0, -50.0, 30.0);
-
 				shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 			};
 
@@ -264,7 +284,7 @@ impl App {
 			Scene { screen_size, epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe }
 		};
 
-		Box::new(App { size, window, surface, context, g, scene })
+		RendererDemo { g, scene }
 	}
 
 	fn draw(&mut self) {
@@ -272,10 +292,28 @@ impl App {
 	}
 }
 
+struct App {
+	window: GlWindow,
+	demo: RendererDemo,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
+		let window = GlWindow::new(event_loop, size);
+		let screen_size = Vec2::new(window.size.width as i32, window.size.height as i32);
+		let demo = RendererDemo::new(screen_size);
+		Box::new(App { window, demo })
+	}
+	fn draw(&mut self) {
+		self.demo.draw();
+	}
+}
+
 //----------------------------------------------------------------
 
 fn main() {
 	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+	let size = winit::dpi::PhysicalSize::new(800, 600);
 
 	let mut app: Option<Box<App>> = None;
 
@@ -292,18 +330,15 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					app = Some(App::new(event_loop));
+					app = Some(App::new(event_loop, size));
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
-						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
-						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
-						app.size = new_size;
-						app.scene.screen_size.x = new_size.width as i32;
-						app.scene.screen_size.y = new_size.height as i32;
-						app.surface.resize(&app.context, width, height);
+						app.window.resize(new_size);
+						app.demo.scene.screen_size.x = new_size.width as i32;
+						app.demo.scene.screen_size.y = new_size.height as i32;
 					}
 				}
 				WindowEvent::CursorMoved { position, .. } => {
@@ -312,14 +347,14 @@ fn main() {
 						let dy = position.y as f32 - cursor_position.y as f32;
 						if left_click {
 							auto_rotate = false;
-							app.scene.camera.rotate(-dx, -dy);
+							app.demo.scene.camera.rotate(-dx, -dy);
 						}
 						if right_click {
 							auto_rotate = false;
-							app.scene.camera.pan(-dx, dy);
+							app.demo.scene.camera.pan(-dx, dy);
 						}
 						if middle_click {
-							app.scene.camera.zoom(dy * 0.01);
+							app.demo.scene.camera.zoom(dy * 0.01);
 						}
 					}
 					cursor_position = position;
@@ -337,17 +372,17 @@ fn main() {
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						if auto_rotate {
-							app.scene.camera.rotate(-1.0, 0.0);
+							app.demo.scene.camera.rotate(-1.0, 0.0);
 						}
 						app.draw();
-						app.surface.swap_buffers(&app.context).unwrap();
+						app.window.surface.swap_buffers(&app.window.context).unwrap();
 					}
 				}
 				_ => {}
 			},
 			Event::AboutToWait => {
 				if let Some(app) = app.as_deref() {
-					app.window.request_redraw();
+					app.window.window.request_redraw();
 				}
 			}
 			_ => {}

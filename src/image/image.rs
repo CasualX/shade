@@ -186,3 +186,6 @@ impl<T> Image<T> where Image<T>: From<DecodedImage> {
 		load_memory(data)
 	}
 }
+
+pub type ImageRGB = Image<[u8; 3]>;
+pub type ImageRGBA = Image<[u8; 4]>;

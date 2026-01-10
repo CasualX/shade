@@ -122,7 +122,7 @@ impl GlobeRenderable {
 		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
 		let texture = {
 			let file_jpg = include_bytes!("../../../textures/2k_earth_daymap.jpg");
-			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap().to_rgb();
+			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap();
 			g.image(None, &image)
 		};
 		let material = GlobeMaterial { shader, texture };

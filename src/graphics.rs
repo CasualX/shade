@@ -268,7 +268,18 @@ impl Graphics {
 	pub fn animated_image(&mut self, image: &image::AnimatedImage, props: &crate::TextureProps) -> crate::AnimatedTexture2D {
 		let mut frames = Vec::with_capacity(image.frames.len());
 		for frame in &image.frames {
-			let tex = self.image(None, &(frame, props));
+			let tex = {
+				let info = Texture2DInfo {
+					format: TextureFormat::SRGBA8,
+					width: frame.width,
+					height: frame.height,
+					props: *props,
+				};
+				let tex = self.texture2d_create(None, &info);
+				self.texture2d_write(tex, 0, frame.as_bytes());
+				self.texture2d_generate_mipmap(tex);
+				tex
+			};
 			frames.push(tex);
 		}
 		let length = image.delays.iter().sum();

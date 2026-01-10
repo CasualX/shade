@@ -172,11 +172,89 @@ impl ZoomViewStack {
 	}
 }
 
-struct App {
+/// OpenGL Window wrapper.
+struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
 	window: winit::window::Window,
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
+}
+
+impl GlWindow {
+	fn new(
+		event_loop: &winit::event_loop::ActiveEventLoop,
+		size: winit::dpi::PhysicalSize<u32>,
+	) -> GlWindow {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let template_builder = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let config_picker = |configs: Box<dyn Iterator<Item = glutin::config::Config> + '_>| {
+			configs
+				.filter(|c| c.srgb_capable())
+				.max_by_key(|c| c.num_samples())
+				.expect("No GL configs found")
+		};
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template_builder, config_picker)
+			.expect("Failed DisplayBuilder.build");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed Window.window_handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
+			.expect("Failed Display.create_context");
+
+		let surface_attributes_builder = SurfaceAttributesBuilder::<WindowSurface>::new()
+			.with_srgb(Some(true));
+		let surface_attributes = surface_attributes_builder.build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
+			.expect("Failed Display.create_window_surface");
+
+		let context = not_current.make_current(&surface)
+			.expect("Failed NotCurrentContext.make_current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		GlWindow { size, window, surface, context }
+	}
+
+	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+		let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+		self.size = new_size;
+		self.surface.resize(&self.context, width, height);
+	}
+}
+
+struct MandelbrotDemo {
 	g: shade::gl::GlGraphics,
 	vb: shade::VertexBuffer,
 	shader: shade::Shader,
@@ -187,92 +265,35 @@ struct App {
 	stack: ZoomViewStack,
 }
 
-impl App {
-	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
-		use glutin::config::ConfigTemplateBuilder;
-		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
-		use glutin::display::GetGlDisplay;
-		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
-		use raw_window_handle::HasWindowHandle;
-
-		let size = winit::dpi::PhysicalSize::new(800, 600);
-
-		let template = ConfigTemplateBuilder::new()
-			.with_alpha_size(8)
-			.with_multisampling(4);
-
-		let window_attributes = winit::window::WindowAttributes::default()
-			.with_inner_size(size);
-
-		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-			.with_window_attributes(Some(window_attributes))
-			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
-			.expect("Failed to build window and GL config");
-
-		let window = window.expect("DisplayBuilder did not build a Window");
-		let raw_window_handle = window
-			.window_handle()
-			.expect("Failed to get raw window handle")
-			.as_raw();
-
-		let context_attributes = ContextAttributesBuilder::new()
-			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
-			.build(Some(raw_window_handle));
-
-		let gl_display = gl_config.display();
-
-		let not_current = unsafe {
-			gl_display.create_context(&gl_config, &context_attributes)
-		}.expect("Failed to create GL context");
-
-		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
-			raw_window_handle,
-			NonZeroU32::new(size.width.max(1)).unwrap(),
-			NonZeroU32::new(size.height.max(1)).unwrap(),
-		);
-
-		let surface = unsafe {
-			gl_display.create_window_surface(&gl_config, &attrs)
-		}.expect("Failed to create GL surface");
-
-		let context = not_current
-			.make_current(&surface)
-			.expect("Failed to make GL context current");
-
-		shade::gl::capi::load_with(|s| {
-			let c = CString::new(s).unwrap();
-			gl_display.get_proc_address(&c)
-		});
-
-		// Create the graphics context
-		let mut g = shade::gl::GlGraphics::new();
-
+impl MandelbrotDemo {
+	fn new() -> MandelbrotDemo {
+		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
 		let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
 		let gradient = {
 			let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
 			g.image(None, &gradient)
 		};
 
-		let pan_start = Point2f::ZERO;
-		let panning = false;
-		let cursor = Point2f::ZERO;
-		let stack = ZoomViewStack::default();
-
-		Box::new(App { size, window, surface, context, g, vb, shader, gradient, pan_start, panning, cursor, stack })
+		MandelbrotDemo {
+			g,
+			vb,
+			shader,
+			gradient,
+			pan_start: Point2f::ZERO,
+			panning: false,
+			cursor: Point2f::ZERO,
+			stack: ZoomViewStack::default(),
+		}
 	}
 
-	fn draw(&mut self) {
-		// Render the frame
-		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+	fn draw(&mut self, window: &GlWindow) {
+		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
 		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
-		let aspect_ratio = self.size.width as f32 / self.size.height as f32;
-
-		// Compute the transform for the current zoom view
+		let aspect_ratio = window.size.width as f32 / window.size.height as f32;
 		let zoom_view = self.stack.current();
 		let view_bounds = zoom_view.to_bounds(aspect_ratio);
 		let transform = Transform2f::ortho(view_bounds).inverse();
@@ -301,8 +322,25 @@ impl App {
 	}
 }
 
+struct App {
+	window: GlWindow,
+	demo: MandelbrotDemo,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
+		let window = GlWindow::new(event_loop, size);
+		let demo = MandelbrotDemo::new();
+		Box::new(App { window, demo })
+	}
+	fn draw(&mut self) {
+		self.demo.draw(&self.window);
+	}
+}
+
 fn main() {
 	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+	let size = winit::dpi::PhysicalSize::new(800, 600);
 
 	let mut app: Option<Box<App>> = None;
 
@@ -313,27 +351,24 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					app = Some(App::new(event_loop));
+					app = Some(App::new(event_loop, size));
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
-						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
-						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
-						app.size = new_size;
-						app.surface.resize(&app.context, width, height);
+						app.window.resize(new_size);
 					}
 				}
 				WindowEvent::CursorMoved { position, .. } => {
 					if let Some(app) = app.as_deref_mut() {
-						app.cursor.x = position.x as f32;
-						app.cursor.y = position.y as f32;
-						if app.panning {
-							let size_vec = Vec2::new(app.size.width as f32, app.size.height as f32);
-							app.stack.pan(app.cursor - app.pan_start, size_vec);
-							app.pan_start = app.cursor;
-							app.window.request_redraw();
+						app.demo.cursor.x = position.x as f32;
+						app.demo.cursor.y = position.y as f32;
+						if app.demo.panning {
+							let size_vec = Vec2::new(app.window.size.width as f32, app.window.size.height as f32);
+							app.demo.stack.pan(app.demo.cursor - app.demo.pan_start, size_vec);
+							app.demo.pan_start = app.demo.cursor;
+							app.window.window.request_redraw();
 						}
 					}
 				}
@@ -342,24 +377,24 @@ fn main() {
 						match button {
 							MouseButton::Left => {
 								if matches!(state, ElementState::Pressed) {
-									let size_vec = Vec2::new(app.size.width as f32, app.size.height as f32);
-									app.stack.zoom(app.cursor, size_vec, 0.5);
-									app.window.request_redraw();
+									let size_vec = Vec2::new(app.window.size.width as f32, app.window.size.height as f32);
+									app.demo.stack.zoom(app.demo.cursor, size_vec, 0.5);
+									app.window.window.request_redraw();
 								}
 							}
 							MouseButton::Right => {
 								if matches!(state, ElementState::Pressed) {
-									app.pan_start = app.cursor;
-									app.panning = true;
-									app.stack.views.push(app.stack.current().clone());
+									app.demo.pan_start = app.demo.cursor;
+									app.demo.panning = true;
+									app.demo.stack.views.push(app.demo.stack.current().clone());
 								} else {
-									app.panning = false;
+									app.demo.panning = false;
 								}
 							}
 							MouseButton::Middle => {
 								if matches!(state, ElementState::Pressed) {
-									app.stack.back();
-									app.window.request_redraw();
+									app.demo.stack.back();
+									app.window.window.request_redraw();
 								}
 							}
 							_ => {}
@@ -370,7 +405,7 @@ fn main() {
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						app.draw();
-						app.surface.swap_buffers(&app.context).unwrap();
+						app.window.surface.swap_buffers(&app.window.context).unwrap();
 					}
 				}
 				_ => {}

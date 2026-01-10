@@ -128,6 +128,18 @@ impl GlTextures {
 	}
 }
 
+#[derive(Clone, Debug)]
+pub struct GlConfig {
+	pub srgb: bool,
+}
+impl Default for GlConfig {
+	fn default() -> Self {
+		GlConfig {
+			srgb: true,
+		}
+	}
+}
+
 pub struct GlGraphics {
 	vbuffers: ResourceMap<GlVertexBuffer>,
 	ibuffers: ResourceMap<GlIndexBuffer>,
@@ -139,10 +151,11 @@ pub struct GlGraphics {
 	metrics: crate::DrawMetrics,
 	/// Temporary framebuffer for immediate render passes, deleted at end().
 	immediate_fbo: Option<GLuint>,
+	config: GlConfig,
 }
 
 impl GlGraphics {
-	pub fn new() -> Self {
+	pub fn new(config: GlConfig) -> Self {
 		let mut dynamic_vao = 0;
 		gl_check!(gl::GenVertexArrays(1, &mut dynamic_vao));
 
@@ -153,6 +166,13 @@ impl GlGraphics {
 			let color = [0u8; 4];
 			gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as GLint, 1, 1, 0, gl::RGBA, gl::UNSIGNED_BYTE, color.as_ptr() as *const GLvoid));
 			gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
+		}
+
+		if config.srgb {
+			gl_check!(gl::Enable(gl::FRAMEBUFFER_SRGB));
+		}
+		else {
+			gl_check!(gl::Disable(gl::FRAMEBUFFER_SRGB));
 		}
 
 		GlGraphics {
@@ -184,7 +204,56 @@ impl GlGraphics {
 			draw_begin: time::Instant::now(),
 			metrics: Default::default(),
 			immediate_fbo: None,
+			config,
 		}
+	}
+}
+
+struct GlTextureFormat {
+	internal_format: GLenum,
+	format: GLenum,
+	type_: GLenum,
+	align: GLint,
+}
+impl GlTextureFormat {
+	fn get(format: crate::TextureFormat, config: &GlConfig) -> GlTextureFormat {
+		let (internal_format, format, type_, align) = if config.srgb {
+			match format {
+				crate::TextureFormat::RGBA8 => (gl::RGBA8, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RGB8 => (gl::RGB8, gl::RGB, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RG8 => (gl::RG8, gl::RG, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::R8 => (gl::R8, gl::RED, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RGBA32F => (gl::RGBA32F, gl::RGBA, gl::FLOAT, 4),
+				crate::TextureFormat::RGB32F => (gl::RGB32F, gl::RGB, gl::FLOAT, 4),
+				crate::TextureFormat::RG32F => (gl::RG32F, gl::RG, gl::FLOAT, 4),
+				crate::TextureFormat::R32F => (gl::R32F, gl::RED, gl::FLOAT, 4),
+				crate::TextureFormat::SRGBA8 => (gl::SRGB8_ALPHA8, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::SRGB8 => (gl::SRGB8, gl::RGB, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT16, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
+				crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT24, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
+				crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT32F, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
+				crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH24_STENCIL8, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
+			}
+		}
+		else {
+			match format {
+				crate::TextureFormat::RGBA8 => (gl::RGBA8, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RGB8 => (gl::RGB8, gl::RGB, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RG8 => (gl::RG8, gl::RG, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::R8 => (gl::R8, gl::RED, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::RGBA32F => (gl::RGBA32F, gl::RGBA, gl::FLOAT, 4),
+				crate::TextureFormat::RGB32F => (gl::RGB32F, gl::RGB, gl::FLOAT, 4),
+				crate::TextureFormat::RG32F => (gl::RG32F, gl::RG, gl::FLOAT, 4),
+				crate::TextureFormat::R32F => (gl::R32F, gl::RED, gl::FLOAT, 4),
+				crate::TextureFormat::SRGBA8 => (gl::RGBA8, gl::RGBA, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::SRGB8 => (gl::RGB8, gl::RGB, gl::UNSIGNED_BYTE, 1),
+				crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT16, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
+				crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT24, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
+				crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT32F, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
+				crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH24_STENCIL8, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
+			}
+		};
+		GlTextureFormat { internal_format, format, type_, align }
 	}
 }
 
@@ -308,20 +377,7 @@ impl crate::IGraphics for GlGraphics {
 			gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_SWIZZLE_A, gl::ONE as GLint));
 		}
 		// Allocate texture storage (required for framebuffer attachments)
-		let internal_format = match info.format {
-			crate::TextureFormat::RGBA8 => gl::RGBA8,
-			crate::TextureFormat::RGB8 => gl::RGB8,
-			crate::TextureFormat::RG8 => gl::RG8,
-			crate::TextureFormat::R8 => gl::R8,
-			crate::TextureFormat::RGBA32F => gl::RGBA32F,
-			crate::TextureFormat::RGB32F => gl::RGB32F,
-			crate::TextureFormat::RG32F => gl::RG32F,
-			crate::TextureFormat::R32F => gl::R32F,
-			crate::TextureFormat::Depth16 => gl::DEPTH_COMPONENT16,
-			crate::TextureFormat::Depth24 => gl::DEPTH_COMPONENT24,
-			crate::TextureFormat::Depth32F => gl::DEPTH_COMPONENT32F,
-			crate::TextureFormat::Depth24Stencil8 => gl::DEPTH24_STENCIL8,
-		};
+		let GlTextureFormat { internal_format, .. } = GlTextureFormat::get(info.format, &self.config);
 		gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.props.mip_levels as GLsizei, internal_format, info.width, info.height));
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		let id = self.textures.textures2d.insert(name, GlTexture2D { texture, info: *info });
@@ -345,20 +401,7 @@ impl crate::IGraphics for GlGraphics {
 		assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-		let (_internal_format, format, type_, align) = match texture.info.format {
-			crate::TextureFormat::RGBA8 => (gl::RGBA8 as GLint, gl::RGBA, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RGB8 => (gl::RGB8 as GLint, gl::RGB, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RG8 => (gl::RG8 as GLint, gl::RG, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::R8 => (gl::R8 as GLint, gl::RED, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RGBA32F => (gl::RGBA32F as GLint, gl::RGBA, gl::FLOAT, 4),
-			crate::TextureFormat::RGB32F => (gl::RGB32F as GLint, gl::RGB, gl::FLOAT, 4),
-			crate::TextureFormat::RG32F => (gl::RG32F as GLint, gl::RG, gl::FLOAT, 4),
-			crate::TextureFormat::R32F => (gl::R32F as GLint, gl::RED, gl::FLOAT, 4),
-			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT16 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
-			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT24 as GLint, gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
-			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT32F as GLint, gl::DEPTH_COMPONENT, gl::FLOAT, 4),
-			crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH24_STENCIL8 as GLint, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
-		};
+		let GlTextureFormat { format, type_, align, .. } = GlTextureFormat::get(texture.info.format, &self.config);
 		let (w, h, expected_size) = texture.info.mip_size(level);
 		assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
 		gl_check!(gl::PixelStorei(gl::UNPACK_ALIGNMENT, align)); // Force correct byte alignment
@@ -372,20 +415,7 @@ impl crate::IGraphics for GlGraphics {
 		assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 		self.metrics.bytes_downloaded = usize::wrapping_add(self.metrics.bytes_downloaded, data.len());
 		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-		let (format, type_, align) = match texture.info.format {
-			crate::TextureFormat::RGBA8 => (gl::RGBA, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RGB8 => (gl::RGB, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RG8 => (gl::RG, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::R8 => (gl::RED, gl::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::RGBA32F => (gl::RGBA, gl::FLOAT, 4),
-			crate::TextureFormat::RGB32F => (gl::RGB, gl::FLOAT, 4),
-			crate::TextureFormat::RG32F => (gl::RG, gl::FLOAT, 4),
-			crate::TextureFormat::R32F => (gl::RED, gl::FLOAT, 4),
-			crate::TextureFormat::Depth16 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_SHORT, 2),
-			crate::TextureFormat::Depth24 => (gl::DEPTH_COMPONENT, gl::UNSIGNED_INT, 4),
-			crate::TextureFormat::Depth32F => (gl::DEPTH_COMPONENT, gl::FLOAT, 4),
-			crate::TextureFormat::Depth24Stencil8 => (gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, 4),
-		};
+		let GlTextureFormat { format, type_, align, .. } = GlTextureFormat::get(texture.info.format, &self.config);
 		let (_w, _h, expected_size) = texture.info.mip_size(level);
 		assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
 		gl_check!(gl::PixelStorei(gl::PACK_ALIGNMENT, align)); // Force correct byte alignment

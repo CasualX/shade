@@ -4,7 +4,7 @@ use super::*;
 pub struct AnimatedImage {
 	pub width: i32,
 	pub height: i32,
-	pub frames: Vec<Image<[u8; 4]>>,
+	pub frames: Vec<ImageRGBA>,
 	pub delays: Vec<f32>,
 	pub repeat: bool,
 }

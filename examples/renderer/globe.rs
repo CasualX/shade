@@ -205,7 +205,7 @@ impl Renderable {
 		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
 		let shadow_shader = g.shader_create(None, SPHERE_VS, SPHERE_SHADOW_FS);
 		let texture = {
-			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap().to_rgb();
+			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 8,
 				usage: shade::TextureUsage::TEXTURE,

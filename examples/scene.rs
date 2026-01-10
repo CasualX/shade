@@ -97,43 +97,47 @@ impl shade::UniformVisitor for MyUniform3 {
 //----------------------------------------------------------------
 // Application state
 
-struct App {
+/// OpenGL Window wrapper.
+struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
 	window: winit::window::Window,
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
-	g: shade::gl::GlGraphics,
-	texture: shade::Texture2D,
-	shader: shade::Shader,
-	time_base: time::Instant,
 }
 
-impl App {
-	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
+impl GlWindow {
+	fn new(
+		event_loop: &winit::event_loop::ActiveEventLoop,
+		size: winit::dpi::PhysicalSize<u32>,
+	) -> GlWindow {
 		use glutin::config::ConfigTemplateBuilder;
 		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
 		use glutin::display::GetGlDisplay;
 		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
 		use raw_window_handle::HasWindowHandle;
 
-		let size = winit::dpi::PhysicalSize::new(800, 600);
-
-		let template = ConfigTemplateBuilder::new()
+		let template_builder = ConfigTemplateBuilder::new()
 			.with_alpha_size(8)
 			.with_multisampling(4);
 
 		let window_attributes = winit::window::WindowAttributes::default()
 			.with_inner_size(size);
 
+		let config_picker = |configs: Box<dyn Iterator<Item = glutin::config::Config> + '_>| {
+			configs
+				.filter(|c| c.srgb_capable())
+				.max_by_key(|c| c.num_samples())
+				.expect("No GL configs found")
+		};
 		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
 			.with_window_attributes(Some(window_attributes))
-			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
-			.expect("Failed to build window and GL config");
+			.build(event_loop, template_builder, config_picker)
+			.expect("Failed DisplayBuilder.build");
 
 		let window = window.expect("DisplayBuilder did not build a Window");
 		let raw_window_handle = window
 			.window_handle()
-			.expect("Failed to get raw window handle")
+			.expect("Failed Window.window_handle")
 			.as_raw();
 
 		let context_attributes = ContextAttributesBuilder::new()
@@ -142,33 +146,50 @@ impl App {
 
 		let gl_display = gl_config.display();
 
-		let not_current = unsafe {
-			gl_display.create_context(&gl_config, &context_attributes)
-		}.expect("Failed to create GL context");
+		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
+			.expect("Failed Display.create_context");
 
-		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+		let surface_attributes_builder = SurfaceAttributesBuilder::<WindowSurface>::new()
+			.with_srgb(Some(true));
+		let surface_attributes = surface_attributes_builder.build(
 			raw_window_handle,
 			NonZeroU32::new(size.width.max(1)).unwrap(),
 			NonZeroU32::new(size.height.max(1)).unwrap(),
 		);
 
-		let surface = unsafe {
-			gl_display.create_window_surface(&gl_config, &attrs)
-		}.expect("Failed to create GL surface");
+		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
+			.expect("Failed Display.create_window_surface");
 
-		let context = not_current
-			.make_current(&surface)
-			.expect("Failed to make GL context current");
+		let context = not_current.make_current(&surface)
+			.expect("Failed NotCurrentContext.make_current");
 
 		shade::gl::capi::load_with(|s| {
 			let c = CString::new(s).unwrap();
 			gl_display.get_proc_address(&c)
 		});
 
-		// Create the graphics context
-		let mut g = shade::gl::GlGraphics::new();
+		GlWindow { size, window, surface, context }
+	}
 
-		// Load the texture
+	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+		let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+		self.size = new_size;
+		self.surface.resize(&self.context, width, height);
+	}
+}
+
+struct SceneDemo {
+	g: shade::gl::GlGraphics,
+	texture: shade::Texture2D,
+	shader: shade::Shader,
+	time_base: time::Instant,
+}
+
+impl SceneDemo {
+	fn new() -> SceneDemo {
+		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
+
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/scene tiles.png").unwrap();
 			let props = shade::TextureProps {
@@ -183,27 +204,28 @@ impl App {
 			g.image(Some("scene tiles"), &(&image, &props))
 		};
 
-		// Create the shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
 		let time_base = time::Instant::now();
 
-		Box::new(App { size, window, surface, context, g, texture, shader, time_base })
+		SceneDemo { g, texture, shader, time_base }
 	}
 
-	fn draw(&mut self) {
+	fn draw(&mut self, window: &GlWindow) {
 		let curtime = time::Instant::now().duration_since(self.time_base).as_secs_f32();
 
-		// Render the frame
-		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
 		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		// Clear the screen
 		shade::clear!(self.g, color: Vec4(0.2, 0.2, 0.5, 1.0), depth: 1.0);
 
-		// Update the camera
-		let aspect_ratio = self.size.width as f32 / self.size.height as f32;
-		let projection = Mat4::perspective(Angle::deg(45.0), aspect_ratio, 0.1, 1000.0, (Hand::RH, Clip::NO));
+		let aspect_ratio = window.size.width as f32 / window.size.height as f32;
+		let projection = Mat4::perspective(
+			Angle::deg(45.0),
+			aspect_ratio,
+			0.1,
+			1000.0,
+			(Hand::RH, Clip::NO),
+		);
 		let view = {
 			let eye = Vec3(32.0 + (curtime * 2.0).sin() * 32.0, 100.0 + (curtime * 1.5).sin() * 32.0, -100.0) * 1.5;
 			let target = Vec3(96.0 * 0.5, 0.0, 32.0);
@@ -231,8 +253,23 @@ impl App {
 
 		cv.draw(&mut self.g);
 
-		// Finish the frame
 		self.g.end();
+	}
+}
+
+struct App {
+	window: GlWindow,
+	demo: SceneDemo,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
+		let window = GlWindow::new(event_loop, size);
+		let demo = SceneDemo::new();
+		Box::new(App { window, demo })
+	}
+	fn draw(&mut self) {
+		self.demo.draw(&self.window);
 	}
 }
 
@@ -240,6 +277,7 @@ impl App {
 
 fn main() {
 	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+	let size = winit::dpi::PhysicalSize::new(800, 600);
 
 	let mut app: Option<Box<App>> = None;
 
@@ -250,30 +288,27 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					app = Some(App::new(event_loop));
+					app = Some(App::new(event_loop, size));
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
-						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
-						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
-						app.size = new_size;
-						app.surface.resize(&app.context, width, height);
+						app.window.resize(new_size);
 					}
 				}
 				WindowEvent::CloseRequested => event_loop.exit(),
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						app.draw();
-						app.surface.swap_buffers(&app.context).unwrap();
+						app.window.surface.swap_buffers(&app.window.context).unwrap();
 					}
 				}
 				_ => {}
 			},
 			Event::AboutToWait => {
 				if let Some(app) = app.as_deref() {
-					app.window.request_redraw();
+					app.window.window.request_redraw();
 				}
 			}
 			_ => {}

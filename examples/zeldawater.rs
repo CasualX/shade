@@ -103,11 +103,89 @@ impl shade::UniformVisitor for Uniform {
 //----------------------------------------------------------------
 // Application state
 
-struct App {
+/// OpenGL Window wrapper.
+struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
 	window: winit::window::Window,
 	surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
 	context: glutin::context::PossiblyCurrentContext,
+}
+
+impl GlWindow {
+	fn new(
+		event_loop: &winit::event_loop::ActiveEventLoop,
+		size: winit::dpi::PhysicalSize<u32>,
+	) -> GlWindow {
+		use glutin::config::ConfigTemplateBuilder;
+		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
+		use glutin::display::GetGlDisplay;
+		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
+		use raw_window_handle::HasWindowHandle;
+
+		let template_builder = ConfigTemplateBuilder::new()
+			.with_alpha_size(8)
+			.with_multisampling(4);
+
+		let window_attributes = winit::window::WindowAttributes::default()
+			.with_inner_size(size);
+
+		let config_picker = |configs: Box<dyn Iterator<Item = glutin::config::Config> + '_>| {
+			configs
+				.filter(|c| c.srgb_capable())
+				.max_by_key(|c| c.num_samples())
+				.expect("No GL configs found")
+		};
+		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+			.with_window_attributes(Some(window_attributes))
+			.build(event_loop, template_builder, config_picker)
+			.expect("Failed DisplayBuilder.build");
+
+		let window = window.expect("DisplayBuilder did not build a Window");
+		let raw_window_handle = window
+			.window_handle()
+			.expect("Failed Window.window_handle")
+			.as_raw();
+
+		let context_attributes = ContextAttributesBuilder::new()
+			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+			.build(Some(raw_window_handle));
+
+		let gl_display = gl_config.display();
+
+		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
+			.expect("Failed Display.create_context");
+
+		let surface_attributes_builder = SurfaceAttributesBuilder::<WindowSurface>::new()
+			.with_srgb(Some(true));
+		let surface_attributes = surface_attributes_builder.build(
+			raw_window_handle,
+			NonZeroU32::new(size.width.max(1)).unwrap(),
+			NonZeroU32::new(size.height.max(1)).unwrap(),
+		);
+
+		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
+			.expect("Failed Display.create_window_surface");
+
+		let context = not_current.make_current(&surface)
+			.expect("Failed NotCurrentContext.make_current");
+
+		shade::gl::capi::load_with(|s| {
+			let c = CString::new(s).unwrap();
+			gl_display.get_proc_address(&c)
+		});
+
+		GlWindow { size, window, surface, context }
+	}
+
+	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+		let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
+		self.size = new_size;
+		self.surface.resize(&self.context, width, height);
+	}
+}
+
+struct ZeldaWaterDemo {
 	g: shade::gl::GlGraphics,
 	vb: shade::VertexBuffer,
 	ib: shade::IndexBuffer,
@@ -117,80 +195,23 @@ struct App {
 	start_time: time::Instant,
 }
 
-impl App {
-	fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Box<App> {
-		use glutin::config::ConfigTemplateBuilder;
-		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
-		use glutin::display::GetGlDisplay;
-		use glutin::surface::{SurfaceAttributesBuilder, WindowSurface};
-		use raw_window_handle::HasWindowHandle;
+impl ZeldaWaterDemo {
+	fn new() -> ZeldaWaterDemo {
+		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
 
-		let size = winit::dpi::PhysicalSize::new(800, 600);
-
-		let template = ConfigTemplateBuilder::new()
-			.with_alpha_size(8)
-			.with_multisampling(4);
-
-		let window_attributes = winit::window::WindowAttributes::default()
-			.with_inner_size(size);
-
-		let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-			.with_window_attributes(Some(window_attributes))
-			.build(event_loop, template, |configs| configs.max_by_key(|c| c.num_samples()).unwrap())
-			.expect("Failed to build window and GL config");
-
-		let window = window.expect("DisplayBuilder did not build a Window");
-		let raw_window_handle = window
-			.window_handle()
-			.expect("Failed to get raw window handle")
-			.as_raw();
-
-		let context_attributes = ContextAttributesBuilder::new()
-			.with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
-			.build(Some(raw_window_handle));
-
-		let gl_display = gl_config.display();
-
-		let not_current = unsafe {
-			gl_display.create_context(&gl_config, &context_attributes)
-		}.expect("Failed to create GL context");
-
-		let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
-			raw_window_handle,
-			NonZeroU32::new(size.width.max(1)).unwrap(),
-			NonZeroU32::new(size.height.max(1)).unwrap(),
+		let vb = g.vertex_buffer(
+			None,
+			&[
+				Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+				Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+				Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
+				Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
+			],
+			shade::BufferUsage::Static,
 		);
 
-		let surface = unsafe {
-			gl_display.create_window_surface(&gl_config, &attrs)
-		}.expect("Failed to create GL surface");
+		let ib = g.index_buffer(None, &[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
 
-		let context = not_current
-			.make_current(&surface)
-			.expect("Failed to make GL context current");
-
-		shade::gl::capi::load_with(|s| {
-			let c = CString::new(s).unwrap();
-			gl_display.get_proc_address(&c)
-		});
-
-		// Create the graphics context
-		let mut g = shade::gl::GlGraphics::new();
-
-		// Create the full screen quad vertex buffer
-		let vb = g.vertex_buffer(None, &[
-			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
-			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
-			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
-			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
-		], shade::BufferUsage::Static);
-
-		let ib = g.index_buffer(None, &[
-			0u16, 1, 2,
-			1, 3, 2,
-		], 4, shade::BufferUsage::Static);
-
-		// Load the textures
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
 			let props = shade::TextureProps {
@@ -219,25 +240,21 @@ impl App {
 			g.image(None, &(&image, &props))
 		};
 
-		// Create the water shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-
 		let start_time = time::Instant::now();
 
-		Box::new(App { size, window, surface, context, g, vb, ib, texture, distortion, shader, start_time })
+		ZeldaWaterDemo { g, vb, ib, texture, distortion, shader, start_time }
 	}
 
-	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.size.width as i32, self.size.height as i32);
+	fn draw(&mut self, window: &GlWindow) {
+		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
 		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		// Clear the screen
 		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
 		let time = self.start_time.elapsed().as_secs_f32();
 		let uniform = Uniform { time, texture: self.texture, distortion: self.distortion };
 
-		// Draw the quad
 		self.g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -261,10 +278,27 @@ impl App {
 	}
 }
 
+struct App {
+	window: GlWindow,
+	demo: ZeldaWaterDemo,
+}
+
+impl App {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
+		let window = GlWindow::new(event_loop, size);
+		let demo = ZeldaWaterDemo::new();
+		Box::new(App { window, demo })
+	}
+	fn draw(&mut self) {
+		self.demo.draw(&self.window);
+	}
+}
+
 //----------------------------------------------------------------
 
 fn main() {
 	let event_loop = winit::event_loop::EventLoop::new().expect("Failed to create event loop");
+	let size = winit::dpi::PhysicalSize::new(800, 600);
 
 	let mut app: Option<Box<App>> = None;
 
@@ -275,30 +309,27 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					app = Some(App::new(event_loop));
+					app = Some(App::new(event_loop, size));
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
-						let width = NonZeroU32::new(new_size.width.max(1)).unwrap();
-						let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
-						app.size = new_size;
-						app.surface.resize(&app.context, width, height);
+						app.window.resize(new_size);
 					}
 				}
 				WindowEvent::CloseRequested => event_loop.exit(),
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						app.draw();
-						app.surface.swap_buffers(&app.context).unwrap();
+						app.window.surface.swap_buffers(&app.window.context).unwrap();
 					}
 				}
 				_ => {}
 			},
 			Event::AboutToWait => {
 				if let Some(app) = app.as_deref() {
-					app.window.request_redraw();
+					app.window.window.request_redraw();
 				}
 			}
 			_ => {}

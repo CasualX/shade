@@ -3,9 +3,9 @@ use super::*;
 /// Decoded image data.
 pub enum DecodedImage {
 	/// An RGBA image.
-	RGBA(Image<[u8; 4]>),
+	RGBA(ImageRGBA),
 	/// An RGB image.
-	RGB(Image<[u8; 3]>),
+	RGB(ImageRGB),
 	/// A grayscale image.
 	Grey(Image<u8>),
 	/// A grayscale + alpha image.
@@ -17,16 +17,16 @@ pub enum DecodedImage {
 	}
 }
 
-impl From<Image<[u8; 4]>> for DecodedImage {
+impl From<ImageRGBA> for DecodedImage {
 	#[inline]
-	fn from(image: Image<[u8; 4]>) -> Self {
+	fn from(image: ImageRGBA) -> Self {
 		DecodedImage::RGBA(image)
 	}
 }
 
-impl From<Image<[u8; 3]>> for DecodedImage {
+impl From<ImageRGB> for DecodedImage {
 	#[inline]
-	fn from(image: Image<[u8; 3]>) -> Self {
+	fn from(image: ImageRGB) -> Self {
 		DecodedImage::RGB(image)
 	}
 }
@@ -48,7 +48,7 @@ impl From<Image<[u8; 2]>> for DecodedImage {
 impl DecodedImage {
 	/// Returns the image as RGBA if it is an RGBA image.
 	#[inline]
-	pub fn rgba(self) -> Option<Image<[u8; 4]>> {
+	pub fn rgba(self) -> Option<ImageRGBA> {
 		match self {
 			DecodedImage::RGBA(image) => Some(image),
 			_ => None,
@@ -56,7 +56,7 @@ impl DecodedImage {
 	}
 	/// Returns the image as RGB if it is an RGB image.
 	#[inline]
-	pub fn rgb(self) -> Option<Image<[u8; 3]>> {
+	pub fn rgb(self) -> Option<ImageRGB> {
 		match self {
 			DecodedImage::RGB(image) => Some(image),
 			_ => None,
@@ -112,7 +112,7 @@ impl DecodedImage {
 		}
 	}
 	/// Converts the image to RGBA format.
-	pub fn to_rgba(self) -> Image<[u8; 4]> {
+	pub fn to_rgba(self) -> ImageRGBA {
 		match self {
 			DecodedImage::RGBA(image) => image,
 			DecodedImage::RGB(image) => image.map_colors(|[r, g, b]| [r, g, b, 255]),
@@ -127,7 +127,7 @@ impl DecodedImage {
 	/// Converts the image to RGB format.
 	///
 	/// The alpha channel is discarded if present.
-	pub fn to_rgb(self) -> Image<[u8; 3]> {
+	pub fn to_rgb(self) -> ImageRGB {
 		match self {
 			DecodedImage::RGBA(image) => image.map_colors(|[r, g, b, _a]| [r, g, b]),
 			DecodedImage::RGB(image) => image,
@@ -138,14 +138,14 @@ impl DecodedImage {
 	}
 }
 
-impl From<DecodedImage> for Image<[u8; 4]> {
+impl From<DecodedImage> for ImageRGBA {
 	#[inline]
 	fn from(img: DecodedImage) -> Self {
 		img.to_rgba()
 	}
 }
 
-impl From<DecodedImage> for Image<[u8; 3]> {
+impl From<DecodedImage> for ImageRGB {
 	#[inline]
 	fn from(img: DecodedImage) -> Self {
 		img.to_rgb()

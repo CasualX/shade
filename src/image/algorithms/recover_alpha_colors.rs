@@ -1,6 +1,6 @@
 use super::*;
 
-fn recover_alpha_colors(image: &Image<[u8; 4]>) -> Image<[u8; 4]> {
+fn recover_alpha_colors(image: &ImageRGBA) -> ImageRGBA {
 	let mut data = vec![[0u8; 4]; image.len()];
 
 	// Copy the pixels but if the src is transparent (alpha == 0)
@@ -54,10 +54,10 @@ fn recover_alpha_colors(image: &Image<[u8; 4]>) -> Image<[u8; 4]> {
 	}
 }
 
-impl Image<[u8; 4]> {
+impl ImageRGBA {
 	/// Recovers colors for transparent pixels by averaging surrounding opaque pixels.
 	#[inline]
-	pub fn recover_alpha_colors(&self) -> Image<[u8; 4]> {
+	pub fn recover_alpha_colors(&self) -> ImageRGBA {
 		recover_alpha_colors(self)
 	}
 }

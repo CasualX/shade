@@ -4,13 +4,18 @@ use super::*;
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[non_exhaustive]
 pub enum TextureFormat {
-	// Color formats
+	// Srgb formats
 	#[default]
+	SRGBA8,
+	SRGB8,
+
+	// Linear 8-bit color formats
 	RGBA8,
 	RGB8,
 	RG8,
 	R8,
 
+	// High precision formats
 	RGBA32F,
 	RGB32F,
 	RG32F,
@@ -28,6 +33,8 @@ impl TextureFormat {
 	#[inline]
 	pub const fn bytes_per_pixel(self) -> usize {
 		match self {
+			TextureFormat::SRGBA8 => 4,
+			TextureFormat::SRGB8 => 3,
 			TextureFormat::RGBA8 => 4,
 			TextureFormat::RGB8 => 3,
 			TextureFormat::RG8 => 2,

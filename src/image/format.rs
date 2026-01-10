@@ -1,25 +1,5 @@
+use crate::color::PixelFormat;
 use super::*;
-
-/// Pixel format trait.
-pub trait PixelFormat {
-	const FORMAT: crate::TextureFormat;
-	const CHANNELS: usize;
-}
-
-impl PixelFormat for [u8; 4] {
-	const FORMAT: crate::TextureFormat = crate::TextureFormat::RGBA8;
-	const CHANNELS: usize = 4;
-}
-
-impl PixelFormat for [u8; 3] {
-	const FORMAT: crate::TextureFormat = crate::TextureFormat::RGB8;
-	const CHANNELS: usize = 3;
-}
-
-impl PixelFormat for u8 {
-	const FORMAT: crate::TextureFormat = crate::TextureFormat::R8;
-	const CHANNELS: usize = 1;
-}
 
 /// Load various image types into textures.
 pub trait ImageToTexture {
@@ -33,13 +13,13 @@ impl ImageToTexture for DecodedImage {
 	fn info(&self) -> crate::Texture2DInfo {
 		match self {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::RGBA8,
+				format: crate::TextureFormat::SRGBA8,
 				width: image.width,
 				height: image.height,
 				props: Default::default(),
 			},
 			DecodedImage::RGB(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::RGB8,
+				format: crate::TextureFormat::SRGB8,
 				width: image.width,
 				height: image.height,
 				props: Default::default(),
@@ -69,13 +49,13 @@ impl ImageToTexture for (&DecodedImage, &crate::TextureProps) {
 		let (image, &props) = self;
 		match image {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::RGBA8,
+				format: crate::TextureFormat::SRGBA8,
 				width: image.width,
 				height: image.height,
 				props,
 			},
 			DecodedImage::RGB(image) => crate::Texture2DInfo {
-				format: crate::TextureFormat::RGB8,
+				format: crate::TextureFormat::SRGB8,
 				width: image.width,
 				height: image.height,
 				props,
