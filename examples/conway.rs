@@ -188,7 +188,7 @@ impl ConwayDemo {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
+				..Default::default()
 			},
 		};
 

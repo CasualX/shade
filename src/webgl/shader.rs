@@ -75,7 +75,7 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 	return this.shaders.insert(name, WebGLProgram { program, attribs, uniforms });
 }
 
-pub fn find(this: &mut WebGLGraphics, name: &str) -> crate::Shader {
+pub fn find(this: &WebGLGraphics, name: &str) -> crate::Shader {
 	this.shaders.find_id(name).unwrap_or(crate::Shader::INVALID)
 }
 

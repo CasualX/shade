@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn find(this: &mut GlGraphics, name: &str) -> crate::Shader {
+pub fn find(this: &GlGraphics, name: &str) -> crate::Shader {
 	this.shaders.find_id(name).unwrap_or(crate::Shader::INVALID)
 }
 

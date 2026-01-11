@@ -117,7 +117,7 @@ impl OldTreeRenderable {
 				filter_mag: shade::TextureFilter::Nearest,
 				wrap_u: shade::TextureWrap::Edge,
 				wrap_v: shade::TextureWrap::Edge,
-				border_color: [0, 0, 0, 0],
+				..Default::default()
 			};
 			g.image(None, &(&image, &props))
 		};

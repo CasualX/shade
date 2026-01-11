@@ -133,7 +133,7 @@ impl Context {
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
+				..Default::default()
 			};
 			g.image(None, &(&image, &props))
 		};
@@ -148,7 +148,7 @@ impl Context {
 				filter_mag: shade::TextureFilter::Linear,
 				wrap_u: shade::TextureWrap::Repeat,
 				wrap_v: shade::TextureWrap::Repeat,
-				border_color: [0, 0, 0, 0],
+				..Default::default()
 			};
 			g.image(None, &(&image, &props))
 		};

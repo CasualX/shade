@@ -123,7 +123,7 @@ macro_rules! TextureUsage {
 }
 
 /// Texture properties.
-#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TextureProps {
 	pub mip_levels: u8,
 	pub usage: TextureUsage,
@@ -131,7 +131,7 @@ pub struct TextureProps {
 	pub filter_mag: TextureFilter,
 	pub wrap_u: TextureWrap,
 	pub wrap_v: TextureWrap,
-	pub border_color: [u8; 4],
+	pub border_color: [f32; 4],
 }
 
 impl Default for TextureProps {
@@ -144,7 +144,7 @@ impl Default for TextureProps {
 			filter_mag: TextureFilter::Linear,
 			wrap_u: TextureWrap::Edge,
 			wrap_v: TextureWrap::Edge,
-			border_color: [0, 0, 0, 0],
+			border_color: [0.0, 0.0, 0.0, 0.0],
 		}
 	}
 }
@@ -155,7 +155,7 @@ impl Default for TextureProps {
 define_handle!(Texture2D);
 
 /// Texture2D information.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Texture2DInfo {
 	pub format: TextureFormat,
 	pub width: i32,
@@ -219,33 +219,4 @@ pub trait ImageToTexture {
 	fn info(&self) -> Texture2DInfo;
 	/// Get the raw pixel data of the image.
 	fn data(&self) -> &[u8];
-}
-
-//-----------------------------------------------------------------
-// Texture2DArray handle.
-/*
-define_handle!(Texture2DArray);
-
-/// Texture2DArray information.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
-pub struct Texture2DArrayInfo {
-	pub format: TextureFormat,
-	pub width: i32,
-	pub height: i32,
-	pub count: u16,
-	pub props: TextureProps,
-}*/
-
-//-------------------------------------------------------------------
-// TextureCube handle.
-
-define_handle!(TextureCube);
-
-/// TextureCube information.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
-pub struct TextureCubeInfo {
-	pub format: TextureFormat,
-	pub width: i32,
-	pub height: i32,
-	pub props: TextureProps,
 }

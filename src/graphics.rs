@@ -185,7 +185,7 @@ pub trait IGraphics {
 	/// Creates a vertex buffer.
 	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
 	/// Finds a vertex buffer by name.
-	fn vertex_buffer_find(&mut self, name: &str) -> VertexBuffer;
+	fn vertex_buffer_find(&self, name: &str) -> VertexBuffer;
 	/// Writes data to the vertex buffer.
 	fn vertex_buffer_write(&mut self, id: VertexBuffer, data: &[u8]);
 	/// Releases the resources of the vertex buffer.
@@ -194,7 +194,7 @@ pub trait IGraphics {
 	/// Creates an index buffer.
 	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
 	/// Finds an index buffer by name.
-	fn index_buffer_find(&mut self, name: &str) -> IndexBuffer;
+	fn index_buffer_find(&self, name: &str) -> IndexBuffer;
 	/// Writes data to the index buffer.
 	fn index_buffer_write(&mut self, id: IndexBuffer, data: &[u8]);
 	/// Releases the resources of the index buffer.
@@ -203,18 +203,20 @@ pub trait IGraphics {
 	/// Creates and compiles a shader.
 	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Shader;
 	/// Finds a shader by name.
-	fn shader_find(&mut self, name: &str) -> Shader;
+	fn shader_find(&self, name: &str) -> Shader;
 	/// Releases the resources of the shader.
 	fn shader_free(&mut self, id: Shader);
 
 	/// Creates a 2D texture.
 	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Texture2D;
 	/// Finds a 2D texture by name.
-	fn texture2d_find(&mut self, name: &str) -> Texture2D;
+	fn texture2d_find(&self, name: &str) -> Texture2D;
 	/// Returns the info of the 2D texture.
-	fn texture2d_get_info(&mut self, id: Texture2D) -> Texture2DInfo;
+	fn texture2d_get_info(&self, id: Texture2D) -> Option<&Texture2DInfo>;
 	/// Generates mipmap for the 2D texture.
 	fn texture2d_generate_mipmap(&mut self, id: Texture2D);
+	/// Updates the properties of the 2D texture and reallocates the texture if necessary.
+	fn texture2d_update(&mut self, id: Texture2D, info: &Texture2DInfo) -> Texture2D;
 	/// Writes data to the 2D texture.
 	fn texture2d_write(&mut self, id: Texture2D, level: u8, data: &[u8]);
 	/// Reads the data of the 2D texture into the buffer.
@@ -301,7 +303,7 @@ impl Graphics {
 	}
 	/// Reads the data of the 2D texture into an image.
 	pub fn texture2d_read<T: dataview::Pod>(&mut self, id: Texture2D, level: u8) -> image::Image<T> {
-		let info = self.texture2d_get_info(id);
+		let info = self.texture2d_get_info(id).unwrap();
 		let (mip_width, mip_height, byte_size) = info.mip_size(level);
 		assert!(byte_size % mem::size_of::<T>() == 0, "Texture2D level={level} byte_size={byte_size} is not a multiple of {}", mem::size_of::<T>());
 		let nelements = byte_size / mem::size_of::<T>();

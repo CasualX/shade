@@ -13,7 +13,6 @@ mod common;
 mod graphics;
 mod vertex;
 mod texture;
-mod surface;
 mod uniform;
 mod shader;
 mod resources;
@@ -23,7 +22,6 @@ pub use self::common::*;
 pub use self::graphics::*;
 pub use self::vertex::*;
 pub use self::texture::*;
-pub use self::surface::*;
 pub use self::uniform::*;
 pub use self::shader::Shader;
 

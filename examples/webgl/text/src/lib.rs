@@ -33,7 +33,7 @@ impl Context {
 					filter_mag: shade::TextureFilter::Linear,
 					wrap_u: shade::TextureWrap::Edge,
 					wrap_v: shade::TextureWrap::Edge,
-					border_color: [0, 0, 0, 0],
+					..Default::default()
 				};
 				g.image(Some("font"), &(&image, &props))
 			};
