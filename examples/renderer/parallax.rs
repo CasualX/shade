@@ -91,28 +91,42 @@ mat3 computeTBN(vec3 normal, vec3 pos, vec2 uv) {
 
 // Parallax Occlusion Mapping
 vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent, vec2 uv_dx, vec2 uv_dy) {
-	const int numLayers = 32;
 	const float minLayers = 8.0;
-	const float maxLayers = 32.0;
+	const float maxLayers = 48.0;
 
-	float angle = dot(vec3(0.0, 0.0, 1.0), viewDirTangent);
-	float num = mix(maxLayers, minLayers, abs(angle));
-	float layerDepth = 1.0 / num;
-	vec2 P = viewDirTangent.xy * u_heightScale;
-	vec2 deltaUV = -P / num;
+	// More layers at grazing angles.
+	float ndotv = clamp(viewDirTangent.z, 0.0, 1.0);
+	float numLayers = mix(maxLayers, minLayers, ndotv);
+	float layerDepth = 1.0 / numLayers;
+
+	// Scale parallax by view angle to avoid excessive stepping artifacts.
+	vec2 P = (viewDirTangent.xy / max(viewDirTangent.z, 0.05)) * u_heightScale;
+	vec2 deltaUV = -P / numLayers;
 
 	vec2 currUV = uv;
-	float currDepth = 0.0;
-	float heightFromMap = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
+	float currLayerDepth = 0.0;
+	float currHeight = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
 
-	// Step until depth of map is below current layer
-	while (currDepth < heightFromMap && num > 0.0) {
+	int steps = int(numLayers);
+	for (int i = 0; i < steps; i++) {
+		if (currLayerDepth >= currHeight) {
+			break;
+		}
 		currUV += deltaUV;
-		currDepth += layerDepth;
-		heightFromMap = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
+		currLayerDepth += layerDepth;
+		currHeight = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
 	}
 
-	return currUV;
+	// Refine: linearly interpolate between the last two steps to hide layer bands.
+	vec2 prevUV = currUV - deltaUV;
+	float prevLayerDepth = currLayerDepth - layerDepth;
+	float prevHeight = textureGrad(u_heightMap, prevUV, uv_dx, uv_dy).r;
+
+	float after = currHeight - currLayerDepth;
+	float before = prevHeight - prevLayerDepth;
+	float denom = (before - after);
+	float t = (abs(denom) < 1e-5) ? 0.0 : clamp(before / denom, 0.0, 1.0);
+	return mix(prevUV, currUV, t);
 }
 
 void main() {
