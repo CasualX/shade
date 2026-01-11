@@ -256,7 +256,7 @@ impl ops::DerefMut for Graphics {
 impl Graphics {
 	/// Creates a texture from an image.
 	#[inline]
-	pub fn image<F: image::ImageToTexture>(&mut self, name: Option<&str>, image: &F) -> Texture2D {
+	pub fn image<F: ImageToTexture>(&mut self, name: Option<&str>, image: &F) -> Texture2D {
 		let info = image.info();
 		let data = image.data();
 		let tex = self.texture2d_create(name, &info);
@@ -265,7 +265,7 @@ impl Graphics {
 		return tex;
 	}
 	/// Creates an animated texture from an animated image.
-	pub fn animated_image(&mut self, image: &image::AnimatedImage, props: &crate::TextureProps) -> crate::AnimatedTexture2D {
+	pub fn animated_image(&mut self, image: &image::AnimatedImage, props: &TextureProps) -> AnimatedTexture2D {
 		let mut frames = Vec::with_capacity(image.frames.len());
 		for frame in &image.frames {
 			let tex = {
@@ -283,7 +283,7 @@ impl Graphics {
 			frames.push(tex);
 		}
 		let length = image.delays.iter().sum();
-		crate::AnimatedTexture2D {
+		AnimatedTexture2D {
 			width: image.width,
 			height: image.height,
 			frames,

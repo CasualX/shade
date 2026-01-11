@@ -4,6 +4,7 @@ pub unsafe trait TVertex: Copy + Default + dataview::Pod {
 	const LAYOUT: &'static VertexLayout;
 }
 
+/// Common attributes for 3D vertices.
 pub trait TVertex3: TVertex {
 	fn position(&self) -> cvmath::Vec3<f32>;
 }
@@ -206,6 +207,7 @@ macro_rules! norm {
 	}
 }
 
+/// Vertex attribute format trait.
 pub trait TVertexAttributeFormat {
 	const FORMAT: VertexAttributeFormat;
 }

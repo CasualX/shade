@@ -1,15 +1,7 @@
 use crate::color::PixelFormat;
 use super::*;
 
-/// Load various image types into textures.
-pub trait ImageToTexture {
-	/// Get the texture info of the image.
-	fn info(&self) -> crate::Texture2DInfo;
-	/// Get the raw pixel data of the image.
-	fn data(&self) -> &[u8];
-}
-
-impl ImageToTexture for DecodedImage {
+impl crate::ImageToTexture for DecodedImage {
 	fn info(&self) -> crate::Texture2DInfo {
 		match self {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
@@ -44,7 +36,7 @@ impl ImageToTexture for DecodedImage {
 	}
 }
 
-impl ImageToTexture for (&DecodedImage, &crate::TextureProps) {
+impl crate::ImageToTexture for (&DecodedImage, &crate::TextureProps) {
 	fn info(&self) -> crate::Texture2DInfo {
 		let (image, &props) = self;
 		match image {
@@ -80,7 +72,7 @@ impl ImageToTexture for (&DecodedImage, &crate::TextureProps) {
 	}
 }
 
-impl<T: PixelFormat + Copy + dataview::Pod> ImageToTexture for Image<T> {
+impl<T: PixelFormat + Copy + dataview::Pod> crate::ImageToTexture for Image<T> {
 	#[inline]
 	fn info(&self) -> crate::Texture2DInfo {
 		crate::Texture2DInfo {
@@ -96,7 +88,7 @@ impl<T: PixelFormat + Copy + dataview::Pod> ImageToTexture for Image<T> {
 	}
 }
 
-impl<T: PixelFormat + Copy + dataview::Pod> ImageToTexture for (&Image<T>, &crate::TextureProps) {
+impl<T: PixelFormat + Copy + dataview::Pod> crate::ImageToTexture for (&Image<T>, &crate::TextureProps) {
 	#[inline]
 	fn info(&self) -> crate::Texture2DInfo {
 		let (image, &props) = self;

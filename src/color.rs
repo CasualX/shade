@@ -1,3 +1,4 @@
+//! Pixel color formats.
 
 /// Pixel format trait.
 pub trait PixelFormat {
@@ -5,7 +6,7 @@ pub trait PixelFormat {
 	const CHANNELS: usize;
 }
 
-/// 8-bit linear RGB color with alpha.
+/// Standard 8-bit RGB color with linear alpha.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(C)]
 pub struct Srgba8 {
@@ -22,7 +23,7 @@ impl PixelFormat for Srgba8 {
 	const CHANNELS: usize = 4;
 }
 
-/// 8-bit linear RGB color.
+/// Standard 8-bit RGB color.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(C)]
 pub struct Srgb8 {
@@ -45,7 +46,7 @@ impl PixelFormat for Srgb8 {
 	const CHANNELS: usize = 3;
 }
 
-/// 8-bit linear RGB color with alpha.
+/// Linear 8-bit RGB color with alpha.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(C)]
 pub struct Rgba8 {
@@ -62,7 +63,7 @@ impl PixelFormat for Rgba8 {
 	const CHANNELS: usize = 4;
 }
 
-/// 8-bit linear RGB color.
+/// Linear 8-bit RGB color.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(C)]
 pub struct Rgb8 {
@@ -78,7 +79,7 @@ impl PixelFormat for Rgb8 {
 	const CHANNELS: usize = 3;
 }
 
-/// 8-bit two-channel color.
+/// Linear 8-bit two-channel color.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(C)]
 pub struct Rg8 {
@@ -93,7 +94,7 @@ impl PixelFormat for Rg8 {
 	const CHANNELS: usize = 2;
 }
 
-/// 8-bit single channel color.
+/// Linear 8-bit single channel color.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct R8(pub u8);

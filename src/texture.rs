@@ -32,22 +32,22 @@ impl TextureFormat {
 	/// Returns the number of bytes per pixel for the format.
 	#[inline]
 	pub const fn bytes_per_pixel(self) -> usize {
-		match self {
-			TextureFormat::SRGBA8 => 4,
-			TextureFormat::SRGB8 => 3,
-			TextureFormat::RGBA8 => 4,
-			TextureFormat::RGB8 => 3,
-			TextureFormat::RG8 => 2,
-			TextureFormat::R8 => 1,
-			TextureFormat::RGBA32F => 16,
-			TextureFormat::RGB32F => 12,
-			TextureFormat::RG32F => 8,
-			TextureFormat::R32F => 4,
-			TextureFormat::Depth16 => 2,
-			TextureFormat::Depth24 => 4, // Although the internal format is 24-bit, write/readback uses 32-bit values
-			TextureFormat::Depth32F => 4,
-			TextureFormat::Depth24Stencil8 => 4,
-		}
+		(match self {
+			TextureFormat::SRGBA8 => 4u8,
+			TextureFormat::SRGB8 => 3u8,
+			TextureFormat::RGBA8 => 4u8,
+			TextureFormat::RGB8 => 3u8,
+			TextureFormat::RG8 => 2u8,
+			TextureFormat::R8 => 1u8,
+			TextureFormat::RGBA32F => 16u8,
+			TextureFormat::RGB32F => 12u8,
+			TextureFormat::RG32F => 8u8,
+			TextureFormat::R32F => 4u8,
+			TextureFormat::Depth16 => 2u8,
+			TextureFormat::Depth24 => 4u8, // Although the internal format is 24-bit, write/readback uses 32-bit values
+			TextureFormat::Depth32F => 4u8,
+			TextureFormat::Depth24Stencil8 => 4u8,
+		}) as usize
 	}
 }
 
@@ -211,6 +211,14 @@ impl AnimatedTexture2D {
 		let index = usize::min(f64::floor(fract * self.frames.len() as i32 as f64) as i32 as usize, self.frames.len() - 1);
 		self.frames[index]
 	}
+}
+
+/// Load various image types into textures.
+pub trait ImageToTexture {
+	/// Get the texture info of the image.
+	fn info(&self) -> Texture2DInfo;
+	/// Get the raw pixel data of the image.
+	fn data(&self) -> &[u8];
 }
 
 //-----------------------------------------------------------------
