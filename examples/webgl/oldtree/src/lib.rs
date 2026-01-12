@@ -137,7 +137,7 @@ impl OldTreeRenderable {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::Less),
+			depth_test: Some(shade::Compare::Less),
 			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask {
 				red: true,

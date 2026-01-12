@@ -236,7 +236,7 @@ impl SceneDemo {
 
 		let mut cv = shade::im::DrawBuilder::<MyVertex3, MyUniform3>::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.depth_test = Some(shade::DepthTest::Less);
+		cv.depth_test = Some(shade::Compare::Less);
 		cv.shader = self.shader;
 		cv.uniform.transform = transform;
 		cv.uniform.texture = self.texture;

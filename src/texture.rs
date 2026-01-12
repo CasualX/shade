@@ -131,6 +131,7 @@ pub struct TextureProps {
 	pub filter_mag: TextureFilter,
 	pub wrap_u: TextureWrap,
 	pub wrap_v: TextureWrap,
+	pub compare: Option<Compare>,
 	pub border_color: [f32; 4],
 }
 
@@ -144,6 +145,7 @@ impl Default for TextureProps {
 			filter_mag: TextureFilter::Linear,
 			wrap_u: TextureWrap::Edge,
 			wrap_v: TextureWrap::Edge,
+			compare: None,
 			border_color: [0.0, 0.0, 0.0, 0.0],
 		}
 	}

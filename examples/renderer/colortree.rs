@@ -153,7 +153,7 @@ impl Renderable {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::Less),
+			depth_test: Some(shade::Compare::Less),
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
 			prim_type: shade::PrimType::Triangles,

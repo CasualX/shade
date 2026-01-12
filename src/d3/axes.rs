@@ -3,7 +3,7 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct AxesInstance {
 	pub local: Transform3f,
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 }
 
 #[derive(Debug)]

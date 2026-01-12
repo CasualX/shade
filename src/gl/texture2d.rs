@@ -57,6 +57,13 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, info: &crate::Texture2D
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)));
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)));
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)));
+	if let Some(compare) = info.props.compare {
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_MODE, gl::COMPARE_REF_TO_TEXTURE as GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_FUNC, gl_depth_func(compare) as GLint));
+	}
+	else {
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_MODE, gl::NONE as GLint));
+	}
 	gl_check!(gl::TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, info.props.border_color.as_ptr()));
 	// Allocate texture storage (required for framebuffer attachments)
 	let GlTextureFormat { internal_format, .. } = GlTextureFormat::get(info.format, &this.config);
@@ -86,6 +93,11 @@ pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture
 		return create(this, None, info);
 	};
 
+	// Short-circuit if no changes.
+	if &texture.info == info {
+		return id;
+	}
+
 	// With TexStorage2D, the texture storage is immutable. Any change to
 	// format/size/mip count requires creating a new GL texture object.
 	let realloc = texture.info.width != info.width
@@ -109,6 +121,13 @@ pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)));
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)));
 	gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)));
+	if let Some(compare) = info.props.compare {
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_MODE, gl::COMPARE_REF_TO_TEXTURE as GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_FUNC, gl_depth_func(compare) as GLint));
+	}
+	else {
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_COMPARE_MODE, gl::NONE as GLint));
+	}
 	gl_check!(gl::TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, info.props.border_color.as_ptr()));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 

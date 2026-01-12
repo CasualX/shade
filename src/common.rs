@@ -106,22 +106,22 @@ pub enum BlendMode {
 	Multiply,
 }
 
-/// Depth test.
+/// Comparison operator.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum DepthTest {
+pub enum Compare {
 	/// Never pass.
 	Never,
-	/// Pass if the new depth is less than the old depth.
+	/// Pass if the new value is less than the old value.
 	Less,
-	/// Pass if the new depth is equal to the old depth.
+	/// Pass if the new value is equal to the old value.
 	Equal,
-	/// Pass if the new depth is not equal to the old depth.
+	/// Pass if the new value is not equal to the old value.
 	NotEqual,
-	/// Pass if the new depth is less than or equal to the old depth.
+	/// Pass if the new value is less than or equal to the old value.
 	LessEqual,
-	/// Pass if the new depth is greater than the old depth.
+	/// Pass if the new value is greater than the old value.
 	Greater,
-	/// Pass if the new depth is greater than or equal to the old depth.
+	/// Pass if the new value is greater than or equal to the old value.
 	GreaterEqual,
 	/// Always pass.
 	Always,

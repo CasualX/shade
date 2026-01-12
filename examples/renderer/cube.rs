@@ -245,7 +245,7 @@ impl Renderable {
 		g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::Less),
+			depth_test: Some(shade::Compare::Less),
 			cull_mode: None,
 			mask: if shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::COLOR | shade::DrawMask::DEPTH },
 			prim_type: shade::PrimType::Triangles,

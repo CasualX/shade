@@ -8,7 +8,7 @@ pub struct PipelineState {
 	pub prim_type: PrimType,
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 	pub mask: DrawMask,
 	pub shader: Shader,
@@ -211,7 +211,7 @@ pub struct DrawBuilder<V, U> {
 
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 
 	pub shader: Shader,

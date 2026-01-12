@@ -86,7 +86,7 @@ pub struct DrawArgs<'a> {
 	/// Blend mode.
 	pub blend_mode: BlendMode,
 	/// Depth test.
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 	/// Triangle culling mode.
 	pub cull_mode: Option<CullMode>,
 	/// Draw mask.
@@ -116,7 +116,7 @@ pub struct DrawIndexedArgs<'a> {
 	/// Blend mode.
 	pub blend_mode: BlendMode,
 	/// Depth test.
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 	/// Triangle culling mode.
 	pub cull_mode: Option<CullMode>,
 	/// Draw mask.

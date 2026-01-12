@@ -25,7 +25,7 @@ impl TVertex3 for ColorVertex3 {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ColorUniform3 {
 	pub transform: Mat4f,
 	pub colormod: Vec4f,

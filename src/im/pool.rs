@@ -6,7 +6,7 @@ use super::*;
 pub struct SharedState {
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
-	pub depth_test: Option<DepthTest>,
+	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 }
 

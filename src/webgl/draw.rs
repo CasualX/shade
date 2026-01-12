@@ -55,17 +55,17 @@ fn gl_blend(blend_mode: crate::BlendMode) {
 	unsafe { api::blendEquation(p.equation) };
 }
 
-fn gl_depth_test(depth_test: Option<crate::DepthTest>) {
+fn gl_depth_test(depth_test: Option<crate::Compare>) {
 	if let Some(depth_test) = depth_test {
 		let func = match depth_test {
-			crate::DepthTest::Never => api::NEVER,
-			crate::DepthTest::Less => api::LESS,
-			crate::DepthTest::Equal => api::EQUAL,
-			crate::DepthTest::LessEqual => api::LEQUAL,
-			crate::DepthTest::Greater => api::GREATER,
-			crate::DepthTest::NotEqual => api::NOTEQUAL,
-			crate::DepthTest::GreaterEqual => api::GEQUAL,
-			crate::DepthTest::Always => api::ALWAYS,
+			crate::Compare::Never => api::NEVER,
+			crate::Compare::Less => api::LESS,
+			crate::Compare::Equal => api::EQUAL,
+			crate::Compare::LessEqual => api::LEQUAL,
+			crate::Compare::Greater => api::GREATER,
+			crate::Compare::NotEqual => api::NOTEQUAL,
+			crate::Compare::GreaterEqual => api::GEQUAL,
+			crate::Compare::Always => api::ALWAYS,
 		};
 		unsafe { api::enable(api::DEPTH_TEST) };
 		unsafe { api::depthFunc(func) };

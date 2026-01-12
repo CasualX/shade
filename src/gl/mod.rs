@@ -66,6 +66,19 @@ fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
 	}) as GLint
 }
 
+fn gl_depth_func(v: crate::Compare) -> GLenum {
+	match v {
+		crate::Compare::Never => gl::NEVER,
+		crate::Compare::Less => gl::LESS,
+		crate::Compare::Equal => gl::EQUAL,
+		crate::Compare::LessEqual => gl::LEQUAL,
+		crate::Compare::Greater => gl::GREATER,
+		crate::Compare::NotEqual => gl::NOTEQUAL,
+		crate::Compare::GreaterEqual => gl::GEQUAL,
+		crate::Compare::Always => gl::ALWAYS,
+	}
+}
+
 struct GlVertexBuffer {
 	buffer: GLuint,
 	_size: usize,
@@ -195,6 +208,7 @@ impl GlGraphics {
 							filter_mag: crate::TextureFilter::Nearest,
 							wrap_u: crate::TextureWrap::Edge,
 							wrap_v: crate::TextureWrap::Edge,
+							compare: None,
 							border_color: [0.0, 0.0, 0.0, 0.0],
 						}
 					},

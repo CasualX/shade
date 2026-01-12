@@ -65,22 +65,22 @@ impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		let time = self.epoch.elapsed().as_secs_f32();
 
-		if self.shadow_map == shade::Texture2D::INVALID {
-			self.shadow_map = g.texture2d_create(None, &shade::Texture2DInfo {
-				width: SHADOW_MAP_SIZE,
-				height: SHADOW_MAP_SIZE,
-				format: shade::TextureFormat::Depth32F,
-				props: shade::TextureProps {
-					mip_levels: 1,
-					usage: shade::TextureUsage!(SAMPLED | DEPTH_STENCIL_TARGET),
-					filter_min: shade::TextureFilter::Linear,
-					filter_mag: shade::TextureFilter::Linear,
-					wrap_u: shade::TextureWrap::Edge,
-					wrap_v: shade::TextureWrap::Edge,
-					..Default::default()
-				},
-			});
-		}
+		self.shadow_map = g.texture2d_update(self.shadow_map, &shade::Texture2DInfo {
+			width: SHADOW_MAP_SIZE,
+			height: SHADOW_MAP_SIZE,
+			format: shade::TextureFormat::Depth32F,
+			props: shade::TextureProps {
+				mip_levels: 1,
+				usage: shade::TextureUsage!(SAMPLED | DEPTH_STENCIL_TARGET),
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Edge,
+				wrap_v: shade::TextureWrap::Edge,
+				compare: Some(shade::Compare::LessEqual),
+				border_color: [1.0, 1.0, 1.0, 1.0],
+				..Default::default()
+			},
+		});
 
 		let globals = Globals { time };
 		let mut light = Light {

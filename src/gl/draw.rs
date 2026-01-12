@@ -63,18 +63,9 @@ fn gl_blend(blend_mode: crate::BlendMode) {
 	gl_check!(gl::BlendEquation(p.equation));
 }
 
-fn gl_depth_test(depth_test: Option<crate::DepthTest>) {
+fn gl_depth_test(depth_test: Option<crate::Compare>) {
 	if let Some(depth_test) = depth_test {
-		let func = match depth_test {
-			crate::DepthTest::Never => gl::NEVER,
-			crate::DepthTest::Less => gl::LESS,
-			crate::DepthTest::Equal => gl::EQUAL,
-			crate::DepthTest::LessEqual => gl::LEQUAL,
-			crate::DepthTest::Greater => gl::GREATER,
-			crate::DepthTest::NotEqual => gl::NOTEQUAL,
-			crate::DepthTest::GreaterEqual => gl::GEQUAL,
-			crate::DepthTest::Always => gl::ALWAYS,
-		};
+		let func = gl_depth_func(depth_test);
 		gl_check!(gl::Enable(gl::DEPTH_TEST));
 		gl_check!(gl::DepthFunc(func));
 	}

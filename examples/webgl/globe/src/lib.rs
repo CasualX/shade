@@ -139,7 +139,7 @@ impl GlobeRenderable {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
-			depth_test: Some(shade::DepthTest::LessEqual),
+			depth_test: Some(shade::Compare::LessEqual),
 			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask::ALL,
 			prim_type: shade::PrimType::Triangles,

@@ -40,7 +40,7 @@ impl FrustumModel {
 		g.draw_indexed(&DrawIndexedArgs {
 			scissor: None,
 			blend_mode: BlendMode::Solid,
-			depth_test: Some(DepthTest::Less),
+			depth_test: Some(Compare::Less),
 			cull_mode: None,
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Lines,
@@ -59,7 +59,7 @@ impl FrustumModel {
 		g.draw_indexed(&DrawIndexedArgs {
 			scissor: None,
 			blend_mode: BlendMode::Alpha,
-			depth_test: Some(DepthTest::Less),
+			depth_test: Some(Compare::Less),
 			cull_mode: None,
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Triangles,
