@@ -106,10 +106,9 @@ struct GlActiveAttrib {
 	ty: GLenum,
 }
 
-#[allow(dead_code)]
 struct GlActiveUniform {
 	location: GLint,
-	size: GLint,
+	array_size: GLint, // Number of elements in array, 1 if not an array
 	ty: GLenum,
 	texture_unit: i8, // Texture unit, -1 if not a sampler
 }

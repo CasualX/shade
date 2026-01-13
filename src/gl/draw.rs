@@ -161,84 +161,106 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	fn float(&mut self, name: &str, data: &[f32]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT, "Uniform {name:?} expected `float` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform1fv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
 	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn vec3(&mut self, name: &str, data: &[cvmath::Vec3<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn vec4(&mut self, name: &str, data: &[cvmath::Vec4<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const f32));
 		}
 	}
 	fn int(&mut self, name: &str, data: &[i32]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::INT, "Uniform {name:?} expected `int` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform1iv(u.location, data.len() as i32, data.as_ptr()));
 		}
 	}
 	fn ivec2(&mut self, name: &str, data: &[cvmath::Vec2<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn ivec3(&mut self, name: &str, data: &[cvmath::Vec3<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn ivec4(&mut self, name: &str, data: &[cvmath::Vec4<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::Uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const i32));
 		}
 	}
 	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT2, "Uniform {name:?} expected `mat2` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::UniformMatrix2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::UniformMatrix3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::UniformMatrix4fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT3x2, "Uniform {name:?} expected `mat3x2` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::UniformMatrix3x2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT4x3, "Uniform {name:?} expected `mat4x3` type in shader");
+			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
 			gl_check!(gl::UniformMatrix4x3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
 		}
 	}
 	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
-			debug_assert_eq!(u.ty, gl::SAMPLER_2D, "Uniform {name:?} expected `sampler2D` type in shader");
+			debug_assert_eq!(u.array_size as usize, textures.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, textures.len());
+			if u.ty == gl::SAMPLER_2D {
+				// OK
+			}
+			else if u.ty == gl::SAMPLER_2D_SHADOW {
+				// OK
+			}
+			else {
+				panic!("Uniform {name:?} has incompatible type for sampler2d: {:X?}", u.ty);
+			}
 
 			const MAX_TEXTURES: usize = 32;
 

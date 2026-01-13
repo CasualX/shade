@@ -39,38 +39,23 @@ in vec3 v_fragPos;
 in vec4 v_lightClip;
 
 uniform vec3 u_lightPos;
-uniform sampler2D u_shadowMap;
-uniform float u_shadowTexelScale;
+uniform sampler2DShadow u_shadowMap;
 
 void main() {
 	vec3 lightDir = normalize(u_lightPos - v_fragPos);
-	float diff = max(dot(v_normal, lightDir), 0.0);
+	float diffLight = max(dot(v_normal, lightDir), 0.0);
 
-	// Simple shadow mapping (single tap depth compare)
+	// Simple shadow mapping
 	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
 	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	float shadow = 0.0;
-	if (shadowUvZ.x >= 0.0 && shadowUvZ.x <= 1.0 && shadowUvZ.y >= 0.0 && shadowUvZ.y <= 1.0 && shadowUvZ.z >= 0.0 && shadowUvZ.z <= 1.0) {
-		float currentDepth = shadowUvZ.z;
-		float bias = 0.001;
-		vec2 texelSize = u_shadowTexelScale / vec2(textureSize(u_shadowMap, 0));
-		float occlusion = 0.0;
-		for (int y = -1; y <= 1; y++) {
-			for (int x = -1; x <= 1; x++) {
-				vec2 offset = vec2(float(x), float(y)) * texelSize;
-				float closestDepth = texture(u_shadowMap, shadowUvZ.xy + offset).r;
-				occlusion += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
-			}
-		}
-		shadow = occlusion / 9.0;
-	}
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
 
 	// Shadow should only reduce the direct (sun-facing) term.
-	// Back-facing surfaces (diff ~= 0) then look the same as shadowed ones.
+	// Back-facing surfaces (diffLight ~= 0) then look the same as shadowed ones.
 	float ambient = 0.2;
 	float direct_intensity = 0.6;
-	float visibility = 1.0 - shadow;
-	float lighting = ambient + visibility * (diff * direct_intensity);
+	float lighting = ambient + visibility * (diffLight * direct_intensity);
 	o_fragColor = vec4(1.0, 1.0, 1.0, 1.0) * lighting * v_color;
 }
 "#;

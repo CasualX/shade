@@ -51,31 +51,9 @@ uniform sampler2D u_heightMap;
 uniform vec3 u_cameraPosition;
 uniform vec3 u_lightPos;
 
-uniform sampler2D u_shadowMap;
-uniform float u_shadowTexelScale;
+uniform sampler2DShadow u_shadowMap;
 
 uniform float u_heightScale;
-
-float shadow_visibility(vec4 lightClip) {
-	vec3 lightNdc = lightClip.xyz / lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	if (shadowUvZ.x < 0.0 || shadowUvZ.x > 1.0 || shadowUvZ.y < 0.0 || shadowUvZ.y > 1.0 || shadowUvZ.z < 0.0 || shadowUvZ.z > 1.0) {
-		return 1.0;
-	}
-	float currentDepth = shadowUvZ.z;
-	float bias = 0.001;
-	vec2 texelSize = u_shadowTexelScale / vec2(textureSize(u_shadowMap, 0));
-	float occlusion = 0.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 offset = vec2(float(x), float(y)) * texelSize;
-			float closestDepth = texture(u_shadowMap, shadowUvZ.xy + offset).r;
-			occlusion += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
-		}
-	}
-	float shadow = occlusion / 9.0;
-	return 1.0 - shadow;
-}
 
 // Construct TBN matrix using derivatives (quad assumed)
 mat3 computeTBN(vec3 normal, vec3 pos, vec2 uv) {
@@ -159,7 +137,12 @@ void main() {
 	// Lighting
 	vec3 lightDir = normalize(u_lightPos - v_fragPos);
 	float diffLight = max(dot(perturbedNormal, lightDir), 0.0);
-	float visibility = shadow_visibility(v_lightClip);
+
+	// Simple shadow mapping
+	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
 
 	// Final color
 	vec3 finalColor = texColor.rgb * (0.6 + visibility * (diffLight * 0.4));

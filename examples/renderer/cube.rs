@@ -85,45 +85,27 @@ in vec3 v_normal;
 in vec4 v_lightClip;
 
 uniform vec3 u_lightPos;
-uniform sampler2D u_shadowMap;
-uniform float u_shadowTexelScale;
+uniform sampler2DShadow u_shadowMap;
 
 uniform sampler2D u_texture;
 
-float shadow_visibility(vec4 lightClip, vec3 fragPos) {
-	vec3 lightNdc = lightClip.xyz / lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	if (shadowUvZ.x < 0.0 || shadowUvZ.x > 1.0 || shadowUvZ.y < 0.0 || shadowUvZ.y > 1.0 || shadowUvZ.z < 0.0 || shadowUvZ.z > 1.0) {
-		return 1.0;
-	}
-	float currentDepth = shadowUvZ.z;
-	float bias = 0.001;
-	vec2 texelSize = u_shadowTexelScale / vec2(textureSize(u_shadowMap, 0));
-	float occlusion = 0.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 offset = vec2(float(x), float(y)) * texelSize;
-			float closestDepth = texture(u_shadowMap, shadowUvZ.xy + offset).r;
-			occlusion += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
-		}
-	}
-	float shadow = occlusion / 9.0;
-	return 1.0 - shadow;
-}
-
 void main() {
-	vec4 albedo = texture(u_texture, v_uv) * v_color;
+	// Simple shadow mapping
+	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
 
 	vec3 n = normalize(v_normal);
 	n = gl_FrontFacing ? n : -n;
 	vec3 lightDir = normalize(u_lightPos - v_fragPos);
-	float diff = max(dot(n, lightDir), 0.0);
+	float diffLight = max(dot(n, lightDir), 0.0);
 
 	float ambient = 0.2;
 	float direct_intensity = 0.6;
-	float visibility = shadow_visibility(v_lightClip, v_fragPos);
-	float lighting = ambient + visibility * (diff * direct_intensity);
+	float lighting = ambient + visibility * (diffLight * direct_intensity);
 
+	vec4 albedo = texture(u_texture, v_uv) * v_color;
 	o_fragColor = albedo * lighting;
 }
 "#;

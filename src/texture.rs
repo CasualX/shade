@@ -49,6 +49,17 @@ impl TextureFormat {
 			TextureFormat::Depth24Stencil8 => 4u8,
 		}) as usize
 	}
+
+	/// Returns true if the format is a depth format.
+	#[inline]
+	pub const fn is_depth(self) -> bool {
+		matches!(self,
+			| TextureFormat::Depth16
+			| TextureFormat::Depth24
+			| TextureFormat::Depth32F
+			| TextureFormat::Depth24Stencil8
+		)
+	}
 }
 
 /// Texture wrap mode.

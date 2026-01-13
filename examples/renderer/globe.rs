@@ -13,33 +13,11 @@ uniform float u_globeRadius;
 uniform sampler2D u_texture;
 
 uniform vec3 u_lightPos;
-uniform sampler2D u_shadowMap;
-uniform float u_shadowTexelScale;
+uniform sampler2DShadow u_shadowMap;
 
 uniform mat4 u_lightTransform;
 
 const float PI = 3.141592653589793;
-
-float shadow_visibility(vec4 lightClip) {
-	vec3 lightNdc = lightClip.xyz / lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	if (shadowUvZ.x < 0.0 || shadowUvZ.x > 1.0 || shadowUvZ.y < 0.0 || shadowUvZ.y > 1.0 || shadowUvZ.z < 0.0 || shadowUvZ.z > 1.0) {
-		return 1.0;
-	}
-	float currentDepth = shadowUvZ.z;
-	float bias = 0.001;
-	vec2 texelSize = u_shadowTexelScale / vec2(textureSize(u_shadowMap, 0));
-	float occlusion = 0.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 offset = vec2(float(x), float(y)) * texelSize;
-			float closestDepth = texture(u_shadowMap, shadowUvZ.xy + offset).r;
-			occlusion += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
-		}
-	}
-	float shadow = occlusion / 9.0;
-	return 1.0 - shadow;
-}
 
 void main()
 {
@@ -72,8 +50,13 @@ void main()
 	vec3 n = normalize(hitPos - u_globePosition);
 
 	vec3 lightDir = normalize(u_lightPos - hitPos);
-	float diff = max(dot(n, lightDir), 0.0);
-	float visibility = shadow_visibility(u_lightTransform * vec4(hitPos, 1.0));
+	float diffLight = max(dot(n, lightDir), 0.0);
+
+	vec4 lightClip = u_lightTransform * vec4(hitPos, 1.0);
+	vec3 lightNdc = lightClip.xyz / lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
 
 	// Spherical UVs (equirectangular)
 	// World is Z-up in this demo (see ArcballCamera::new(..., up = Z)).
@@ -98,7 +81,7 @@ void main()
 	vec3 color = textureGrad(u_texture, uv, uv_dx, uv_dy).rgb;
 	float ambient = 0.2;
 	float direct_intensity = 0.6;
-	float lighting = ambient + visibility * (diff * direct_intensity);
+	float lighting = ambient + visibility * (diffLight * direct_intensity);
 	o_fragColor = vec4(color * lighting, 1.0);
 }
 "#;

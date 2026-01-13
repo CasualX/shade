@@ -22,13 +22,11 @@ struct Light {
 	light_pos: Vec3f,
 	light_view_proj: Mat4f,
 	shadow_map: shade::Texture2D,
-	shadow_texel_scale: f32,
 }
 impl shade::UniformVisitor for Light {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_lightPos", &self.light_pos);
 		set.value("u_shadowMap", &self.shadow_map);
-		set.value("u_shadowTexelScale", &self.shadow_texel_scale);
 	}
 }
 
@@ -94,8 +92,8 @@ impl Scene {
 				usage: shade::TextureUsage!(SAMPLED | DEPTH_STENCIL_TARGET),
 				filter_min: shade::TextureFilter::Linear,
 				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Edge,
-				wrap_v: shade::TextureWrap::Edge,
+				wrap_u: shade::TextureWrap::Border,
+				wrap_v: shade::TextureWrap::Border,
 				compare: Some(shade::Compare::LessEqual),
 				border_color: [1.0, 1.0, 1.0, 1.0],
 				..Default::default()
@@ -106,7 +104,6 @@ impl Scene {
 			light_pos: animate_light_pos(time),
 			light_view_proj: Mat4::IDENTITY,
 			shadow_map: self.shadow_map,
-			shadow_texel_scale: 2.0,
 		};
 
 		// Render shadow map

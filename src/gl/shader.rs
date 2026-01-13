@@ -89,9 +89,17 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		let location = gl_check!(gl::GetUniformLocation(program, namebuf.as_ptr() as *const _));
 		assert!(location >= 0, "Uniform not found?!: {}", String::from_utf8_lossy(&namebuf));
 
-		let needs_texture_unit = matches!(ty, gl::SAMPLER_2D | gl::SAMPLER_2D_ARRAY | gl::SAMPLER_1D | gl::SAMPLER_1D_ARRAY | gl::SAMPLER_CUBE | gl::SAMPLER_3D);
+		let needs_texture_unit = matches!(ty,
+			| gl::SAMPLER_1D
+			| gl::SAMPLER_1D_ARRAY
+			| gl::SAMPLER_2D
+			| gl::SAMPLER_2D_SHADOW
+			| gl::SAMPLER_2D_ARRAY
+			| gl::SAMPLER_3D
+			| gl::SAMPLER_CUBE
+		);
 		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
-		uniforms.insert(name.into(), GlActiveUniform { location, size, ty, texture_unit });
+		uniforms.insert(name.into(), GlActiveUniform { location, array_size: size, ty, texture_unit });
 		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 

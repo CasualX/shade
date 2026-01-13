@@ -13,29 +13,7 @@ in vec4 v_lightClip;
 uniform sampler2D u_diffuse;
 uniform vec3 u_cameraPosition;
 uniform vec3 u_lightPos;
-uniform sampler2D u_shadowMap;
-uniform float u_shadowTexelScale;
-
-float shadow_visibility(vec4 lightClip) {
-	vec3 lightNdc = lightClip.xyz / lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	if (shadowUvZ.x < 0.0 || shadowUvZ.x > 1.0 || shadowUvZ.y < 0.0 || shadowUvZ.y > 1.0 || shadowUvZ.z < 0.0 || shadowUvZ.z > 1.0) {
-		return 1.0;
-	}
-	float currentDepth = shadowUvZ.z;
-	float bias = 0.001;
-	vec2 texelSize = u_shadowTexelScale / vec2(textureSize(u_shadowMap, 0));
-	float occlusion = 0.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 offset = vec2(float(x), float(y)) * texelSize;
-			float closestDepth = texture(u_shadowMap, shadowUvZ.xy + offset).r;
-			occlusion += ((currentDepth - bias) > closestDepth) ? 1.0 : 0.0;
-		}
-	}
-	float shadow = occlusion / 9.0;
-	return 1.0 - shadow;
-}
+uniform sampler2DShadow u_shadowMap;
 
 void main() {
 	// Define light direction (normalized)
@@ -52,7 +30,12 @@ void main() {
 		discard;
 	}
 
-	float visibility = shadow_visibility(v_lightClip);
+	// Simple shadow mapping
+	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
+
 	// Shadow should only reduce the direct (sun-facing) term.
 	vec3 finalColor = texColor.rgb * (0.4 + visibility * (diff * 0.8));
 
