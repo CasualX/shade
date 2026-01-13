@@ -200,3 +200,14 @@ impl Renderable {
 		});
 	}
 }
+
+impl super::IRenderable for Renderable {
+	fn update(&mut self, _globals: &crate::Globals) {
+	}
+	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+		self.draw(g, globals, camera, light, shadow)
+	}
+	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
+		(self.mesh.bounds, self.instance.model)
+	}
+}

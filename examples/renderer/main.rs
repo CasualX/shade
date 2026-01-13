@@ -12,6 +12,12 @@ mod cube;
 mod oldtree;
 mod parallax;
 
+trait IRenderable {
+	fn update(&mut self, globals: &Globals);
+	fn draw(&self, g: &mut shade::Graphics, globals: &Globals, camera: &shade::d3::Camera, light: &Light, shadow: bool);
+	fn get_bounds(&self) -> (Bounds3f, Transform3f);
+}
+
 struct Light {
 	light_pos: Vec3f,
 	light_view_proj: Mat4f,
@@ -60,10 +66,24 @@ struct Scene {
 	oldtree: oldtree::Renderable,
 	parallax: parallax::Renderable,
 	globe: globe::Renderable,
+
+	color3d_shader: shade::Shader,
 }
 impl Scene {
 	fn draw(&mut self, g: &mut shade::Graphics) {
 		let time = self.epoch.elapsed().as_secs_f32();
+		let globals = Globals { time };
+
+		self.cube.update(&globals);
+
+		let renderables = [
+			&self.cube as &dyn IRenderable,
+			&self.bunny as &dyn IRenderable,
+			&self.color_tree as &dyn IRenderable,
+			&self.oldtree as &dyn IRenderable,
+			&self.parallax as &dyn IRenderable,
+			&self.globe as &dyn IRenderable,
+		];
 
 		self.shadow_map = g.texture2d_update(self.shadow_map, &shade::Texture2DInfo {
 			width: SHADOW_MAP_SIZE,
@@ -82,7 +102,6 @@ impl Scene {
 			},
 		});
 
-		let globals = Globals { time };
 		let mut light = Light {
 			light_pos: animate_light_pos(time),
 			light_view_proj: Mat4::IDENTITY,
@@ -117,12 +136,12 @@ impl Scene {
 		light.light_view_proj = light_camera.view_proj;
 
 		shade::clear!(g, depth: 1.0);
-		self.cube.draw(g, &globals, &light_camera, &light, true);
-		self.bunny.draw(g, &globals, &light_camera, &light, true);
-		self.color_tree.draw(g, &globals, &light_camera, &light, true);
-		self.oldtree.draw(g, &globals, &light_camera, &light, true);
-		self.parallax.draw(g, &globals, &light_camera, &light, true);
-		self.globe.draw(g, &globals, &light_camera, &light, true);
+		for renderable in renderables.iter().cloned() {
+			let (bounds, transform) = renderable.get_bounds();
+			if light_camera.is_visible(&bounds, Some(&transform)) {
+				renderable.draw(g, &globals, &light_camera, &light, true);
+			}
+		}
 		g.end();
 
 		// Render the frame
@@ -147,22 +166,76 @@ impl Scene {
 			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		// Draw the model
-		self.cube.draw(g, &globals, &camera, &light, false);
-		self.bunny.draw(g, &globals, &camera, &light, false);
-		self.color_tree.draw(g, &globals, &camera, &light, false);
-		self.oldtree.draw(g, &globals, &camera, &light, false);
-		self.parallax.draw(g, &globals, &camera, &light, false);
-		self.globe.draw(g, &globals, &camera, &light, false);
+		// Draw the scene
+		let mut count = 0;
+		for renderable in renderables.iter().cloned() {
+			let (bounds, transform) = renderable.get_bounds();
+			if camera.is_visible(&bounds, Some(&transform)) {
+				renderable.draw(g, &globals, &camera, &light, false);
+				count += 1;
+			}
+		}
+		print!("\rDrawn {} objects  ", count);
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
 			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),
 			depth_test: None,
 		});
 
+		{
+			let mut buf = shade::im::DrawBuilder::<shade::d3::ColorVertex3, shade::d3::ColorUniform3>::new();
+			buf.shader = self.color3d_shader;
+			buf.blend_mode = shade::BlendMode::Alpha;
+			buf.depth_test = None;//Some(shade::DepthTest::GreaterEqual);
+			buf.uniform.transform = camera.view_proj;
+			buf.uniform.colormod = Vec4f(1.0, 1.0, 1.0, 1.0);
+			for renderable in renderables.iter().cloned() {
+				draw_box(&mut buf, renderable);
+			}
+			buf.draw(g);
+		}
+
 		// Finish the frame
 		g.end();
 	}
+}
+
+
+fn draw_box(buf: &mut shade::im::DrawBuilder::<shade::d3::ColorVertex3, shade::d3::ColorUniform3>, renderable: &dyn IRenderable) {
+	let mut p = buf.begin(shade::PrimType::Lines, 8, 12);
+
+	static INDICES: [[bool; 3]; 8] = [
+		[false, false, false],
+		[false, false, true ],
+		[false, true,  false],
+		[false, true,  true ],
+		[true,  false, false],
+		[true,  false, true ],
+		[true,  true,  false],
+		[true,  true,  true ],
+	];
+
+	let (bounds, transform) = renderable.get_bounds();
+
+	// Transform to clip space
+	let pts: &[Vec3f; 2] = bounds.as_ref();
+	let corners = INDICES.map(|[x, y, z]| shade::d3::ColorVertex3 {
+		pos: transform * Vec3f(pts[x as usize].x, pts[y as usize].y, pts[z as usize].z),
+		color: [255, 255, 0, 128],
+	});
+
+	p.add_vertices(&corners);
+
+	let line_indices: &[u16] = &[
+		0, 1, 0, 2, 0, 4,
+		1, 3, 1, 5,
+		2, 3, 2, 6,
+		3, 7,
+		4, 5, 4, 6,
+		5, 7,
+		6, 7,
+	];
+	p.add_indices(line_indices);
 }
 
 //----------------------------------------------------------------
@@ -281,7 +354,9 @@ impl RendererDemo {
 			let parallax = parallax::Renderable::create(&mut g);
 			let globe = globe::Renderable::create(&mut g);
 
-			Scene { screen_size, epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe }
+			let color3d_shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+
+			Scene { screen_size, epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe, color3d_shader }
 		};
 
 		RendererDemo { g, scene }

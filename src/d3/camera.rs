@@ -71,15 +71,17 @@ impl Camera {
 	}
 
 	/// Returns true if the given bounds intersect the camera's view frustum.
-	pub fn is_visible(&self, bounds: &Bounds3f, local_to_world: Option<&Transform3f>) -> bool {
-		let transform = if let Some(&local_to_world) = local_to_world {
-			self.view_proj * local_to_world
+	///
+	/// If the bounds are in local space, provide the transform from local to world space.
+	pub fn is_visible(&self, bounds: &Bounds3f, bounds_transform: Option<&Transform3f>) -> bool {
+		let transform = if let Some(&bounds_transform) = bounds_transform {
+			self.view_proj * bounds_transform
 		}
 		else {
 			self.view_proj
 		};
 
-		static INDICES: [[bool; 3]; 8] = [
+		const INDICES: [[bool; 3]; 8] = [
 			[false, false, false],
 			[false, false, true ],
 			[false, true,  false],
@@ -91,7 +93,7 @@ impl Camera {
 		];
 
 		// Transform to clip space
-		let pts: &[Vec3f; 2] = bounds.as_ref();
+		let &pts: &[Vec3f; 2] = bounds.as_ref();
 		let clip_pts = INDICES.map(|[x, y, z]| transform * Vec3f(pts[x as usize].x, pts[y as usize].y, pts[z as usize].z).vec4(1.0));
 
 		// Perform frustum culling using the clip space coordinates

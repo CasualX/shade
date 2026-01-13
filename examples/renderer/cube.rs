@@ -230,16 +230,13 @@ impl Renderable {
 
 		let material = Material { shader, shadow_shader, texture };
 
-		let instance = Instance { model: Transform3f::translate(Vec3f(-15.0, 0.0, 10.0)) * Transform3f::scale(Vec3::dup(5.0)) };
+		let instance = Instance { model: Transform3f::IDENTITY };
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
-		let rot_a = Transform3f::rotate(Vec3f(0.0, 1.0, 0.0), Angle(globals.time * 0.7));
-		let rot_b = Transform3f::rotate(Vec3f(1.0, 0.25, 0.1).norm(), Angle(globals.time * 1.3));
-		let model = self.instance.model * rot_a * rot_b;
-		let transform = camera.view_proj * model;
-		let light_transform = light.light_view_proj * model;
+	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+		let transform = camera.view_proj * self.instance.model;
+		let light_transform = light.light_view_proj * self.instance.model;
 
 		// Draw the cube
 		g.draw_indexed(&shade::DrawIndexedArgs {
@@ -260,7 +257,7 @@ impl Renderable {
 				light,
 				&self.material,
 				&shade::UniformFn(|set| {
-					set.value("u_model", &model);
+					set.value("u_model", &self.instance.model);
 					set.value("u_transform", &transform);
 					set.value("u_lightTransform", &light_transform);
 				}),
@@ -269,5 +266,21 @@ impl Renderable {
 			index_end: self.mesh.indices_len,
 			instances: -1,
 		});
+	}
+}
+
+impl super::IRenderable for Renderable {
+	fn update(&mut self, globals: &crate::Globals) {
+		let local = Transform3f::translate(Vec3f(-15.0, 0.0, 10.0)) * Transform3f::scale(Vec3::dup(5.0));
+		let rot_a = Transform3f::rotate(Vec3f(0.0, 1.0, 0.0), Angle(globals.time * 0.7));
+		let rot_b = Transform3f::rotate(Vec3f(1.0, 0.25, 0.1).norm(), Angle(globals.time * 1.3));
+		let model = local * rot_a * rot_b;
+		self.instance.model = model;
+	}
+	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, shadow: bool) {
+		self.draw(g, globals, camera, light, shadow)
+	}
+	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
+		(self.mesh.bounds, self.instance.model)
 	}
 }

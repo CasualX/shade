@@ -109,8 +109,8 @@ void main()
 "#;
 
 pub struct Material {
-	pub shader: shade::Shader,
-	pub shadow_shader: shade::Shader,
+	shader: shade::Shader,
+	shadow_shader: shade::Shader,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, _set: &mut dyn shade::UniformSetter) {
@@ -118,7 +118,7 @@ impl shade::UniformVisitor for Material {
 }
 
 pub struct Instance {
-	pub model: Transform3f,
+	model: Transform3f,
 }
 impl shade::UniformVisitor for Instance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
@@ -127,9 +127,9 @@ impl shade::UniformVisitor for Instance {
 }
 
 pub struct Renderable {
-	pub mesh: shade::d3::VertexMesh,
-	pub material: Material,
-	pub instance: Instance,
+	mesh: shade::d3::VertexMesh,
+	material: Material,
+	instance: Instance,
 }
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
@@ -176,5 +176,16 @@ impl Renderable {
 			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
+	}
+}
+
+impl super::IRenderable for Renderable {
+	fn update(&mut self, _globals: &crate::Globals) {
+	}
+	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+		self.draw(g, globals, camera, light, shadow)
+	}
+	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
+		(self.mesh.bounds, self.instance.model)
 	}
 }

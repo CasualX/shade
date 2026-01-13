@@ -194,9 +194,9 @@ impl shade::UniformVisitor for Instance {
 }
 
 pub struct Renderable {
-	mesh: shade::d3::VertexMesh,
-	material: Material,
-	instance: Instance,
+	pub mesh: shade::d3::VertexMesh,
+	pub material: Material,
+	pub instance: Instance,
 }
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
@@ -226,7 +226,6 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-
 	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -253,5 +252,16 @@ impl Renderable {
 			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
+	}
+}
+
+impl super::IRenderable for Renderable {
+	fn update(&mut self, _globals: &crate::Globals) {
+	}
+	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, shadow: bool) {
+		self.draw(g, globals, camera, light, shadow)
+	}
+	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
+		(self.mesh.bounds, Transform3f::translate(self.instance.position) * Transform3f::scale(Vec3f::dup(self.instance.radius)))
 	}
 }

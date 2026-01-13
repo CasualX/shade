@@ -169,7 +169,6 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-
 	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
@@ -199,5 +198,16 @@ impl Renderable {
 			vertex_end: self.mesh.vertices_len,
 			instances: -1,
 		});
+	}
+}
+
+impl super::IRenderable for Renderable {
+	fn update(&mut self, _globals: &crate::Globals) {
+	}
+	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+		self.draw(g, globals, camera, light, shadow)
+	}
+	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
+		(self.mesh.bounds, self.instance.model)
 	}
 }
