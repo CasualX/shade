@@ -1,16 +1,23 @@
 use super::*;
 
 /// Arguments for [begin](IGraphics::begin).
+#[non_exhaustive]
 pub enum BeginArgs<'a> {
 	/// Begin drawing on the back buffer.
 	BackBuffer {
+		/// Viewport rectangle.
 		viewport: cvmath::Bounds2<i32>,
 	},
 	/// Begin immediate mode drawing.
 	Immediate {
-		color: &'a [Texture2D],
-		depth: Texture2D,
+		/// Viewport rectangle.
 		viewport: cvmath::Bounds2<i32>,
+		/// Color attachment.
+		color: &'a [Texture2D],
+		/// Optional mip levels for each color attachment.
+		levels: Option<&'a [u8]>,
+		/// Optional depth attachment.
+		depth: Texture2D,
 	},
 }
 

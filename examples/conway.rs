@@ -212,9 +212,10 @@ impl ConwayDemo {
 
 		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
 		self.g.begin(&shade::BeginArgs::Immediate {
-			color: &[dst],
-			depth: shade::Texture2D::INVALID,
 			viewport,
+			color: &[dst],
+			levels: None,
+			depth: shade::Texture2D::INVALID,
 		});
 		self.pp.draw(
 			&mut self.g,

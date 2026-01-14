@@ -293,7 +293,7 @@ pub fn begin(this: &mut WebGLGraphics, args: &crate::BeginArgs) {
 		&crate::BeginArgs::BackBuffer { ref viewport } => {
 			gl_viewport(viewport);
 		}
-		&crate::BeginArgs::Immediate { color: _, depth: _, viewport: _ } => {
+		&crate::BeginArgs::Immediate { viewport: _, color: _, levels: _, depth: _ } => {
 			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
 		}
 	}

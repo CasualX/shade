@@ -293,19 +293,31 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	}
 }
 
-fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], depth: crate::Texture2D) {
+fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], levels: Option<&[u8]>, depth: crate::Texture2D) {
 	// Create a temporary framebuffer
 	let mut fbo = 0;
 	gl_check!(gl::GenFramebuffers(1, &mut fbo));
 	gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, fbo));
 
-	// Attach color textures
+	// Validate color attachments
 	assert!(color.len() <= 16, "Immediate mode framebuffer cannot have more than 16 color attachments");
+	let levels = match levels {
+		Some(levels) => {
+			assert_eq!(levels.len(), color.len(), "Immediate mode framebuffer mip levels length does not match color attachments length");
+			levels
+		},
+		None => {
+			static DEFAULT_MIPS: [u8; 16] = [0; 16];
+			&DEFAULT_MIPS[..color.len()]
+		}
+	};
+
+	// Attach color textures
 	let mut draw_buffers: [GLenum; 16] = [gl::NONE; 16];
 	for (i, &tex_id) in color.iter().enumerate() {
 		let texture = this.textures.get2d(tex_id);
 		assert!(texture.info.props.usage.has(crate::TextureUsage::COLOR_TARGET), "Texture was not created with COLOR_TARGET usage");
-		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, gl::TEXTURE_2D, texture.texture, 0));
+		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, gl::TEXTURE_2D, texture.texture, levels[i] as GLint));
 		draw_buffers[i] = gl::COLOR_ATTACHMENT0 + i as u32;
 	}
 
@@ -350,8 +362,8 @@ pub fn begin(this: &mut GlGraphics, args: &crate::BeginArgs) {
 			gl_check!(gl::BindFramebuffer(gl::FRAMEBUFFER, 0));
 			gl_viewport(viewport);
 		}
-		&crate::BeginArgs::Immediate { color, depth, ref viewport } => {
-			gl_immediate_fbo(this, color, depth);
+		&crate::BeginArgs::Immediate { ref viewport, color, levels, depth } => {
+			gl_immediate_fbo(this, color, levels, depth);
 			gl_viewport(viewport);
 		}
 	}

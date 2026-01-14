@@ -109,9 +109,10 @@ impl Scene {
 		// Render shadow map
 		let viewport = Bounds2::vec(Vec2::dup(SHADOW_MAP_SIZE));
 		g.begin(&shade::BeginArgs::Immediate {
-			color: &[],
-			depth: self.shadow_map,
 			viewport,
+			color: &[],
+			levels: None,
+			depth: self.shadow_map,
 		});
 
 		// Light camera setup
