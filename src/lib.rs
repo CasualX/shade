@@ -4,9 +4,6 @@ use std::{mem, ops, slice, time};
 pub use cvmath;
 
 #[macro_use]
-mod include_bin;
-
-#[macro_use]
 mod handle;
 
 mod common;

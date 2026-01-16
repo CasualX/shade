@@ -124,7 +124,7 @@ pub struct Renderable {
 }
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		shade::include_bin!(VERTICES: [shade::d3::TexturedVertexN] = "../oldtree/vertices.bin");
+		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../oldtree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);

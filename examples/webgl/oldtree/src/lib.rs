@@ -104,7 +104,7 @@ struct OldTreeRenderable {
 }
 impl OldTreeRenderable {
 	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
-		shade::include_bin!(VERTICES: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
+		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let texture = {
