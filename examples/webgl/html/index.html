@@ -222,10 +222,9 @@ body {
   margin-top: 12px;
 }
 
-.iframe-container {
+.stage-container {
   position: relative;
   width: 100%;
-  padding-top: 56.25%;
   overflow: hidden;
   border-radius: 10px;
   background: #000;
@@ -233,7 +232,7 @@ body {
   display: none;
 }
 
-.iframe-container.is-loading::after {
+.stage-container.is-loading::after {
   content: "Loading…";
   position: absolute;
   inset: 0;
@@ -245,12 +244,12 @@ body {
   pointer-events: none;
 }
 
-.iframe-container iframe {
+.stage-container canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  border: 0;
+  display: block;
 }
 
 .player {
@@ -313,15 +312,15 @@ body {
   margin-top: 14px;
 }
 
-.player-stage .iframe-container {
+.player-stage .stage-container {
   display: block;
-  padding-top: 62vh;
   min-height: 420px;
+  height: 62vh;
 }
 
 @media (max-width: 640px) {
-  .player-stage .iframe-container {
-    padding-top: 70vh;
+  .player-stage .stage-container {
+    height: 70vh;
     min-height: 360px;
   }
 }
@@ -354,12 +353,14 @@ body {
       </div>
     </div>
     <div class="player-stage">
-      <div class="iframe-container is-loading" id="playerStage" aria-label="Demo stage"></div>
+      <div class="stage-container is-loading" id="playerStage" aria-label="Demo stage"></div>
     </div>
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { runShadeDemo } from './canvas.js';
+
   const DEMOS = [
     {
       id: 'triangle',
@@ -407,13 +408,34 @@ body {
   const playerStageEl = document.getElementById('playerStage');
   const backBtn = document.getElementById('backBtn');
 
+  let activeRunner = null;
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    // Prefer stage fullscreen; fallback to whole document.
+    const target = playerStageEl || document.documentElement;
+    target.requestFullscreen?.();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!(playerEl?.classList.contains('is-active'))) return;
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
   function stopActiveDemo() {
     if (!playerStageEl) return;
-    const iframe = playerStageEl.querySelector('iframe');
-    if (iframe) {
-      try { iframe.src = 'about:blank'; } catch (_) {}
-      iframe.remove();
-    }
+
+    try { activeRunner?.stop?.(); } catch (_) {}
+    activeRunner = null;
+
+    const canvas = playerStageEl.querySelector('canvas');
+    if (canvas) canvas.remove();
     playerStageEl.classList.add('is-loading');
   }
 
@@ -431,24 +453,33 @@ body {
     playerEl?.classList.add('is-active');
 
     if (playerTitleEl) playerTitleEl.textContent = demo.title;
-    if (playerHintEl) playerHintEl.textContent = `${demo.hint} • Press F for fullscreen`;
+    if (playerHintEl) playerHintEl.textContent = demo.hint;
     if (playerSourceEl) playerSourceEl.href = demo.source;
 
-    const iframe = document.createElement('iframe');
-    iframe.title = `Demo: ${demo.title}`;
-    iframe.setAttribute('allow', 'fullscreen; pointer-lock');
-    iframe.setAttribute('allowfullscreen', '');
-    iframe.setAttribute('tabindex', '0');
+    const canvas = document.createElement('canvas');
+    canvas.id = 'canvas';
+    canvas.tabIndex = 0;
+    canvas.setAttribute('aria-label', `Demo: ${demo.title}`);
+    playerStageEl.appendChild(canvas);
 
-    iframe.addEventListener('load', () => {
-      playerStageEl.classList.remove('is-loading');
-      try { iframe.focus(); } catch (_) {}
-      try { iframe.contentWindow?.focus(); } catch (_) {}
-    }, { once: true });
-
-    iframe.src = `canvas.html?module=${encodeURIComponent(demo.module)}`;
-
-    playerStageEl.appendChild(iframe);
+    // Start the demo.
+    runShadeDemo({
+      canvas,
+      moduleName: demo.module,
+      resizeTo: playerStageEl,
+      onLoaded() {
+        playerStageEl.classList.remove('is-loading');
+        try { canvas.focus(); } catch (_) {}
+      },
+      onError(err) {
+        console.error('Demo error:', err);
+        playerStageEl.classList.remove('is-loading');
+      }
+    }).then((runner) => {
+      activeRunner = runner;
+    }).catch((err) => {
+      console.error('Failed to start demo:', err);
+    });
   }
 
   function renderGallery() {
