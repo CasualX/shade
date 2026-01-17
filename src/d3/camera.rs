@@ -94,7 +94,7 @@ impl Camera {
 
 		// Transform to clip space
 		let &pts: &[Vec3f; 2] = bounds.as_ref();
-		let clip_pts = INDICES.map(|[x, y, z]| transform * Vec3f(pts[x as usize].x, pts[y as usize].y, pts[z as usize].z).vec4(1.0));
+		let clip_pts = INDICES.map(|[x, y, z]| transform * Vec4f(pts[x as usize].x, pts[y as usize].y, pts[z as usize].z, 1.0));
 
 		// Perform frustum culling using the clip space coordinates
 		if clip_pts.iter().all(|p| p.x < -p.w) { return false }

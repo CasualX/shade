@@ -339,7 +339,9 @@ impl Graphics {
 	}
 	/// Creates and writes data to the index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndex>(&mut self, name: Option<&str>, data: &[T], _nverts: T, usage: BufferUsage) -> IndexBuffer {
+	pub fn index_buffer<T: TIndices + ?Sized>(&mut self, name: Option<&str>, data: &T, _nverts: T::Index, usage: BufferUsage) -> IndexBuffer {
+		let data = data.as_indices();
+
 		#[cfg(debug_assertions)]
 		if _nverts != Default::default() {
 			for i in 0..data.len() {
@@ -349,7 +351,7 @@ impl Graphics {
 			}
 		}
 		let this = &mut self.inner;
-		let id = this.index_buffer_create(name, mem::size_of_val(data), T::TYPE, usage);
+		let id = this.index_buffer_create(name, mem::size_of_val(data), T::Index::TYPE, usage);
 		this.index_buffer_write(id, dataview::bytes(data));
 		return id;
 	}

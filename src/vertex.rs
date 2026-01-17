@@ -4,9 +4,14 @@ pub unsafe trait TVertex: Copy + Default + dataview::Pod {
 	const LAYOUT: &'static VertexLayout;
 }
 
+/// Common attributes for 2D vertices.
+pub trait TVertex2: TVertex {
+	fn position(&self) -> cvmath::Vec2f;
+}
+
 /// Common attributes for 3D vertices.
 pub trait TVertex3: TVertex {
-	fn position(&self) -> cvmath::Vec3<f32>;
+	fn position(&self) -> cvmath::Vec3f;
 }
 
 /// VertexAttribute size.

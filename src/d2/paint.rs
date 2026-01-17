@@ -84,21 +84,38 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 	/// Fills a polygon shape.
 	#[inline(never)]
-	pub fn fill_polygon<T: ToVertex<V>>(&mut self, paint: &Paint<T>, pts: &[Point2f], triangles: &[(u32, u32, u32)]) {
+	pub fn fill_polygon<T: ToVertex<V>>(&mut self, paint: &Paint<T>, pts: &[Point2f], triangles: &[Index3]) {
 		let mut cv = self.begin(PrimType::Triangles, pts.len(), triangles.len());
 		// Add indices
 		for i in 0..triangles.len() {
 			// Must be indices into the points slice
-			let (p1, p2, p3) = triangles[i];
+			let Index3 { p1, p2, p3 } = triangles[i];
 			let _ = pts[p1 as usize];
 			let _ = pts[p2 as usize];
 			let _ = pts[p3 as usize];
-			cv.add_index3(p1, p2, p3);
+			cv.add_index3(p1 as u32, p2 as u32, p3 as u32);
 		}
 		// Add vertices
 		for v in 0..pts.len() {
 			cv.add_vertex(paint.template.to_vertex(pts[v], v));
 		}
+	}
+
+	/// Fills a polygon shape with pre-made vertices.
+	#[inline(never)]
+	pub fn fill_polygon2(&mut self, vertices: &[V], triangles: &[Index3]) {
+		let mut cv = self.begin(PrimType::Triangles, vertices.len(), triangles.len());
+		// Add indices
+		for i in 0..triangles.len() {
+			// Must be indices into the points slice
+			let Index3 { p1, p2, p3 } = triangles[i];
+			let _ = vertices[p1 as usize];
+			let _ = vertices[p2 as usize];
+			let _ = vertices[p3 as usize];
+			cv.add_index3(p1 as u32, p2 as u32, p3 as u32);
+		}
+		// Add vertices
+		cv.add_vertices(vertices);
 	}
 
 	/// Fills an arbitrary quad.

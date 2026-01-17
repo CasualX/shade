@@ -16,6 +16,7 @@ mod textured;
 mod curve;
 
 pub mod layout;
+pub mod polygon;
 
 // Backwards compatibility re-exports
 pub use im::{DrawBuffer, DrawBuilder, DrawPool};

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, slice};
 
 define_handle!(VertexBuffer);
 define_handle!(IndexBuffer);
@@ -30,6 +30,53 @@ impl TIndex for u16 {
 }
 impl TIndex for u32 {
 	const TYPE: IndexType = IndexType::U32;
+}
+
+pub trait TIndices {
+	type Index: TIndex;
+
+	fn as_indices(&self) -> &[Self::Index];
+}
+impl<T: TIndex> TIndices for [T] {
+	type Index = T;
+
+	#[inline]
+	fn as_indices(&self) -> &[Self::Index] {
+		self
+	}
+}
+impl<T: TIndex, const N: usize> TIndices for [T; N] {
+	type Index = T;
+
+	#[inline]
+	fn as_indices(&self) -> &[Self::Index] {
+		self.as_slice()
+	}
+}
+impl<T: TIndex> TIndices for Vec<T> {
+	type Index = T;
+
+	#[inline]
+	fn as_indices(&self) -> &[Self::Index] {
+		self.as_slice()
+	}
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[repr(C)]
+pub struct Index3 {
+	pub p1: u32,
+	pub p2: u32,
+	pub p3: u32,
+}
+unsafe impl dataview::Pod for Index3 {}
+impl TIndices for Vec<Index3> {
+	type Index = u16;
+
+	#[inline]
+	fn as_indices(&self) -> &[Self::Index] {
+		unsafe { slice::from_raw_parts(self.as_ptr() as *const u16, self.len() * 3) }
+	}
 }
 
 /// Primitive type.

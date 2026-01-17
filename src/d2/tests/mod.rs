@@ -20,6 +20,13 @@ unsafe impl TVertex for MockVertex {
 	};
 }
 
+impl TVertex2 for MockVertex {
+	#[inline]
+	fn position(&self) -> Vec2f {
+		self.pos
+	}
+}
+
 impl ToVertex<MockVertex> for () {
 	#[inline]
 	fn to_vertex(&self, pos: Point2f, _index: usize) -> MockVertex {
@@ -37,3 +44,4 @@ impl UniformVisitor for MockUniform {
 mod pen;
 mod paint;
 mod sprite;
+mod triangulate;

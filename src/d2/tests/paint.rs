@@ -58,8 +58,8 @@ fn fill_polygon() {
 		Point2(0.0, 100.0),
 	];
 	let triangles = [
-		(0, 1, 2),
-		(0, 2, 3),
+		Index3 { p1: 0, p2: 1, p3: 2 },
+		Index3 { p1: 0, p2: 2, p3: 3 },
 	];
 	buf.fill_polygon(&paint, &pts, &triangles);
 	assert_eq!(buf.commands.len(), 1);
