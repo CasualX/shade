@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{fmt, hash};
 
 pub trait Handle: Copy + Clone + Default + fmt::Debug + Eq + PartialEq + hash::Hash {
