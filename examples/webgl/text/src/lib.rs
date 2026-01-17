@@ -14,8 +14,7 @@ impl Context {
 		api::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new();
-
-		let g = shade::Graphics(&mut webgl);
+		let g = webgl.as_graphics();
 
 		let font = {
 			// Parse the font metadata
@@ -53,7 +52,7 @@ impl Context {
 	}
 
 	pub fn draw(&mut self, _time: f64) {
-		let g = shade::Graphics(&mut self.webgl);
+		let g = self.webgl.as_graphics();
 		let size = self.screen_size;
 		let font = &self.font;
 

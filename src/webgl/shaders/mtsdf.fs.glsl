@@ -14,7 +14,6 @@ uniform float u_threshold;
 uniform float u_outBias;
 uniform float u_outlineWidthAbsolute;
 uniform float u_outlineWidthRelative;
-uniform float u_gamma;
 
 float median(vec3 distances) {
 	return max(min(distances.r, distances.g), min(max(distances.r, distances.g), distances.b));
@@ -42,5 +41,5 @@ void main() {
 	outer = clamp(outer, 0.0, 1.0);
 
 	vec4 color = v_color * inner + v_outline * (outer - inner);
-	gl_FragColor = pow(color, vec4(1.0 / u_gamma));
+	gl_FragColor = color;
 }

@@ -186,20 +186,17 @@ impl GlWindow {
 }
 
 struct ZeldaWaterDemo {
-	g: shade::gl::GlGraphics,
-	vb: shade::VertexBuffer,
-	ib: shade::IndexBuffer,
+	vertices: shade::VertexBuffer,
+	indices: shade::IndexBuffer,
 	texture: shade::Texture2D,
 	distortion: shade::Texture2D,
 	shader: shade::Shader,
-	start_time: time::Instant,
+	epoch: time::Instant,
 }
 
 impl ZeldaWaterDemo {
-	fn new() -> ZeldaWaterDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-
-		let vb = g.vertex_buffer(
+	fn new(g: &mut shade::Graphics) -> ZeldaWaterDemo {
+		let vertices = g.vertex_buffer(
 			None,
 			&[
 				Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
@@ -210,7 +207,7 @@ impl ZeldaWaterDemo {
 			shade::BufferUsage::Static,
 		);
 
-		let ib = g.index_buffer(None, &[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
+		let indices = g.index_buffer(None, &[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
 
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
@@ -241,21 +238,20 @@ impl ZeldaWaterDemo {
 		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-		let start_time = time::Instant::now();
+		let epoch = time::Instant::now();
 
-		ZeldaWaterDemo { g, vb, ib, texture, distortion, shader, start_time }
+		ZeldaWaterDemo { vertices, indices, texture, distortion, shader, epoch }
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
-		let time = self.start_time.elapsed().as_secs_f32();
+		let time = self.epoch.elapsed().as_secs_f32();
 		let uniform = Uniform { time, texture: self.texture, distortion: self.distortion };
 
-		self.g.draw_indexed(&shade::DrawIndexedArgs {
+		g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
@@ -264,33 +260,36 @@ impl ZeldaWaterDemo {
 			prim_type: shade::PrimType::Triangles,
 			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vb,
+				buffer: self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: self.ib,
+			indices: self.indices,
 			index_start: 0,
 			index_end: 6,
 			uniforms: &[&uniform],
 			instances: -1,
 		});
 
-		self.g.end();
+		g.end();
 	}
 }
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: ZeldaWaterDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = ZeldaWaterDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = ZeldaWaterDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

@@ -45,7 +45,7 @@ void main()
 {
 	float levels = 10.0;
 	vec3 qColor = floor(v_color.rgb * levels) / (levels - 1.0);
-	o_fragColor = vec4(pow(qColor, 1.0 / vec3(2.2, 2.2, 2.2)), v_color.a);
+	o_fragColor = vec4(qColor, v_color.a);
 }
 "#;
 
@@ -59,7 +59,7 @@ out vec4 v_color;
 
 void main()
 {
-	v_color = pow(aColor, vec4(2.2, 2.2, 2.2, 1.0));
+	v_color = aColor;
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
 "#;
@@ -150,16 +150,13 @@ impl GlWindow {
 }
 
 struct TriangleDemo {
-	g: shade::gl::GlGraphics,
-	vb: shade::VertexBuffer,
+	vertices: shade::VertexBuffer,
 	shader: shade::Shader,
 }
 
 impl TriangleDemo {
-	fn new() -> TriangleDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-
-		let vb = g.vertex_buffer(
+	fn new(g: &mut shade::Graphics) -> TriangleDemo {
+		let vertices = g.vertex_buffer(
 			None,
 			&[
 				TriangleVertex { position: Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
@@ -171,16 +168,15 @@ impl TriangleDemo {
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 
-		TriangleDemo { g, vb, shader }
+		TriangleDemo { vertices, shader }
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
-		self.g.draw(&shade::DrawArgs {
+		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
@@ -189,7 +185,7 @@ impl TriangleDemo {
 			prim_type: shade::PrimType::Triangles,
 			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vb,
+				buffer: self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[],
@@ -198,23 +194,26 @@ impl TriangleDemo {
 			instances: -1,
 		});
 
-		self.g.end();
+		g.end();
 	}
 }
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: TriangleDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = TriangleDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = TriangleDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

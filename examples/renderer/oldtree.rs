@@ -39,11 +39,6 @@ void main() {
 	// Shadow should only reduce the direct (sun-facing) term.
 	vec3 finalColor = texColor.rgb * (0.4 + visibility * (diff * 0.8));
 
-	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
-	float rim = 1.0 - max(dot(viewDir, norm), 0.0);
-	rim = smoothstep(0.5, 0.6, rim);
-	finalColor += vec3(1.0, 0.8, 0.5) * rim * 0.2;  // warm rim glow
-
 	o_fragColor = vec4(finalColor, texColor.a);
 
 	// o_fragColor = vec4(norm * 0.5 + 0.5, 1.0);

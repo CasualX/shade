@@ -158,7 +158,6 @@ impl GlWindow {
 }
 
 struct ConwayDemo {
-	g: shade::gl::GlGraphics,
 	pp: shade::d2::PostProcessQuad,
 	conway_shader: shade::Shader,
 	display_shader: shade::Shader,
@@ -168,10 +167,8 @@ struct ConwayDemo {
 }
 
 impl ConwayDemo {
-	fn new() -> ConwayDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-
-		let pp = shade::d2::PostProcessQuad::create(&mut g);
+	fn new(g: &mut shade::Graphics) -> ConwayDemo {
+		let pp = shade::d2::PostProcessQuad::create(g);
 		let conway_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
 		let display_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
 
@@ -196,7 +193,6 @@ impl ConwayDemo {
 		let state1 = g.texture2d_create(Some("conway_state1"), &info);
 
 		ConwayDemo {
-			g,
 			pp,
 			conway_shader,
 			display_shader,
@@ -206,43 +202,40 @@ impl ConwayDemo {
 		}
 	}
 
-	fn step(&mut self) {
+	fn step(&mut self, g: &mut shade::Graphics) {
 		let src = self.state[self.ping];
 		let dst = self.state[1 - self.ping];
 
 		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
-		self.g.begin(&shade::BeginArgs::Immediate {
+		g.begin(&shade::BeginArgs::Immediate {
 			viewport,
 			color: &[dst],
 			levels: None,
 			depth: shade::Texture2D::INVALID,
 		});
-		self.pp.draw(
-			&mut self.g,
+		self.pp.draw(g,
 			self.conway_shader,
 			shade::BlendMode::Solid,
 			&[&StateUniforms { state: src }],
 		);
-		self.g.end();
+		g.end();
 
 		self.ping = 1 - self.ping;
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		self.step();
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		self.step(g);
 
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
-		shade::clear!(self.g, color: Vec4(0.0, 0.0, 0.0, 1.0));
-		self.pp.draw(
-			&mut self.g,
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
+		shade::clear!(g, color: Vec4(0.0, 0.0, 0.0, 1.0));
+		self.pp.draw(g,
 			self.display_shader,
 			shade::BlendMode::Solid,
 			&[&StateUniforms {
 				state: self.state[self.ping],
 			}],
 		);
-		self.g.end();
+		g.end();
 	}
 }
 
@@ -273,17 +266,20 @@ fn seed_data(width: i32, height: i32) -> Vec<u8> {
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: ConwayDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = ConwayDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = ConwayDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

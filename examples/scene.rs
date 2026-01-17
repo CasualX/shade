@@ -64,9 +64,16 @@ out vec2 v_uv;
 
 uniform mat4x4 u_transform;
 
-void main()
-{
-	v_color = a_color;
+vec3 srgbToLinear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
+
+void main() {
+	v_color = srgbToLinear(a_color);
 	v_uv = a_uv;
 	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
@@ -180,16 +187,13 @@ impl GlWindow {
 }
 
 struct SceneDemo {
-	g: shade::gl::GlGraphics,
 	texture: shade::Texture2D,
 	shader: shade::Shader,
-	time_base: time::Instant,
+	epoch: time::Instant,
 }
 
 impl SceneDemo {
-	fn new() -> SceneDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-
+	fn new(g: &mut shade::Graphics) -> SceneDemo {
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/scene tiles.png").unwrap();
 			let props = shade::TextureProps {
@@ -205,20 +209,19 @@ impl SceneDemo {
 		};
 
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-		let time_base = time::Instant::now();
+		let epoch = time::Instant::now();
 
-		SceneDemo { g, texture, shader, time_base }
+		SceneDemo { texture, shader, epoch }
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		let curtime = time::Instant::now().duration_since(self.time_base).as_secs_f32();
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		let curtime = self.epoch.elapsed().as_secs_f32();
 
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(self.g, color: Vec4(0.2, 0.2, 0.5, 1.0), depth: 1.0);
+		shade::clear!(g, color: Vec4(0.2, 0.2, 0.5, 1.0), depth: 1.0);
 
-		let aspect_ratio = window.size.width as f32 / window.size.height as f32;
+		let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
 		let projection = Mat4::perspective(
 			Angle::deg(45.0),
 			aspect_ratio,
@@ -250,26 +253,28 @@ impl SceneDemo {
 		floor_thing(&mut cv, 1, 1, &DROP);
 		floor_thing(&mut cv, 2, 0, &DROP);
 		floor_thing(&mut cv, 1, 0, &BEAR);
+		cv.draw(g);
 
-		cv.draw(&mut self.g);
-
-		self.g.end();
+		g.end();
 	}
 }
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: SceneDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = SceneDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = SceneDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

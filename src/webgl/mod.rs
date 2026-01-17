@@ -168,6 +168,11 @@ impl WebGLGraphics {
 			metrics: Default::default(),
 		}
 	}
+	/// Returns the graphics interface.
+	#[inline]
+	pub fn as_graphics(&mut self) -> &mut crate::Graphics {
+		crate::Graphics(self)
+	}
 }
 
 impl crate::IGraphics for WebGLGraphics {

@@ -30,11 +30,6 @@ void main() {
 	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 
-	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
-	float rim = 1.0 - max(dot(viewDir, norm), 0.0);
-	rim = smoothstep(0.5, 0.6, rim);
-	finalColor += vec3(1.0, 0.8, 0.5) * rim * 0.2;  // warm rim glow
-
 	gl_FragColor = vec4(finalColor, texColor.a);
 
 	// gl_FragColor = vec4(norm * 0.5 + 0.5, 1.0);
@@ -201,8 +196,7 @@ impl Context {
 		api::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new();
-
-		let ref mut g = shade::Graphics(&mut webgl);
+		let g = webgl.as_graphics();
 
 		let tree = OldTreeRenderable::create(g);
 
@@ -227,7 +221,7 @@ impl Context {
 	}
 
 	pub fn draw(&mut self, _time: f64) {
-		let g = shade::Graphics(&mut self.webgl);
+		let g = self.webgl.as_graphics();
 
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);

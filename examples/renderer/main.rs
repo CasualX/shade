@@ -51,8 +51,7 @@ fn animate_light_pos(t: f32) -> Vec3f {
 	(center.xy() + angle.vec2() * radius).vec3(center.z)
 }
 
-struct Scene {
-	screen_size: Vec2i,
+struct RendererDemo {
 	epoch: time::Instant,
 	camera: shade::d3::ArcballCamera,
 	shadow_map: shade::Texture2D,
@@ -67,8 +66,35 @@ struct Scene {
 
 	color3d_shader: shade::Shader,
 }
-impl Scene {
-	fn draw(&mut self, g: &mut shade::Graphics) {
+impl RendererDemo {
+	fn create(g: &mut shade::Graphics) -> RendererDemo {
+		let epoch = time::Instant::now();
+
+		let camera = {
+			let pivot = Vec3f::ZERO;
+			let position = Vec3f(0.0, -50.0, 30.0);
+			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
+		};
+
+		let shadow_map = shade::Texture2D::INVALID;
+
+		let axes = {
+			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+			shade::d3::axes::AxesModel::create(g, shader)
+		};
+
+		let cube = cube::Renderable::create(g);
+		let bunny = bunny::Renderable::create(g);
+		let color_tree = colortree::Renderable::create(g);
+		let oldtree = oldtree::Renderable::create(g);
+		let parallax = parallax::Renderable::create(g);
+		let globe = globe::Renderable::create(g);
+
+		let color3d_shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+
+		RendererDemo { epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe, color3d_shader }
+	}
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
 		let time = self.epoch.elapsed().as_secs_f32();
 		let globals = Globals { time };
 
@@ -107,9 +133,9 @@ impl Scene {
 		};
 
 		// Render shadow map
-		let viewport = Bounds2::vec(Vec2::dup(SHADOW_MAP_SIZE));
+		let shadow_viewport = Bounds2::vec(Vec2::dup(SHADOW_MAP_SIZE));
 		g.begin(&shade::BeginArgs::Immediate {
-			viewport,
+			viewport: shadow_viewport,
 			color: &[],
 			levels: None,
 			depth: self.shadow_map,
@@ -128,13 +154,13 @@ impl Scene {
 			let projection = Mat4::perspective(Angle::deg(90.0), aspect_ratio, near, far, (hand, clip));
 			let view_proj = projection * view;
 			let inv_view_proj = view_proj.inverse();
-			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
+			shade::d3::Camera { viewport: shadow_viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
 		light.light_view_proj = light_camera.view_proj;
 
 		shade::clear!(g, depth: 1.0);
-		for renderable in renderables.iter().cloned() {
+		for &renderable in renderables.iter() {
 			let (bounds, transform) = renderable.get_bounds();
 			if light_camera.is_visible(&bounds, Some(&transform)) {
 				renderable.draw(g, &globals, &light_camera, &light, true);
@@ -143,7 +169,6 @@ impl Scene {
 		g.end();
 
 		// Render the frame
-		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
@@ -151,7 +176,7 @@ impl Scene {
 
 		// Camera setup
 		let camera = {
-			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
+			let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
 			let position = self.camera.position();
 			let hand = Hand::RH;
 			let view = self.camera.view_matrix(hand);
@@ -166,7 +191,7 @@ impl Scene {
 
 		// Draw the scene
 		let mut count = 0;
-		for renderable in renderables.iter().cloned() {
+		for &renderable in renderables.iter() {
 			let (bounds, transform) = renderable.get_bounds();
 			if camera.is_visible(&bounds, Some(&transform)) {
 				renderable.draw(g, &globals, &camera, &light, false);
@@ -176,7 +201,7 @@ impl Scene {
 		print!("\rDrawn {} objects  ", count);
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: Transform3f::scale(Vec3::dup(camera.position.len() * 0.2)),
+			local: Transform3f::translate(self.camera.pivot) * Transform3f::scale(Vec3::dup(self.camera.pivot.distance(self.camera.position()) * 0.25)),
 			depth_test: None,
 		});
 
@@ -187,7 +212,7 @@ impl Scene {
 			buf.depth_test = None;//Some(shade::DepthTest::GreaterEqual);
 			buf.uniform.transform = camera.view_proj;
 			buf.uniform.colormod = Vec4f(1.0, 1.0, 1.0, 1.0);
-			for renderable in renderables.iter().cloned() {
+			for &renderable in renderables.iter() {
 				draw_box(&mut buf, renderable);
 			}
 			buf.draw(g);
@@ -320,65 +345,22 @@ impl GlWindow {
 	}
 }
 
-struct RendererDemo {
-	g: shade::gl::GlGraphics,
-	scene: Scene,
-}
-
-impl RendererDemo {
-	fn new(screen_size: Vec2i) -> RendererDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-
-		let scene = {
-			let epoch = time::Instant::now();
-
-			let camera = {
-				let pivot = Vec3f::ZERO;
-				let position = Vec3f(0.0, -50.0, 30.0);
-				shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
-			};
-
-			let shadow_map = shade::Texture2D::INVALID;
-
-			let axes = {
-				let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
-				shade::d3::axes::AxesModel::create(&mut g, shader)
-			};
-
-			let cube = cube::Renderable::create(&mut g);
-			let bunny = bunny::Renderable::create(&mut g);
-			let color_tree = colortree::Renderable::create(&mut g);
-			let oldtree = oldtree::Renderable::create(&mut g);
-			let parallax = parallax::Renderable::create(&mut g);
-			let globe = globe::Renderable::create(&mut g);
-
-			let color3d_shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
-
-			Scene { screen_size, epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe, color3d_shader }
-		};
-
-		RendererDemo { g, scene }
-	}
-
-	fn draw(&mut self) {
-		self.scene.draw(&mut self.g);
-	}
-}
-
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: RendererDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let screen_size = Vec2::new(window.size.width as i32, window.size.height as i32);
-		let demo = RendererDemo::new(screen_size);
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = RendererDemo::create(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw();
+		let viewport = Bounds2i::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 
@@ -410,8 +392,6 @@ fn main() {
 				WindowEvent::Resized(new_size) => {
 					if let Some(app) = app.as_deref_mut() {
 						app.window.resize(new_size);
-						app.demo.scene.screen_size.x = new_size.width as i32;
-						app.demo.scene.screen_size.y = new_size.height as i32;
 					}
 				}
 				WindowEvent::CursorMoved { position, .. } => {
@@ -420,14 +400,14 @@ fn main() {
 						let dy = position.y as f32 - cursor_position.y as f32;
 						if left_click {
 							auto_rotate = false;
-							app.demo.scene.camera.rotate(-dx, -dy);
+							app.demo.camera.rotate(-dx, -dy);
 						}
 						if right_click {
 							auto_rotate = false;
-							app.demo.scene.camera.pan(-dx, dy);
+							app.demo.camera.pan(-dx, dy);
 						}
 						if middle_click {
-							app.demo.scene.camera.zoom(dy * 0.01);
+							app.demo.camera.zoom(dy * 0.01);
 						}
 					}
 					cursor_position = position;
@@ -445,7 +425,7 @@ fn main() {
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						if auto_rotate {
-							app.demo.scene.camera.rotate(-1.0, 0.0);
+							app.demo.camera.rotate(-1.0, 0.0);
 						}
 						app.draw();
 						app.window.surface.swap_buffers(&app.window.context).unwrap();

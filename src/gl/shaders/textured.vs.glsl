@@ -10,8 +10,16 @@ out vec2 v_uv;
 uniform mat3x2 u_transform;
 uniform vec4 u_colorModulation;
 
+vec3 srgbToLinear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
+
 void main() {
-	v_color = a_color * u_colorModulation;
+	v_color = srgbToLinear(a_color) * u_colorModulation;
 	v_uv = a_uv;
 
 	vec2 pos = u_transform * vec3(a_pos, 1.0);

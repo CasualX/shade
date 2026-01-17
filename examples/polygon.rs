@@ -9,7 +9,6 @@ const PICK_RADIUS_PX: f32 = 12.0;
 const NO_DRAG: usize = usize::MAX;
 
 struct PolygonDemo {
-	g: shade::gl::GlGraphics,
 	color_shader: shade::Shader,
 	points: Vec<Point2f>,
 	cursor_px: Vec2f,
@@ -21,11 +20,9 @@ struct PolygonDemo {
 }
 
 impl PolygonDemo {
-	fn new() -> PolygonDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
+	fn new(g: &mut shade::Graphics) -> PolygonDemo {
 		let color_shader = g.shader_create(None, shade::gl::shaders::COLOR_VS, shade::gl::shaders::COLOR_FS);
 		PolygonDemo {
-			g,
 			color_shader,
 			points: Vec::new(),
 			cursor_px: Vec2f::ZERO,
@@ -147,10 +144,10 @@ impl PolygonDemo {
 		self.points.len() - 1
 	}
 
-	fn draw(&mut self, viewport: Bounds2i) {
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(self.g, color: Vec4(0.08, 0.09, 0.11, 1.0));
+		shade::clear!(g, color: Vec4(0.08, 0.09, 0.11, 1.0));
 
 		let mut cv = shade::d2::ColorBuffer::new();
 		cv.shader = self.color_shader;
@@ -219,8 +216,8 @@ impl PolygonDemo {
 			cv.fill_ellipse(&point_paint, &rc, 12);
 		}
 
-		cv.draw(&mut self.g);
-		self.g.end();
+		cv.draw(g);
+		g.end();
 	}
 }
 
@@ -307,6 +304,7 @@ impl GlWindow {
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: PolygonDemo,
 	dirty: bool,
 	shift: bool,
@@ -315,9 +313,11 @@ struct App {
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = PolygonDemo::new();
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = PolygonDemo::new(opengl.as_graphics());
 		Box::new(App {
 			window,
+			opengl,
 			demo,
 			dirty: true,
 			shift: false,
@@ -326,7 +326,7 @@ impl App {
 
 	fn draw(&mut self) {
 		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
-		self.demo.draw(viewport);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 		self.dirty = false;
 	}
 }

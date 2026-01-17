@@ -175,8 +175,7 @@ impl Context {
 		api::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new();
-
-		let ref mut g = shade::Graphics(&mut webgl);
+		let g = webgl.as_graphics();
 
 		let globe = GlobeRenderable::create(g);
 
@@ -232,7 +231,7 @@ impl Context {
 	}
 
 	pub fn draw(&mut self, _time: f64) {
-		let g = shade::Graphics(&mut self.webgl);
+		let g = self.webgl.as_graphics();
 
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);

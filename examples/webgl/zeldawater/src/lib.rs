@@ -117,8 +117,7 @@ impl Context {
 		api::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new();
-
-		let g = shade::Graphics(&mut webgl);
+		let g = webgl.as_graphics();
 
 		// Create the triangle shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
@@ -175,7 +174,8 @@ impl Context {
 	}
 
 	pub fn draw(&mut self, time: f64) {
-		let g = shade::Graphics(&mut self.webgl);
+		let g = self.webgl.as_graphics();
+
 		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });

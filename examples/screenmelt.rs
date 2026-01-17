@@ -116,7 +116,6 @@ impl GlWindow {
 /// Rendering state for the screen-melt demo.
 struct ScreenMeltDemo {
 	epoch: time::Instant,
-	graphics: shade::gl::GlGraphics,
 	pp: shade::d2::PostProcessQuad,
 	pp_copy_shader: shade::Shader,
 	pp_melt_shader: shade::Shader,
@@ -126,12 +125,8 @@ struct ScreenMeltDemo {
 }
 
 impl ScreenMeltDemo {
-	fn new() -> ScreenMeltDemo {
+	fn new(g: &mut shade::Graphics) -> ScreenMeltDemo {
 		let epoch = time::Instant::now();
-
-		let mut graphics = shade::gl::GlGraphics::new(shade::gl::GlConfig {
-			srgb: false,
-		});
 
 		let delay_texture = {
 			let mut delays = Vec::new();
@@ -156,26 +151,25 @@ impl ScreenMeltDemo {
 					..Default::default()
 				},
 			};
-			graphics.texture2d(None, &info, &delays)
+			g.texture2d(None, &info, &delays)
 		};
 
 		let gameplay_texture = {
 			let image = shade::image::DecodedImage::load_file_gif("examples/screenmelt/e1m1.gif").unwrap();
-			graphics.image(None, &image)
+			g.image(None, &image)
 		};
 
 		let main_menu_texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/screenmelt/main-menu.png").unwrap();
-			graphics.image(None, &image)
+			g.image(None, &image)
 		};
 
-		let pp = shade::d2::PostProcessQuad::create(&mut graphics);
-		let pp_copy_shader = graphics.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_COPY_FS);
-		let pp_melt_shader = graphics.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_MELT_FS);
+		let pp = shade::d2::PostProcessQuad::create(g);
+		let pp_copy_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_COPY_FS);
+		let pp_melt_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_MELT_FS);
 
 		ScreenMeltDemo {
 			epoch,
-			graphics,
 			gameplay_texture,
 			main_menu_texture,
 			delay_texture,
@@ -185,39 +179,41 @@ impl ScreenMeltDemo {
 		}
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.graphics.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		let elapsed = self.epoch.elapsed().as_secs_f32();
 
-		self.pp.draw(&mut self.graphics, self.pp_copy_shader, shade::BlendMode::Alpha, &[&PostProcessCopyUniforms {
+		self.pp.draw(g, self.pp_copy_shader, shade::BlendMode::Alpha, &[&PostProcessCopyUniforms {
 			texture: self.gameplay_texture,
 		}]);
 
-		self.pp.draw(&mut self.graphics, self.pp_melt_shader, shade::BlendMode::Alpha, &[&PostProcessMeltUniforms {
+		self.pp.draw(g, self.pp_melt_shader, shade::BlendMode::Alpha, &[&PostProcessMeltUniforms {
 			scene: self.main_menu_texture,
 			delays: self.delay_texture,
 			time: (elapsed - 2.0) * 2.0,
 		}]);
 
-		self.graphics.end();
+		g.end();
 	}
 }
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: ScreenMeltDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = ScreenMeltDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = ScreenMeltDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

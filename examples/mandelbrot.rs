@@ -255,8 +255,7 @@ impl GlWindow {
 }
 
 struct MandelbrotDemo {
-	g: shade::gl::GlGraphics,
-	vb: shade::VertexBuffer,
+	vertices: shade::VertexBuffer,
 	shader: shade::Shader,
 	gradient: shade::Texture2D,
 	pan_start: Point2f,
@@ -266,9 +265,8 @@ struct MandelbrotDemo {
 }
 
 impl MandelbrotDemo {
-	fn new() -> MandelbrotDemo {
-		let mut g = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: false });
-		let vb = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+	fn new(g: &mut shade::Graphics) -> MandelbrotDemo {
+		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
 		let gradient = {
 			let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
@@ -276,8 +274,7 @@ impl MandelbrotDemo {
 		};
 
 		MandelbrotDemo {
-			g,
-			vb,
+			vertices,
 			shader,
 			gradient,
 			pan_start: Point2f::ZERO,
@@ -287,20 +284,19 @@ impl MandelbrotDemo {
 		}
 	}
 
-	fn draw(&mut self, window: &GlWindow) {
-		let viewport = Bounds2::c(0, 0, window.size.width as i32, window.size.height as i32);
-		self.g.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		shade::clear!(self.g, color: Vec4(0.2, 0.5, 0.2, 1.0));
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
-		let aspect_ratio = window.size.width as f32 / window.size.height as f32;
+		let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
 		let zoom_view = self.stack.current();
 		let view_bounds = zoom_view.to_bounds(aspect_ratio);
 		let transform = Transform2f::ortho(view_bounds).inverse();
 
 		let uniforms = Uniforms { transform, gradient: self.gradient };
 
-		self.g.draw(&shade::DrawArgs {
+		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
@@ -309,7 +305,7 @@ impl MandelbrotDemo {
 			prim_type: shade::PrimType::Triangles,
 			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vb,
+				buffer: self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[&uniforms],
@@ -318,23 +314,26 @@ impl MandelbrotDemo {
 			instances: -1,
 		});
 
-		self.g.end();
+		g.end();
 	}
 }
 
 struct App {
 	window: GlWindow,
+	opengl: shade::gl::GlGraphics,
 	demo: MandelbrotDemo,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let demo = MandelbrotDemo::new();
-		Box::new(App { window, demo })
+		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let demo = MandelbrotDemo::new(opengl.as_graphics());
+		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		self.demo.draw(&self.window);
+		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
 

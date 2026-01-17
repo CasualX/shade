@@ -64,7 +64,6 @@ pub struct TextUniform {
 	pub out_bias: f32,
 	pub outline_width_absolute: f32,
 	pub outline_width_relative: f32,
-	pub gamma: f32,
 }
 
 impl Default for TextUniform {
@@ -78,7 +77,6 @@ impl Default for TextUniform {
 			out_bias: 0.0,
 			outline_width_absolute: 1.0,
 			outline_width_relative: 0.125,
-			gamma: 1.0,
 		}
 	}
 }
@@ -92,6 +90,5 @@ impl UniformVisitor for TextUniform {
 		set.value("u_outBias", &self.out_bias);
 		set.value("u_outlineWidthAbsolute", &self.outline_width_absolute);
 		set.value("u_outlineWidthRelative", &self.outline_width_relative);
-		set.value("u_gamma", &self.gamma);
 	}
 }

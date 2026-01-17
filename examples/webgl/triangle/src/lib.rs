@@ -38,15 +38,8 @@ precision mediump float;
 // Varying from vertex shader
 varying vec4 VertexColor;
 
-void main()
-{
-	// Gamma correction (linear -> sRGB)
-	gl_FragColor = vec4(
-		pow(VertexColor.r, 1.0 / 2.2),
-		pow(VertexColor.g, 1.0 / 2.2),
-		pow(VertexColor.b, 1.0 / 2.2),
-		VertexColor.a
-	);
+void main() {
+	gl_FragColor = VertexColor;
 }
 "#;
 
@@ -58,15 +51,17 @@ attribute vec4 aColor;
 // Varying to pass to fragment shader
 varying vec4 VertexColor;
 
-void main()
-{
+vec3 srgbToLinear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
+
+void main() {
 	// Gamma correction (sRGB -> linear)
-	VertexColor = vec4(
-		pow(aColor.r, 2.2),
-		pow(aColor.g, 2.2),
-		pow(aColor.b, 2.2),
-		aColor.a
-	);
+	VertexColor = srgbToLinear(aColor);
 
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
@@ -85,8 +80,7 @@ impl Context {
 		api::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new();
-
-		let g = shade::Graphics(&mut webgl);
+		let g = webgl.as_graphics();
 
 		// Create the triangle shader
 		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
@@ -100,7 +94,7 @@ impl Context {
 	}
 
 	pub fn draw(&mut self, time: f64) {
-		let g = shade::Graphics(&mut self.webgl);
+		let g = self.webgl.as_graphics();
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
