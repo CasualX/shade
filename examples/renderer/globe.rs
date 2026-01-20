@@ -19,8 +19,7 @@ uniform mat4 u_lightTransform;
 
 const float PI = 3.141592653589793;
 
-void main()
-{
+void main() {
 	// Ray from camera through fragment
 	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
 	vec3 rayOrigin = u_cameraPosition;
@@ -98,8 +97,7 @@ uniform float u_globeRadius;
 uniform mat4x3 u_viewMatrix;
 uniform mat4 u_projMatrix;
 
-void main()
-{
+void main() {
 	// Ray from light-camera through fragment
 	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
 	vec3 rayOrigin = u_cameraPosition;
@@ -141,8 +139,7 @@ uniform float u_globeRadius;
 
 out vec3 v_worldPos;
 
-void main()
-{
+void main() {
 	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
 	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
 	vec4 worldPos = vec4(world, 1.0);

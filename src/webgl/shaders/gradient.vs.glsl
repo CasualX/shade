@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 
 // Vertex attributes
 attribute vec2 a_pos;

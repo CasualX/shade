@@ -17,8 +17,7 @@ varying vec3 v_worldPos;
 
 const float PI = 3.141592653589793;
 
-void main()
-{
+void main() {
 	// Ray from camera through fragment
 	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
 	vec3 rayOrigin = u_cameraPosition;
@@ -76,8 +75,7 @@ uniform float u_globeRadius;
 
 varying vec3 v_worldPos;
 
-void main()
-{
+void main() {
 	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
 	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
 	vec4 worldPos = vec4(world, 1.0);

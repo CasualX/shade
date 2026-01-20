@@ -1,21 +1,28 @@
-// WebGL GLSL ES 1.00
+#version 300 es
+precision highp float;
 
-precision mediump float;
-
-attribute vec2 a_pos;
-attribute vec2 a_uv;
-attribute vec4 a_color;
-attribute vec4 a_outline;
+in vec2 a_pos;
+in vec2 a_uv;
+in vec4 a_color;
+in vec4 a_outline;
 
 uniform mat3 u_transform;
 
-varying vec2 v_uv;
-varying vec4 v_color;
-varying vec4 v_outline;
+out vec2 v_uv;
+out vec4 v_color;
+out vec4 v_outline;
+
+vec3 srgbToLinear(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
 
 void main() {
 	v_uv = a_uv;
-	v_color = a_color;
+	v_color = srgbToLinear(a_color);
 	v_outline = a_outline;
 
 	vec3 pos = u_transform * vec3(a_pos, 1.0);

@@ -112,8 +112,7 @@ void main() {
 
 const CUBE_SHADOW_FS: &str = r#"\
 #version 330 core
-void main() {
-}
+void main() {}
 "#;
 
 const CUBE_VS: &str = r#"\

@@ -33,7 +33,7 @@ unsafe impl shade::TVertex for TriangleVertex {
 }
 
 const FRAGMENT_SHADER: &str = r#"
-precision mediump float;
+precision highp float;
 
 // Varying from vertex shader
 varying vec4 VertexColor;

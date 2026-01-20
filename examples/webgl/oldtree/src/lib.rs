@@ -2,15 +2,17 @@ use shade::cvmath::*;
 
 mod api;
 
-const FRAGMENT_SHADER: &str = r#"
+const FRAGMENT_SHADER: &str = r#"#version 300 es
 precision highp float;
 
-varying vec3 v_normal;
-varying vec2 v_uv;
-varying vec3 v_fragPos;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec3 v_fragPos;
 
 uniform sampler2D u_diffuse;
 uniform vec3 u_cameraPosition;
+
+out vec4 o_fragColor;
 
 void main() {
 	// Define light direction (normalized)
@@ -22,7 +24,7 @@ void main() {
 
 	// Sample texture and discard transparent fragments
 	vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
-	vec4 texColor = texture2D(u_diffuse, uv);
+	vec4 texColor = texture(u_diffuse, uv);
 	if (texColor.a < 0.1) {
 		discard;
 	}
@@ -30,38 +32,37 @@ void main() {
 	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 
-	gl_FragColor = vec4(finalColor, texColor.a);
+	o_fragColor = vec4(finalColor, texColor.a);
 
-	// gl_FragColor = vec4(norm * 0.5 + 0.5, 1.0);
+	// o_fragColor = vec4(norm * 0.5 + 0.5, 1.0);
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
+const VERTEX_SHADER: &str = r#"#version 300 es
 precision highp float;
 
-attribute vec3 aPos;
-attribute vec3 aNormal;
-attribute vec2 aUV;
+in vec3 a_pos;
+in vec3 a_normal;
+in vec2 a_uv;
 
-varying vec3 v_fragPos;
-varying vec3 v_normal;
-varying vec2 v_uv;
+out vec3 v_fragPos;
+out vec3 v_normal;
+out vec2 v_uv;
 
 uniform mat4 u_model;
 uniform mat4 u_viewProjMatrix;
 
 uniform mat3 u_normalMatrix;
 
-void main()
-{
+void main() {
 	// Calculate world position of the vertex
-	v_fragPos = vec3(u_model * vec4(aPos, 1.0));
+	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
 
 	// Transform the normal properly (especially for scaling)
-	v_normal = u_normalMatrix * aNormal;
+	v_normal = u_normalMatrix * a_normal;
 
 	// Pass through UV
-	v_uv = aUV;
+	v_uv = a_uv;
 
 	// Final position for rasterization
 	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(non_upper_case_globals)]
 
 pub mod types {
 	pub type GLenum = u32;
@@ -15,6 +16,7 @@ pub mod types {
 #[link(wasm_import_module = "webgl")]
 extern "C" {
 	pub fn consoleLog(message_ptr: *const u8, message_len: usize);
+	pub fn now() -> f64;
 	pub fn enable(cap: types::GLenum);
 	pub fn disable(cap: types::GLenum);
 	pub fn scissor(x: types::GLint, y: types::GLint, width: types::GLsizei, height: types::GLsizei);
@@ -73,6 +75,7 @@ extern "C" {
 	pub fn uniformMatrix2fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 2]; 2]);
 	pub fn uniformMatrix3fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 3]; 3]);
 	pub fn uniformMatrix4fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 4]; 4]);
+	pub fn vertexAttribDivisor(index: types::GLuint, divisor: types::GLuint);
 	pub fn createTexture() -> types::GLuint;
 	pub fn deleteTexture(texture: types::GLuint);
 	pub fn activeTexture(texture: types::GLenum);
@@ -80,6 +83,7 @@ extern "C" {
 	pub fn generateMipmap(target: types::GLenum);
 	pub fn pixelStorei(pname: types::GLenum, param: types::GLint);
 	pub fn texParameteri(target: types::GLenum, pname: types::GLenum, param: types::GLint);
+	pub fn texStorage2D(target: types::GLenum, levels: types::GLsizei, internalformat: types::GLenum, width: types::GLsizei, height: types::GLsizei);
 	pub fn texImage2D(
 		target: types::GLenum,
 		level: types::GLint,
@@ -92,8 +96,30 @@ extern "C" {
 		pixels_ptr: *const u8,
 		pixels_len: usize,
 	);
+	pub fn texSubImage2D(
+		target: types::GLenum,
+		level: types::GLint,
+		xoffset: types::GLint,
+		yoffset: types::GLint,
+		width: types::GLsizei,
+		height: types::GLsizei,
+		format: types::GLenum,
+		type_: types::GLenum,
+		pixels_ptr: *const u8,
+		pixels_len: usize,
+	);
+	pub fn createFramebuffer() -> types::GLuint;
+	pub fn deleteFramebuffer(framebuffer: types::GLuint);
+	pub fn bindFramebuffer(target: types::GLenum, framebuffer: types::GLuint);
+	pub fn framebufferTexture2D(target: types::GLenum, attachment: types::GLenum, textarget: types::GLenum, texture: types::GLuint, level: types::GLint);
+	pub fn drawBuffers(n: types::GLsizei, bufs: *const types::GLenum);
+	pub fn readBuffer(src: types::GLenum);
+	pub fn checkFramebufferStatus(target: types::GLenum) -> types::GLenum;
+	pub fn readPixels(x: types::GLint, y: types::GLint, width: types::GLsizei, height: types::GLsizei, format: types::GLenum, type_: types::GLenum, pixels_ptr: *mut u8, pixels_len: usize);
 	pub fn drawArrays(mode: types::GLenum, first: types::GLint, count: types::GLsizei);
 	pub fn drawElements(mode: types::GLenum, count: types::GLsizei, type_: types::GLenum, indices: types::GLintptr);
+	pub fn drawArraysInstanced(mode: types::GLenum, first: types::GLint, count: types::GLsizei, instancecount: types::GLsizei);
+	pub fn drawElementsInstanced(mode: types::GLenum, count: types::GLsizei, type_: types::GLenum, indices: types::GLintptr, instancecount: types::GLsizei);
 }
 
 pub const FALSE: types::GLboolean = false;
@@ -315,6 +341,13 @@ pub const TEXTURE_2D: types::GLenum = 0x0DE1;
 pub const TEXTURE: types::GLenum = 0x1702;
 pub const TEXTURE_CUBE_MAP: types::GLenum = 0x8513;
 pub const TEXTURE_BINDING_CUBE_MAP: types::GLenum = 0x8514;
+pub const TEXTURE_CUBE_MAP_POSITIVE_X: types::GLenum = 0x8515;
+pub const TEXTURE_CUBE_MAP_NEGATIVE_X: types::GLenum = 0x8516;
+pub const TEXTURE_CUBE_MAP_POSITIVE_Y: types::GLenum = 0x8517;
+pub const TEXTURE_CUBE_MAP_NEGATIVE_Y: types::GLenum = 0x8518;
+pub const TEXTURE_CUBE_MAP_POSITIVE_Z: types::GLenum = 0x8519;
+pub const TEXTURE_CUBE_MAP_NEGATIVE_Z: types::GLenum = 0x851A;
+pub const MAX_CUBE_MAP_TEXTURE_SIZE: types::GLenum = 0x851C;
 pub const TEXTURE0: types::GLenum = 0x84C0; // Up to +31 texture units
 pub const ACTIVE_TEXTURE: types::GLenum = 0x84E0;
 pub const REPEAT: types::GLenum = 0x2901;
@@ -383,3 +416,299 @@ pub const INVALID_FRAMEBUFFER_OPERATION: types::GLenum = 0x0506;
 pub const UNPACK_FLIP_Y_WEBGL: types::GLenum = 0x9240;
 pub const UNPACK_PREMULTIPLY_ALPHA_WEBGL: types::GLenum = 0x9241;
 pub const UNPACK_COLORSPACE_CONVERSION_WEBGL: types::GLenum = 0x9243;
+
+//----------------------------------------------------------------
+// Additional constants defined WebGL 2
+
+// Getting GL parameter information
+pub const READ_BUFFER: types::GLenum = 0x0C02;
+pub const UNPACK_ROW_LENGTH: types::GLenum = 0x0CF2;
+pub const UNPACK_SKIP_ROWS: types::GLenum = 0x0CF3;
+pub const UNPACK_SKIP_PIXELS: types::GLenum = 0x0CF4;
+pub const PACK_ROW_LENGTH: types::GLenum = 0x0D02;
+pub const PACK_SKIP_ROWS: types::GLenum = 0x0D03;
+pub const PACK_SKIP_PIXELS: types::GLenum = 0x0D04;
+pub const TEXTURE_BINDING_3D: types::GLenum = 0x806A;
+pub const UNPACK_SKIP_IMAGES: types::GLenum = 0x806D;
+pub const UNPACK_IMAGE_HEIGHT: types::GLenum = 0x806E;
+pub const MAX_3D_TEXTURE_SIZE: types::GLenum = 0x8073;
+pub const MAX_ELEMENTS_VERTICES: types::GLenum = 0x80E8;
+pub const MAX_ELEMENTS_INDICES: types::GLenum = 0x80E9;
+pub const MAX_TEXTURE_LOD_BIAS: types::GLenum = 0x84FD;
+pub const MAX_FRAGMENT_UNIFORM_COMPONENTS: types::GLenum = 0x8B49;
+pub const MAX_VERTEX_UNIFORM_COMPONENTS: types::GLenum = 0x8B4A;
+pub const MAX_ARRAY_TEXTURE_LAYERS: types::GLenum = 0x88FF;
+pub const MIN_PROGRAM_TEXEL_OFFSET: types::GLenum = 0x8904;
+pub const MAX_PROGRAM_TEXEL_OFFSET: types::GLenum = 0x8905;
+pub const MAX_VARYING_COMPONENTS: types::GLenum = 0x8B4B;
+pub const FRAGMENT_SHADER_DERIVATIVE_HINT: types::GLenum = 0x8B8B;
+pub const RASTERIZER_DISCARD: types::GLenum = 0x8C89;
+pub const VERTEX_ARRAY_BINDING: types::GLenum = 0x85B5;
+pub const MAX_VERTEX_OUTPUT_COMPONENTS: types::GLenum = 0x9122;
+pub const MAX_FRAGMENT_INPUT_COMPONENTS: types::GLenum = 0x9125;
+pub const MAX_SERVER_WAIT_TIMEOUT: types::GLenum = 0x9111;
+pub const MAX_ELEMENT_INDEX: types::GLenum = 0x8D6B;
+
+// Textures
+pub const RED: types::GLenum = 0x1903;
+pub const RGB8: types::GLenum = 0x8051;
+pub const RGBA8: types::GLenum = 0x8058;
+pub const RGB10_A2: types::GLenum = 0x8059;
+pub const TEXTURE_3D: types::GLenum = 0x806F;
+pub const TEXTURE_WRAP_R: types::GLenum = 0x8072;
+pub const TEXTURE_MIN_LOD: types::GLenum = 0x813A;
+pub const TEXTURE_MAX_LOD: types::GLenum = 0x813B;
+pub const TEXTURE_BASE_LEVEL: types::GLenum = 0x813C;
+pub const TEXTURE_MAX_LEVEL: types::GLenum = 0x813D;
+pub const TEXTURE_COMPARE_MODE: types::GLenum = 0x884C;
+pub const TEXTURE_COMPARE_FUNC: types::GLenum = 0x884D;
+pub const SRGB: types::GLenum = 0x8C40;
+pub const SRGB8: types::GLenum = 0x8C41;
+pub const SRGB8_ALPHA8: types::GLenum = 0x8C43;
+pub const COMPARE_REF_TO_TEXTURE: types::GLenum = 0x884E;
+pub const RGBA32F: types::GLenum = 0x8814;
+pub const RGB32F: types::GLenum = 0x8815;
+pub const RGBA16F: types::GLenum = 0x881A;
+pub const RGB16F: types::GLenum = 0x881B;
+pub const TEXTURE_2D_ARRAY: types::GLenum = 0x8C1A;
+pub const TEXTURE_BINDING_2D_ARRAY: types::GLenum = 0x8C1D;
+pub const R11F_G11F_B10F: types::GLenum = 0x8C3A;
+pub const RGB9_E5: types::GLenum = 0x8C3D;
+pub const RGBA32UI: types::GLenum = 0x8D70;
+pub const RGB32UI: types::GLenum = 0x8D71;
+pub const RGBA16UI: types::GLenum = 0x8D76;
+pub const RGB16UI: types::GLenum = 0x8D77;
+pub const RGBA8UI: types::GLenum = 0x8D7C;
+pub const RGB8UI: types::GLenum = 0x8D7D;
+pub const RGBA32I: types::GLenum = 0x8D82;
+pub const RGB32I: types::GLenum = 0x8D83;
+pub const RGBA16I: types::GLenum = 0x8D88;
+pub const RGB16I: types::GLenum = 0x8D89;
+pub const RGBA8I: types::GLenum = 0x8D8E;
+pub const RGB8I: types::GLenum = 0x8D8F;
+pub const RED_INTEGER: types::GLenum = 0x8D94;
+pub const RGB_INTEGER: types::GLenum = 0x8D98;
+pub const RGBA_INTEGER: types::GLenum = 0x8D99;
+pub const R8: types::GLenum = 0x8229;
+pub const RG8: types::GLenum = 0x822B;
+pub const R16F: types::GLenum = 0x822D;
+pub const R32F: types::GLenum = 0x822E;
+pub const RG16F: types::GLenum = 0x822F;
+pub const RG32F: types::GLenum = 0x8230;
+pub const R8I: types::GLenum = 0x8231;
+pub const R8UI: types::GLenum = 0x8232;
+pub const R16I: types::GLenum = 0x8233;
+pub const R16UI: types::GLenum = 0x8234;
+pub const R32I: types::GLenum = 0x8235;
+pub const R32UI: types::GLenum = 0x8236;
+pub const RG8I: types::GLenum = 0x8237;
+pub const RG8UI: types::GLenum = 0x8238;
+pub const RG16I: types::GLenum = 0x8239;
+pub const RG16UI: types::GLenum = 0x823A;
+pub const RG32I: types::GLenum = 0x823B;
+pub const RG32UI: types::GLenum = 0x823C;
+pub const R8_SNORM: types::GLenum = 0x8F94;
+pub const RG8_SNORM: types::GLenum = 0x8F95;
+pub const RGB8_SNORM: types::GLenum = 0x8F96;
+pub const RGBA8_SNORM: types::GLenum = 0x8F97;
+pub const RGB10_A2UI: types::GLenum = 0x906F;
+pub const TEXTURE_IMMUTABLE_FORMAT: types::GLenum = 0x912F;
+pub const TEXTURE_IMMUTABLE_LEVELS: types::GLenum = 0x82DF;
+
+// Pixel types
+pub const UNSIGNED_INT_2_10_10_10_REV: types::GLenum = 0x8368;
+pub const UNSIGNED_INT_10F_11F_11F_REV: types::GLenum = 0x8C3B;
+pub const UNSIGNED_INT_5_9_9_9_REV: types::GLenum = 0x8C3E;
+pub const FLOAT_32_UNSIGNED_INT_24_8_REV: types::GLenum = 0x8DAD;
+pub const UNSIGNED_INT_24_8: types::GLenum = 0x84FA;
+pub const HALF_FLOAT: types::GLenum = 0x140B;
+pub const RG: types::GLenum = 0x8227;
+pub const RG_INTEGER: types::GLenum = 0x8228;
+pub const INT_2_10_10_10_REV: types::GLenum = 0x8D9F;
+
+// Queries
+pub const CURRENT_QUERY: types::GLenum = 0x8865;
+pub const QUERY_RESULT: types::GLenum = 0x8866;
+pub const QUERY_RESULT_AVAILABLE: types::GLenum = 0x8867;
+pub const ANY_SAMPLES_PASSED: types::GLenum = 0x8C2F;
+pub const ANY_SAMPLES_PASSED_CONSERVATIVE: types::GLenum = 0x8D6A;
+
+// Draw buffers
+pub const MAX_DRAW_BUFFERS: types::GLenum = 0x8824;
+pub const DRAW_BUFFER0: types::GLenum = 0x8825;
+pub const DRAW_BUFFER1: types::GLenum = 0x8826;
+pub const DRAW_BUFFER2: types::GLenum = 0x8827;
+pub const DRAW_BUFFER3: types::GLenum = 0x8828;
+pub const DRAW_BUFFER4: types::GLenum = 0x8829;
+pub const DRAW_BUFFER5: types::GLenum = 0x882A;
+pub const DRAW_BUFFER6: types::GLenum = 0x882B;
+pub const DRAW_BUFFER7: types::GLenum = 0x882C;
+pub const DRAW_BUFFER8: types::GLenum = 0x882D;
+pub const DRAW_BUFFER9: types::GLenum = 0x882E;
+pub const DRAW_BUFFER10: types::GLenum = 0x882F;
+pub const DRAW_BUFFER11: types::GLenum = 0x8830;
+pub const DRAW_BUFFER12: types::GLenum = 0x8831;
+pub const DRAW_BUFFER13: types::GLenum = 0x8832;
+pub const DRAW_BUFFER14: types::GLenum = 0x8833;
+pub const DRAW_BUFFER15: types::GLenum = 0x8834;
+pub const MAX_COLOR_ATTACHMENTS: types::GLenum = 0x8CDF;
+pub const COLOR_ATTACHMENT1: types::GLenum = 0x8CE1;
+pub const COLOR_ATTACHMENT2: types::GLenum = 0x8CE2;
+pub const COLOR_ATTACHMENT3: types::GLenum = 0x8CE3;
+pub const COLOR_ATTACHMENT4: types::GLenum = 0x8CE4;
+pub const COLOR_ATTACHMENT5: types::GLenum = 0x8CE5;
+pub const COLOR_ATTACHMENT6: types::GLenum = 0x8CE6;
+pub const COLOR_ATTACHMENT7: types::GLenum = 0x8CE7;
+pub const COLOR_ATTACHMENT8: types::GLenum = 0x8CE8;
+pub const COLOR_ATTACHMENT9: types::GLenum = 0x8CE9;
+pub const COLOR_ATTACHMENT10: types::GLenum = 0x8CEA;
+pub const COLOR_ATTACHMENT11: types::GLenum = 0x8CEB;
+pub const COLOR_ATTACHMENT12: types::GLenum = 0x8CEC;
+pub const COLOR_ATTACHMENT13: types::GLenum = 0x8CED;
+pub const COLOR_ATTACHMENT14: types::GLenum = 0x8CEE;
+pub const COLOR_ATTACHMENT15: types::GLenum = 0x8CEF;
+
+// Samplers
+pub const SAMPLER_3D: types::GLenum = 0x8B5F;
+pub const SAMPLER_2D_SHADOW: types::GLenum = 0x8B62;
+pub const SAMPLER_2D_ARRAY: types::GLenum = 0x8DC1;
+pub const SAMPLER_2D_ARRAY_SHADOW: types::GLenum = 0x8DC4;
+pub const SAMPLER_CUBE_SHADOW: types::GLenum = 0x8DC5;
+pub const INT_SAMPLER_2D: types::GLenum = 0x8DCA;
+pub const INT_SAMPLER_3D: types::GLenum = 0x8DCB;
+pub const INT_SAMPLER_CUBE: types::GLenum = 0x8DCC;
+pub const INT_SAMPLER_2D_ARRAY: types::GLenum = 0x8DCF;
+pub const UNSIGNED_INT_SAMPLER_2D: types::GLenum = 0x8DD2;
+pub const UNSIGNED_INT_SAMPLER_3D: types::GLenum = 0x8DD3;
+pub const UNSIGNED_INT_SAMPLER_CUBE: types::GLenum = 0x8DD4;
+pub const UNSIGNED_INT_SAMPLER_2D_ARRAY: types::GLenum = 0x8DD7;
+pub const MAX_SAMPLES: types::GLenum = 0x8D57;
+pub const SAMPLER_BINDING: types::GLenum = 0x8919;
+
+// Buffers
+pub const PIXEL_PACK_BUFFER: types::GLenum = 0x88EB;
+pub const PIXEL_UNPACK_BUFFER: types::GLenum = 0x88EC;
+pub const PIXEL_PACK_BUFFER_BINDING: types::GLenum = 0x88ED;
+pub const PIXEL_UNPACK_BUFFER_BINDING: types::GLenum = 0x88EF;
+pub const COPY_READ_BUFFER: types::GLenum = 0x8F36;
+pub const COPY_WRITE_BUFFER: types::GLenum = 0x8F37;
+pub const COPY_READ_BUFFER_BINDING: types::GLenum = 0x8F36;
+pub const COPY_WRITE_BUFFER_BINDING: types::GLenum = 0x8F37;
+
+// Data types
+pub const FLOAT_MAT2x3: types::GLenum = 0x8B65;
+pub const FLOAT_MAT2x4: types::GLenum = 0x8B66;
+pub const FLOAT_MAT3x2: types::GLenum = 0x8B67;
+pub const FLOAT_MAT3x4: types::GLenum = 0x8B68;
+pub const FLOAT_MAT4x2: types::GLenum = 0x8B69;
+pub const FLOAT_MAT4x3: types::GLenum = 0x8B6A;
+pub const UNSIGNED_INT_VEC2: types::GLenum = 0x8DC6;
+pub const UNSIGNED_INT_VEC3: types::GLenum = 0x8DC7;
+pub const UNSIGNED_INT_VEC4: types::GLenum = 0x8DC8;
+pub const UNSIGNED_NORMALIZED: types::GLenum = 0x8C17;
+pub const SIGNED_NORMALIZED: types::GLenum = 0x8F9C;
+
+// Vertex attributes
+pub const VERTEX_ATTRIB_ARRAY_INTEGER: types::GLenum = 0x88FD;
+pub const VERTEX_ATTRIB_ARRAY_DIVISOR: types::GLenum = 0x88FE;
+
+// Transform feedback
+pub const TRANSFORM_FEEDBACK_BUFFER_MODE: types::GLenum = 0x8C7F;
+pub const MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS: types::GLenum = 0x8C80;
+pub const TRANSFORM_FEEDBACK_VARYINGS: types::GLenum = 0x8C83;
+pub const TRANSFORM_FEEDBACK_BUFFER_START: types::GLenum = 0x8C84;
+pub const TRANSFORM_FEEDBACK_BUFFER_SIZE: types::GLenum = 0x8C85;
+pub const TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN: types::GLenum = 0x8C88;
+pub const MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS: types::GLenum = 0x8C8A;
+pub const MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS: types::GLenum = 0x8C8B;
+pub const INTERLEAVED_ATTRIBS: types::GLenum = 0x8C8C;
+pub const SEPARATE_ATTRIBS: types::GLenum = 0x8C8D;
+pub const TRANSFORM_FEEDBACK_BUFFER: types::GLenum = 0x8C8E;
+pub const TRANSFORM_FEEDBACK_BUFFER_BINDING: types::GLenum = 0x8C8F;
+pub const TRANSFORM_FEEDBACK: types::GLenum = 0x8E22;
+pub const TRANSFORM_FEEDBACK_PAUSED: types::GLenum = 0x8E23;
+pub const TRANSFORM_FEEDBACK_ACTIVE: types::GLenum = 0x8E24;
+pub const TRANSFORM_FEEDBACK_BINDING: types::GLenum = 0x8E25;
+
+// Framebuffers and renderbuffers
+pub const FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING: types::GLenum = 0x8210;
+pub const FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE: types::GLenum = 0x8211;
+pub const FRAMEBUFFER_ATTACHMENT_RED_SIZE: types::GLenum = 0x8212;
+pub const FRAMEBUFFER_ATTACHMENT_GREEN_SIZE: types::GLenum = 0x8213;
+pub const FRAMEBUFFER_ATTACHMENT_BLUE_SIZE: types::GLenum = 0x8214;
+pub const FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE: types::GLenum = 0x8215;
+pub const FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE: types::GLenum = 0x8216;
+pub const FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE: types::GLenum = 0x8217;
+pub const FRAMEBUFFER_DEFAULT: types::GLenum = 0x8218;
+pub const DEPTH_STENCIL_ATTACHMENT: types::GLenum = 0x821A;
+pub const DEPTH_STENCIL: types::GLenum = 0x84F9;
+pub const DEPTH24_STENCIL8: types::GLenum = 0x88F0;
+pub const DRAW_FRAMEBUFFER_BINDING: types::GLenum = 0x8CA6;
+pub const READ_FRAMEBUFFER: types::GLenum = 0x8CA8;
+pub const DRAW_FRAMEBUFFER: types::GLenum = 0x8CA9;
+pub const READ_FRAMEBUFFER_BINDING: types::GLenum = 0x8CAA;
+pub const RENDERBUFFER_SAMPLES: types::GLenum = 0x8CAB;
+pub const FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER: types::GLenum = 0x8CD4;
+pub const FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: types::GLenum = 0x8D56;
+
+// Uniforms
+pub const UNIFORM_BUFFER: types::GLenum = 0x8A11;
+pub const UNIFORM_BUFFER_BINDING: types::GLenum = 0x8A28;
+pub const UNIFORM_BUFFER_START: types::GLenum = 0x8A29;
+pub const UNIFORM_BUFFER_SIZE: types::GLenum = 0x8A2A;
+pub const MAX_VERTEX_UNIFORM_BLOCKS: types::GLenum = 0x8A2B;
+pub const MAX_FRAGMENT_UNIFORM_BLOCKS: types::GLenum = 0x8A2D;
+pub const MAX_COMBINED_UNIFORM_BLOCKS: types::GLenum = 0x8A2E;
+pub const MAX_UNIFORM_BUFFER_BINDINGS: types::GLenum = 0x8A2F;
+pub const MAX_UNIFORM_BLOCK_SIZE: types::GLenum = 0x8A30;
+pub const MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS: types::GLenum = 0x8A31;
+pub const MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS: types::GLenum = 0x8A33;
+pub const UNIFORM_BUFFER_OFFSET_ALIGNMENT: types::GLenum = 0x8A34;
+pub const ACTIVE_UNIFORM_BLOCKS: types::GLenum = 0x8A36;
+pub const UNIFORM_TYPE: types::GLenum = 0x8A37;
+pub const UNIFORM_SIZE: types::GLenum = 0x8A38;
+pub const UNIFORM_BLOCK_INDEX: types::GLenum = 0x8A3A;
+pub const UNIFORM_OFFSET: types::GLenum = 0x8A3B;
+pub const UNIFORM_ARRAY_STRIDE: types::GLenum = 0x8A3C;
+pub const UNIFORM_MATRIX_STRIDE: types::GLenum = 0x8A3D;
+pub const UNIFORM_IS_ROW_MAJOR: types::GLenum = 0x8A3E;
+pub const UNIFORM_BLOCK_BINDING: types::GLenum = 0x8A3F;
+pub const UNIFORM_BLOCK_DATA_SIZE: types::GLenum = 0x8A40;
+pub const UNIFORM_BLOCK_ACTIVE_UNIFORMS: types::GLenum = 0x8A42;
+pub const UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES: types::GLenum = 0x8A43;
+pub const UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER: types::GLenum = 0x8A44;
+pub const UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER: types::GLenum = 0x8A46;
+
+// Sync objects
+pub const OBJECT_TYPE: types::GLenum = 0x9112;
+pub const SYNC_CONDITION: types::GLenum = 0x9113;
+pub const SYNC_STATUS: types::GLenum = 0x9114;
+pub const SYNC_FLAGS: types::GLenum = 0x9115;
+pub const SYNC_FENCE: types::GLenum = 0x9116;
+pub const SYNC_GPU_COMMANDS_COMPLETE: types::GLenum = 0x9117;
+pub const UNSIGNALED: types::GLenum = 0x9118;
+pub const SIGNALED: types::GLenum = 0x9119;
+pub const ALREADY_SIGNALED: types::GLenum = 0x911A;
+pub const TIMEOUT_EXPIRED: types::GLenum = 0x911B;
+pub const CONDITION_SATISFIED: types::GLenum = 0x911C;
+pub const WAIT_FAILED: types::GLenum = 0x911D;
+pub const SYNC_FLUSH_COMMANDS_BIT: types::GLenum = 0x00000001;
+
+// Miscellaneous constants
+pub const COLOR: types::GLenum = 0x1800;
+pub const DEPTH: types::GLenum = 0x1801;
+pub const STENCIL: types::GLenum = 0x1802;
+pub const MIN: types::GLenum = 0x8007;
+pub const MAX: types::GLenum = 0x8008;
+pub const DEPTH_COMPONENT24: types::GLenum = 0x81A6;
+pub const STREAM_READ: types::GLenum = 0x88E1;
+pub const STREAM_COPY: types::GLenum = 0x88E2;
+pub const STATIC_READ: types::GLenum = 0x88E5;
+pub const STATIC_COPY: types::GLenum = 0x88E6;
+pub const DYNAMIC_READ: types::GLenum = 0x88E9;
+pub const DYNAMIC_COPY: types::GLenum = 0x88EA;
+pub const DEPTH_COMPONENT32F: types::GLenum = 0x8CAC;
+pub const DEPTH32F_STENCIL8: types::GLenum = 0x8CAD;
+pub const INVALID_INDEX: types::GLenum = 0xFFFFFFFF;
+pub const TIMEOUT_IGNORED: types::GLenum = !0;
+pub const MAX_CLIENT_WAIT_TIMEOUT_WEBGL: types::GLenum = 0x9247;

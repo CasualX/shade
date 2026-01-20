@@ -359,7 +359,178 @@ body {
 </div>
 
 <script type="module">
-  import { runShadeDemo } from './canvas.js';
+  import { createWasmAPI } from './shade.js';
+
+  function clampDevicePixelRatio(dpr) {
+    // Prevent extreme DPR from creating huge canvases.
+    return Math.max(1, Math.min(2, dpr || 1));
+  }
+
+  function createElementResizer(element, onResize) {
+    let lastW = 0;
+    let lastH = 0;
+    const ro = new ResizeObserver(() => {
+      const rect = element.getBoundingClientRect();
+      const dpr = clampDevicePixelRatio(window.devicePixelRatio);
+      const w = Math.max(1, Math.floor(rect.width * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      onResize(w, h);
+    });
+    ro.observe(element);
+    // Trigger once.
+    const rect = element.getBoundingClientRect();
+    const dpr = clampDevicePixelRatio(window.devicePixelRatio);
+    onResize(Math.max(1, Math.floor(rect.width * dpr)), Math.max(1, Math.floor(rect.height * dpr)));
+    return () => ro.disconnect();
+  }
+
+  async function runShadeDemo({ canvas, moduleName, resizeTo = null, onLoaded = null, onError = null }) {
+    if (!canvas) throw new Error('runShadeDemo: canvas is required');
+    if (!moduleName) throw new Error('runShadeDemo: moduleName is required');
+
+    const gl = canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 is not supported by your browser.');
+    gl.getExtension('OES_standard_derivatives');
+
+    let stopped = false;
+    let rafId = null;
+    let wasmInstance = null;
+    let ctx = null;
+    let updatesize = null;
+    const abort = new AbortController();
+
+    function stopAnimation() {
+      if (rafId != null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      stopAnimation();
+      try { abort.abort(); } catch (_) {}
+      try {
+        if (wasmInstance?.exports?.drop && ctx != null) {
+          wasmInstance.exports.drop(ctx);
+        }
+      } catch (_) {}
+      wasmInstance = null;
+      ctx = null;
+      updatesize = null;
+    }
+
+    const disconnectResize = createElementResizer(resizeTo || canvas, (w, h) => {
+      // Keep CSS size controlled by layout; set backing store in device pixels.
+      canvas.width = w;
+      canvas.height = h;
+      if (updatesize) updatesize(w, h);
+    });
+
+    function attachMouseControls() {
+      let lastX = 0, lastY = 0;
+      canvas.addEventListener('mousemove', (e) => {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (wasmInstance?.exports?.mousemove && ctx != null) {
+          wasmInstance.exports.mousemove(ctx, dx, dy);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('mousedown', (e) => {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (wasmInstance?.exports?.mousedown && ctx != null) {
+          wasmInstance.exports.mousedown(ctx, e.button);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('mouseup', (e) => {
+        if (wasmInstance?.exports?.mouseup && ctx != null) {
+          wasmInstance.exports.mouseup(ctx, e.button);
+        }
+      }, { signal: abort.signal });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault(), { signal: abort.signal });
+    }
+
+    async function loadWasm() {
+      const webgl = createWasmAPI(canvas, { colorSpace: 'srgb' });
+      const imports = {
+        webgl,
+        env: {
+          consoleLog: webgl.consoleLog,
+        }
+      };
+
+      const response = await fetch(moduleName);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch wasm: ${response.status} ${response.statusText}`);
+      }
+
+      const bytes = await response.arrayBuffer();
+      const { instance } = await WebAssembly.instantiate(bytes, imports);
+      wasmInstance = instance;
+      webgl.bindInstance(instance);
+
+      if (!wasmInstance.exports.new) {
+        throw new Error('WASM module missing required export: new');
+      }
+      if (!wasmInstance.exports.draw) {
+        throw new Error('WASM module missing required export: draw');
+      }
+
+      ctx = wasmInstance.exports.new();
+      updatesize = (width, height) => {
+        if (wasmInstance?.exports?.resize) {
+          wasmInstance.exports.resize(ctx, width, height);
+        }
+      };
+      // Force an initial resize call (ResizeObserver may have already run before updatesize existed).
+      updatesize(canvas.width, canvas.height);
+
+      attachMouseControls();
+    }
+
+    function frame() {
+      if (stopped) return;
+      try {
+        wasmInstance.exports.draw(ctx, performance.now() / 1000.0);
+      } catch (e) {
+        console.error('Draw error:', e);
+        stop();
+        if (onError) onError(e);
+        return;
+      }
+      rafId = requestAnimationFrame(frame);
+    }
+
+    try {
+      await loadWasm();
+      if (stopped) return { stop };
+      if (onLoaded) onLoaded();
+      rafId = requestAnimationFrame(frame);
+    } catch (e) {
+      console.error('WASM load error:', e);
+      stop();
+      disconnectResize();
+      if (onError) onError(e);
+      throw e;
+    }
+
+    return {
+      stop() {
+        stop();
+        disconnectResize();
+      }
+    };
+  }
 
   const DEMOS = [
     {

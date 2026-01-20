@@ -59,8 +59,7 @@ void main() {
 
 const BUNNY_SHADOW_FS: &str = r#"\
 #version 330 core
-void main() {
-}
+void main() {}
 "#;
 
 const BUNNY_VS: &str = r#"\
@@ -77,8 +76,7 @@ uniform mat4 u_transform;
 uniform mat4x3 u_model;
 uniform mat4 u_lightTransform;
 
-void main()
-{
+void main() {
 	v_fragPos = (u_model * vec4(a_pos, 1.0)).xyz;
 	v_normal = transpose(inverse(mat3(u_model))) * a_normal;
 	v_lightClip = u_lightTransform * vec4(a_pos, 1.0);

@@ -20,11 +20,11 @@ impl Context {
 			// Parse the font metadata
 			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../../font/font.json")).unwrap();
 			let font: shade::msdfgen::Font = font.into();
-	
+
 			// Load the texture
 			let texture = {
 				let file_png = include_bytes!("../../../font/font.png");
-				let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
+				let image = shade::image::ImageRGBA::load_memory_png(file_png).unwrap().map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
 				let props = shade::TextureProps {
 					mip_levels: 1,
 					usage: shade::TextureUsage::TEXTURE,
@@ -39,10 +39,10 @@ impl Context {
 
 			// Compile the shader
 			let shader = g.shader_create(None, shade::webgl::shaders::MTSDF_VS, shade::webgl::shaders::MTSDF_FS);
-	
+
 			d2::FontResource { font, texture, shader }
 		};
-	
+
 		let screen_size = Vec2::ZERO;
 		Context { webgl, screen_size, font }
 	}

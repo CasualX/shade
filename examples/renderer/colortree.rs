@@ -62,8 +62,7 @@ void main() {
 
 const SHADOW_FRAGMENT_SHADER: &str = r#"\
 #version 330 core
-void main() {
-}
+void main() {}
 "#;
 
 const VERTEX_SHADER: &str = r#"\

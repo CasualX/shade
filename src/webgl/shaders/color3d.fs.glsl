@@ -1,6 +1,6 @@
 // WebGL GLSL ES 1.00
 
-precision mediump float;
+precision highp float;
 
 varying vec4 v_color;
 

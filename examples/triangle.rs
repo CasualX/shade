@@ -41,8 +41,7 @@ out vec4 o_fragColor;
 
 in vec4 v_color;
 
-void main()
-{
+void main() {
 	float levels = 10.0;
 	vec3 qColor = floor(v_color.rgb * levels) / (levels - 1.0);
 	o_fragColor = vec4(qColor, v_color.a);
@@ -57,8 +56,7 @@ in vec4 aColor;
 
 out vec4 v_color;
 
-void main()
-{
+void main() {
 	v_color = aColor;
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }

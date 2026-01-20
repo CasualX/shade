@@ -75,8 +75,7 @@ uniform mat4x3 u_model;
 uniform mat4 u_viewProjMatrix;
 uniform mat4 u_lightTransform;
 
-void main()
-{
+void main() {
 	// Calculate world position of the vertex
 	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
 

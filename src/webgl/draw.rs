@@ -37,13 +37,21 @@ fn gl_blend(blend_mode: crate::BlendMode) {
 			dfactor: api::ONE,
 			equation: api::FUNC_ADD,
 		},
-		crate::BlendMode::Lighten => unimplemented!("Lighten blend mode is not supported in WebGL 1.0"),
+		crate::BlendMode::Lighten => GlBlend {
+			sfactor: api::ONE,
+			dfactor: api::ONE,
+			equation: api::MAX,
+		},
 		crate::BlendMode::Screen => GlBlend {
 			sfactor: api::ONE,
 			dfactor: api::ONE_MINUS_SRC_COLOR,
 			equation: api::FUNC_ADD,
 		},
-		crate::BlendMode::Darken => unimplemented!("Darken blend mode is not supported in WebGL 1.0"),
+		crate::BlendMode::Darken => GlBlend {
+			sfactor: api::ONE,
+			dfactor: api::ONE,
+			equation: api::MIN,
+		},
 		crate::BlendMode::Multiply => GlBlend {
 			sfactor: api::DST_COLOR,
 			dfactor: api::ZERO,
@@ -128,6 +136,12 @@ fn gl_attributes(shader: &WebGLProgram, data: &[crate::DrawVertexBuffer], map: &
 			};
 			let normalized = if attr.format.normalized() { api::TRUE } else { api::FALSE };
 			unsafe { api::vertexAttribPointer(attrib.location, size, type_, normalized, layout.size as GLsizei, attr.offset as GLintptr) };
+
+			let divisor = match vb.divisor {
+				crate::VertexDivisor::PerVertex => 0,
+				crate::VertexDivisor::PerInstance => 1,
+			};
+			unsafe { api::vertexAttribDivisor(attrib.location, divisor) };
 		}
 	}
 	unsafe { api::bindBuffer(api::ARRAY_BUFFER, 0) };
@@ -156,54 +170,63 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn float(&mut self, name: &str, data: &[f32]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT, "Uniform {name:?} expected `float` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform1fv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
 	fn vec2(&mut self, name: &str, data: &[cvmath::Vec2<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC2, "Uniform {name:?} expected `vec2` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform2fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 2]) };
 		}
 	}
 	fn vec3(&mut self, name: &str, data: &[cvmath::Vec3<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC3, "Uniform {name:?} expected `vec3` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform3fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 3]) };
 		}
 	}
 	fn vec4(&mut self, name: &str, data: &[cvmath::Vec4<f32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_VEC4, "Uniform {name:?} expected `vec4` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform4fv(u.location, data.len() as i32, data.as_ptr() as *const [f32; 4]) };
 		}
 	}
 	fn int(&mut self, name: &str, data: &[i32]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT, "Uniform {name:?} expected `int` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform1iv(u.location, data.len() as i32, data.as_ptr()) };
 		}
 	}
 	fn ivec2(&mut self, name: &str, data: &[cvmath::Vec2<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC2, "Uniform {name:?} expected `ivec2` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform2iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 2]) };
 		}
 	}
 	fn ivec3(&mut self, name: &str, data: &[cvmath::Vec3<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC3, "Uniform {name:?} expected `ivec3` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform3iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 3]) };
 		}
 	}
 	fn ivec4(&mut self, name: &str, data: &[cvmath::Vec4<i32>]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::INT_VEC4, "Uniform {name:?} expected `ivec4` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			unsafe { api::uniform4iv(u.location, data.len() as i32, data.as_ptr() as *const [i32; 4]) };
 		}
 	}
 	fn mat2(&mut self, name: &str, data: &[cvmath::Mat2f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT2, "Uniform {name:?} expected `mat2` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
 				unsafe { api::uniformMatrix2fv(u.location + i as u32, 1, false, &transposed) };
@@ -213,6 +236,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn mat3(&mut self, name: &str, data: &[cvmath::Mat3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
 				unsafe { api::uniformMatrix3fv(u.location + i as u32, 1, false, &transposed) };
@@ -222,6 +246,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn mat4(&mut self, name: &str, data: &[cvmath::Mat4f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.into_column_major();
 				unsafe { api::uniformMatrix4fv(u.location + i as u32, 1, false, &transposed) };
@@ -231,6 +256,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.mat3().into_column_major();
 				unsafe { api::uniformMatrix3fv(u.location + i as u32, 1, false, &transposed) };
@@ -240,6 +266,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, api::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
+			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
 				let transposed = data.mat4().into_column_major();
 				unsafe { api::uniformMatrix4fv(u.location + i as u32, 1, false, &transposed) };
@@ -248,7 +275,16 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
-			debug_assert_eq!(u.ty, api::SAMPLER_2D, "Uniform {name:?} expected `sampler2D` type in shader");
+			debug_assert_eq!(u.size as usize, textures.len(), "Uniform {name:?} expected array size {} but got {}", u.size, textures.len());
+			if u.ty == api::SAMPLER_2D {
+				// OK
+			}
+			else if u.ty == api::SAMPLER_2D_SHADOW {
+				// OK
+			}
+			else {
+				panic!("Uniform {name:?} has incompatible type for sampler2d: {:X?}", u.ty);
+			}
 
 			const MAX_TEXTURES: usize = 32;
 
@@ -272,6 +308,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 			// Bind textures to texture units
 			for (i, &id) in textures.iter().enumerate() {
 				let texture = self.textures.get2d(id);
+				assert!(texture.info.props.usage.has(crate::TextureUsage::SAMPLED), "Texture was not created with SAMPLED usage");
 				let texture_unit = (base_unit + i as i32) as GLenum;
 				unsafe {
 					api::activeTexture(api::TEXTURE0 + texture_unit);
@@ -282,19 +319,85 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 }
 
+fn gl_immediate_fbo(this: &mut WebGLGraphics, color: &[crate::Texture2D], levels: Option<&[u8]>, depth: crate::Texture2D) {
+	// Create a temporary framebuffer
+	let fbo = unsafe { api::createFramebuffer() };
+	unsafe { api::bindFramebuffer(api::FRAMEBUFFER, fbo) };
+
+	// Validate color attachments
+	assert!(color.len() <= 16, "Immediate mode framebuffer cannot have more than 16 color attachments");
+	let levels = match levels {
+		Some(levels) => {
+			assert_eq!(levels.len(), color.len(), "Immediate mode framebuffer mip levels length does not match color attachments length");
+			levels
+		},
+		None => {
+			static DEFAULT_MIPS: [u8; 16] = [0; 16];
+			&DEFAULT_MIPS[..color.len()]
+		}
+	};
+
+	// Attach color textures
+	let mut draw_buffers: [GLenum; 16] = [api::NONE; 16];
+	for (i, &tex_id) in color.iter().enumerate() {
+		let texture = this.textures.get2d(tex_id);
+		assert!(texture.info.props.usage.has(crate::TextureUsage::COLOR_TARGET), "Texture was not created with COLOR_TARGET usage");
+		unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::COLOR_ATTACHMENT0 + i as u32, api::TEXTURE_2D, texture.texture, levels[i] as GLint) };
+		draw_buffers[i] = api::COLOR_ATTACHMENT0 + i as u32;
+	}
+
+	// Specify which color attachments to draw to
+	if color.is_empty() {
+		let draw_none = [api::NONE as GLenum];
+		unsafe { api::drawBuffers(draw_none.len() as i32, draw_none.as_ptr()) };
+		unsafe { api::readBuffer(api::NONE) };
+	}
+	else {
+		unsafe { api::drawBuffers(color.len() as i32, draw_buffers.as_ptr()) };
+		unsafe { api::readBuffer(api::COLOR_ATTACHMENT0) };
+	}
+
+	// Attach depth texture if valid
+	if depth != crate::Texture2D::INVALID {
+		let depth_tex = this.textures.get2d(depth);
+		assert!(depth_tex.info.props.usage.has(crate::TextureUsage::DEPTH_STENCIL_TARGET), "Texture was not created with DEPTH_STENCIL_TARGET usage");
+		let attachment = if depth_tex.info.format == crate::TextureFormat::Depth24Stencil8 {
+			api::DEPTH_STENCIL_ATTACHMENT
+		}
+		else {
+			api::DEPTH_ATTACHMENT
+		};
+		unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, attachment, api::TEXTURE_2D, depth_tex.texture, 0) };
+	}
+
+	// Check framebuffer completeness
+	#[cfg(debug_assertions)] {
+		let status = unsafe { api::checkFramebufferStatus(api::FRAMEBUFFER) };
+		if status != api::FRAMEBUFFER_COMPLETE {
+			panic!("Immediate framebuffer is incomplete: status = 0x{:X}", status);
+		}
+	}
+
+	this.immediate_fbo = Some(fbo);
+}
+
 pub fn begin(this: &mut WebGLGraphics, args: &crate::BeginArgs) {
 	if this.drawing {
 		panic!("{}: draw call already in progress", name_of(&begin));
 	}
 
+	this.draw_begin = unsafe { api::now() };
+
 	this.drawing = true;
 
 	match args {
 		&crate::BeginArgs::BackBuffer { ref viewport } => {
+			unsafe { api::bindFramebuffer(api::FRAMEBUFFER, 0) };
 			gl_viewport(viewport);
 		}
-		&crate::BeginArgs::Immediate { viewport: _, color: _, levels: _, depth: _ } => {
-			unimplemented!("GlGraphics::begin with Immediate is not implemented yet");
+		&crate::BeginArgs::Immediate { ref viewport, color, levels, depth } => {
+			gl_immediate_fbo(this, color, levels, depth);
+			gl_viewport(viewport);
 		}
 	}
 }
@@ -368,7 +471,7 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 		crate::PrimType::Triangles => api::TRIANGLES,
 	};
 	if args.instances >= 0 {
-		unimplemented!("Instanced rendering is not supported in WebGL 1.0");
+		unsafe { api::drawArraysInstanced(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32, args.instances) };
 	}
 	else {
 		unsafe { api::drawArrays(mode, args.vertex_start as i32, (args.vertex_end - args.vertex_start) as i32) };
@@ -424,7 +527,7 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 	};
 	let offset = args.index_start * ib.ty.size() as u32;
 	if args.instances >= 0 {
-		unimplemented!("Instanced rendering is not supported in WebGL 1.0");
+		unsafe { api::drawElementsInstanced(mode, count as i32, type_, offset as api::types::GLintptr, args.instances) };
 	}
 	else {
 		unsafe { api::drawElements(mode, count as i32, type_, offset as api::types::GLintptr) };
@@ -436,5 +539,16 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 }
 
 pub fn end(this: &mut WebGLGraphics) {
+	let end_ms = unsafe { api::now() };
+	let elapsed_ms = (end_ms - this.draw_begin).max(0.0);
+	this.metrics.draw_duration += time::Duration::from_secs_f64(elapsed_ms / 1000.0);
 	this.drawing = false;
+
+	// Clean up immediate framebuffer if one was created
+	if let Some(fbo) = this.immediate_fbo.take() {
+		unsafe { api::deleteFramebuffer(fbo) };
+	}
+
+	// Unbind framebuffer to return to default state
+	unsafe { api::bindFramebuffer(api::FRAMEBUFFER, 0) };
 }

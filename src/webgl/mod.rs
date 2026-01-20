@@ -1,12 +1,13 @@
 //! WebGL graphics backend.
 
-use std::{fmt, mem, slice};
+use std::{fmt, mem, slice, time};
 use std::any::type_name_of_val as name_of;
 use std::collections::HashMap;
 
 mod api;
 mod draw;
 mod shader;
+mod texture2d;
 
 pub mod shaders;
 
@@ -23,7 +24,7 @@ pub fn log(s: impl fmt::Display) {
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
 	(match wrap {
 		crate::TextureWrap::Edge => api::CLAMP_TO_EDGE,
-		crate::TextureWrap::Border => unimplemented!("ClampBorder is not supported in WebGL"),
+		crate::TextureWrap::Border => api::CLAMP_TO_EDGE, // CLAMP_TO_BORDER not supported in WebGL 2.0
 		crate::TextureWrap::Repeat => api::REPEAT,
 		crate::TextureWrap::Mirror => api::MIRRORED_REPEAT,
 	}) as GLint
@@ -48,6 +49,19 @@ fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
 			crate::TextureFilter::Linear => api::LINEAR,
 		}
 	}) as GLint
+}
+
+fn gl_depth_func(v: crate::Compare) -> GLenum {
+	match v {
+		crate::Compare::Never => api::NEVER,
+		crate::Compare::Less => api::LESS,
+		crate::Compare::Equal => api::EQUAL,
+		crate::Compare::LessEqual => api::LEQUAL,
+		crate::Compare::Greater => api::GREATER,
+		crate::Compare::NotEqual => api::NOTEQUAL,
+		crate::Compare::GreaterEqual => api::GEQUAL,
+		crate::Compare::Always => api::ALWAYS,
+	}
 }
 
 struct WebGLVertexBuffer {
@@ -121,7 +135,10 @@ pub struct WebGLGraphics {
 	shaders: ResourceMap<WebGLProgram>,
 	textures: WebGLTextures,
 	drawing: bool,
+	draw_begin: f64,
 	metrics: crate::DrawMetrics,
+	/// Temporary framebuffer for immediate render passes, deleted at end().
+	immediate_fbo: Option<GLuint>,
 }
 
 impl WebGLGraphics {
@@ -165,7 +182,9 @@ impl WebGLGraphics {
 				},
 			},
 			drawing: false,
+			draw_begin: 0.0,
 			metrics: Default::default(),
+			immediate_fbo: None,
 		}
 	}
 	/// Returns the graphics interface.
@@ -285,96 +304,34 @@ impl crate::IGraphics for WebGLGraphics {
 	}
 
 	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
-		let texture = unsafe { api::createTexture() };
-		unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)) };
-		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
-		let id = self.textures.textures2d.insert(name, WebGLTexture2D { texture, info: info.clone() });
-		return id;
+		texture2d::create(self, name, info)
 	}
 
 	fn texture2d_find(&self, name: &str) -> crate::Texture2D {
-		self.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
+		texture2d::find(self, name)
 	}
 
 	fn texture2d_generate_mipmap(&mut self, id: crate::Texture2D) {
-		let Some(texture) = self.textures.textures2d.get(id) else { return };
-		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
-		unsafe { api::generateMipmap(api::TEXTURE_2D) };
-		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
+		texture2d::generate_mipmap(self, id)
 	}
 
 	fn texture2d_update(&mut self, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-		let Some(texture) = self.textures.textures2d.get_mut(id) else {
-			return self.texture2d_create(None, info);
-		};
-
-		let realloc = texture.info.width != info.width ||
-			texture.info.height != info.height ||
-			texture.info.format != info.format ||
-			texture.info.props.mip_levels != info.props.mip_levels;
-
-		// WebGL 1 has no TexStorage2D. To "reallocate" we recreate the underlying
-		// texture object and (re)define mip levels with texImage2D.
-		if realloc {
-			unsafe { api::deleteTexture(texture.texture) };
-			texture.texture = unsafe { api::createTexture() };
-		}
-
-		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_T, gl_texture_wrap(info.props.wrap_v)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MAG_FILTER, gl_texture_filter_mag(info.props.filter_mag)) };
-		unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_MIN_FILTER, gl_texture_filter_min(&info.props)) };
-
-		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
-		texture.info = *info;
-		return id;
+		texture2d::update(self, id, info)
 	}
 
 	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
-		let Some(texture) = self.textures.textures2d.get(id) else { return };
-		assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
-		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, data.len());
-		unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
-		unsafe { api::pixelStorei(api::UNPACK_ALIGNMENT, 1) }; // Set unpack alignment to 1 byte
-		let WebGLTextureFormat { internalformat, format, type_ } = WebGLTextureFormat::get(texture.info.format);
-		unsafe { api::texImage2D(api::TEXTURE_2D, level as GLint, internalformat, texture.info.width, texture.info.height, 0, format, type_, data.as_ptr(), data.len()) };
-		unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
+		texture2d::write(self, id, level, data)
 	}
 
-	fn texture2d_read_into(&mut self, _id: crate::Texture2D, _level: u8, _data: &mut [u8]) {
-		unimplemented!()
+	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
+		texture2d::read_into(self, id, level, data)
 	}
 
 	fn texture2d_get_info(&self, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-		self.textures.textures2d.get(id).map(|texture| &texture.info)
+		texture2d::get_info(self, id)
 	}
 
 	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) {
-		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(texture) = self.textures.textures2d.remove(id) else { return };
-		unsafe { api::deleteTexture(texture.texture) };
-	}
-}
-
-struct WebGLTextureFormat {
-	internalformat: GLenum,
-	format: GLenum,
-	type_: GLenum,
-}
-
-impl WebGLTextureFormat {
-	fn get(format: crate::TextureFormat) -> WebGLTextureFormat {
-		let (internalformat, format, type_) = match format {
-			crate::TextureFormat::RGBA8 => (api::RGBA, api::RGBA, api::UNSIGNED_BYTE),
-			crate::TextureFormat::RGB8 => (api::RGB, api::RGB, api::UNSIGNED_BYTE),
-			crate::TextureFormat::R8 => (api::LUMINANCE, api::LUMINANCE, api::UNSIGNED_BYTE),
-			_ => unimplemented!("Texture format {:?} is not supported in WebGL 1", format),
-		};
-		WebGLTextureFormat { internalformat, format, type_ }
+		texture2d::free(self, id, mode)
 	}
 }

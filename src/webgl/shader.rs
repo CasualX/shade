@@ -67,7 +67,7 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, vertex_source: &str,
 		assert!(location >= 0, "Invalid uniform location: {}", name);
 
 		let location = location as GLuint;
-		let needs_texture_unit = matches!(ty, api::SAMPLER_2D | api::SAMPLER_CUBE);
+		let needs_texture_unit = matches!(ty, api::SAMPLER_2D | api::SAMPLER_2D_SHADOW | api::SAMPLER_CUBE);
 		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
 		uniforms.insert(name.into(), WebGLActiveUniform { location, size, ty, texture_unit });
 	}

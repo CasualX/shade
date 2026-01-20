@@ -1,11 +1,11 @@
-// WebGL GLSL ES 1.00
-#extension GL_OES_standard_derivatives : enable
+#version 300 es
+precision highp float;
 
-precision mediump float;
+in vec2 v_uv;
+in vec4 v_color;
+in vec4 v_outline;
 
-varying vec2 v_uv;
-varying vec4 v_color;
-varying vec4 v_outline;
+out vec4 o_fragColor;
 
 uniform sampler2D u_texture;
 uniform vec2 u_unitRange;
@@ -25,7 +25,7 @@ float screen_px_range() {
 }
 
 void main() {
-	vec4 distances = texture2D(u_texture, v_uv);
+	vec4 distances = texture(u_texture, v_uv);
 	float d_sdf = median(distances.rgb);
 
 	float width = screen_px_range();
@@ -41,5 +41,5 @@ void main() {
 	outer = clamp(outer, 0.0, 1.0);
 
 	vec4 color = v_color * inner + v_outline * (outer - inner);
-	gl_FragColor = color;
+	o_fragColor = color;
 }

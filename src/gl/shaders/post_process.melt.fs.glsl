@@ -8,8 +8,7 @@ uniform sampler2D u_scene;
 uniform sampler2D u_delays; // 1D delay texture stored as 1×N or N×1
 uniform float u_time;
 
-void main()
-{
+void main() {
 	// Sample the precomputed delay from the texture
 	float delay = texture(u_delays, vec2(v_uv.x, 0.5)).r;
 

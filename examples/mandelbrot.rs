@@ -43,8 +43,7 @@ float mandelbrot(vec2 c)
 	// return fract(normalized);
 }
 
-void main()
-{
+void main() {
 	float s = mandelbrot(v_pos);
 	o_fragColor = texture(u_gradient, vec2(s, 0.0));
 }
@@ -59,8 +58,7 @@ out vec2 v_pos;
 
 uniform mat3x2 u_transform;
 
-void main()
-{
+void main() {
 	v_pos = u_transform * vec3(a_pos, 1.0);
 	gl_Position = vec4(a_pos, 0.0, 1.0);
 }
