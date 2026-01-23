@@ -188,7 +188,7 @@ impl GlWindow {
 
 struct SceneDemo {
 	texture: shade::Texture2D,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	epoch: time::Instant,
 }
 
@@ -205,10 +205,10 @@ impl SceneDemo {
 				wrap_v: shade::TextureWrap::Edge,
 				..Default::default()
 			};
-			g.image(Some("scene tiles"), &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 		let epoch = time::Instant::now();
 
 		SceneDemo { texture, shader, epoch }

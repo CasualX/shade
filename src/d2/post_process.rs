@@ -8,7 +8,7 @@ pub struct PostProcessQuad {
 impl PostProcessQuad {
 	/// Creates a new instance.
 	pub fn create(g: &mut Graphics) -> PostProcessQuad {
-		let vertices = g.vertex_buffer(None, &VERTICES, BufferUsage::Static);
+		let vertices = g.vertex_buffer(&VERTICES, BufferUsage::Static);
 		PostProcessQuad { vertices }
 	}
 
@@ -28,7 +28,7 @@ impl PostProcessQuad {
 	///
 	/// The `uniforms` parameter allows you to pass additional uniform data to the shader.
 	/// This can include textures, colors, or any other data your shader requires.
-	pub fn draw(&self, g: &mut Graphics, shader: Shader, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
+	pub fn draw(&self, g: &mut Graphics, shader: ShaderProgram, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
 		g.draw(&DrawArgs {
 			scissor: None,
 			blend_mode,

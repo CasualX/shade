@@ -103,10 +103,10 @@ impl TextDemo {
 			let texture = {
 				let image = shade::image::DecodedImage::load_file_png("examples/font/font.png").unwrap().to_rgba()
 					.map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
-				g.image(Some("font"), &image)
+				g.image(&image)
 			};
 
-			let shader = g.shader_create(None, shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS);
+			let shader = g.shader_compile(shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS);
 
 			d2::FontResource { font, texture, shader }
 		};

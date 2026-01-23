@@ -73,7 +73,7 @@ void main() {
 // OldTree renderable
 
 struct OldTreeMaterial {
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for OldTreeMaterial {
@@ -101,7 +101,7 @@ struct OldTreeRenderable {
 impl OldTreeRenderable {
 	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
 		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
-		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
+		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let texture = {
 			let file_png = include_bytes!("../../../oldtree/texture.png");
@@ -115,11 +115,11 @@ impl OldTreeRenderable {
 				wrap_v: shade::TextureWrap::Edge,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		// Create the shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let material = OldTreeMaterial { shader, texture };
 		let instance = OldTreeInstance {

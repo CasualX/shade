@@ -104,7 +104,7 @@ impl shade::UniformVisitor for Uniform {
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: Vec2i,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 	distortion: shade::Texture2D,
 	vb: shade::VertexBuffer,
@@ -119,7 +119,7 @@ impl Context {
 		let g = webgl.as_graphics();
 
 		// Create the triangle shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let texture = {
 			let file_png = include_bytes!("../../../zeldawater/water.png");
@@ -133,7 +133,7 @@ impl Context {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		let distortion = {
@@ -148,18 +148,18 @@ impl Context {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		// Create the full screen quad vertex buffer
-		let vb = g.vertex_buffer(None, &[
+		let vb = g.vertex_buffer(&[
 			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
 			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
 			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
 			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
 		], shade::BufferUsage::Static);
 
-		let ib = g.index_buffer(None, &[
+		let ib = g.index_buffer(&[
 			0u16, 1, 2,
 			1, 3, 2,
 		], 4, shade::BufferUsage::Static);

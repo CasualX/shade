@@ -8,7 +8,7 @@ pub struct FrustumInstance {
 
 #[derive(Debug)]
 pub struct FrustumModel {
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 	pub vertices: VertexBuffer,
 	pub vertices_len: u32,
 	pub indices: IndexBuffer,
@@ -16,7 +16,7 @@ pub struct FrustumModel {
 }
 
 impl FrustumModel {
-	pub fn create(g: &mut Graphics, shader: Shader, clip: Clip) -> FrustumModel {
+	pub fn create(g: &mut Graphics, shader: ShaderProgram, clip: Clip) -> FrustumModel {
 		// There's no BaseVertex support in WebGL!
 		// To keep compatibility the vertices are selected when the frustum is created
 		let vertices = match clip {
@@ -24,9 +24,9 @@ impl FrustumModel {
 			Clip::ZO => &VERTICES[8..],
 		};
 		let vertices_len = vertices.len() as u32;
-		let vertices = g.vertex_buffer(None, vertices, BufferUsage::Static);
+		let vertices = g.vertex_buffer(vertices, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, vertices_len as u8, BufferUsage::Static);
+		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
 
 		FrustumModel { shader, vertices, vertices_len, indices, indices_len }
 	}

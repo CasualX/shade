@@ -29,7 +29,7 @@ impl WebGLTextureFormat {
 	}
 }
 
-pub fn create(this: &mut WebGLGraphics, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
+pub fn create(this: &mut WebGLGraphics, info: &crate::Texture2DInfo) -> crate::Texture2D {
 	let texture = unsafe { api::createTexture() };
 	unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
 	unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
@@ -46,28 +46,26 @@ pub fn create(this: &mut WebGLGraphics, name: Option<&str>, info: &crate::Textur
 	let WebGLTextureFormat { internalformat, .. } = WebGLTextureFormat::get(info.format);
 	unsafe { api::texStorage2D(api::TEXTURE_2D, info.props.mip_levels as GLsizei, internalformat, info.width, info.height) };
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
-	let id = this.textures.textures2d.insert(name, WebGLTexture2D { texture, info: *info });
-	return id;
-}
-
-pub fn find(this: &WebGLGraphics, name: &str) -> crate::Texture2D {
-	this.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
+	return this.objects.insert(WebGLTexture2D { texture, info: *info });
 }
 
 pub fn get_info(this: &WebGLGraphics, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-	this.textures.textures2d.get(id).map(|texture| &texture.info)
+	this.objects.get_texture2d(id).map(|texture| &texture.info)
 }
 
 pub fn generate_mipmap(this: &mut WebGLGraphics, id: crate::Texture2D) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
+	let Some(texture) = this.objects.get_texture2d(id) else { return };
 	unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 	unsafe { api::generateMipmap(api::TEXTURE_2D) };
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 }
 
 pub fn update(this: &mut WebGLGraphics, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-	let Some(texture) = this.textures.textures2d.get_mut(id) else {
-		return create(this, None, info);
+	if id == crate::Texture2D::INVALID {
+		return create(this, info);
+	}
+	let Some(texture) = this.objects.get_texture2d_mut(id) else {
+		return crate::Texture2D::INVALID;
 	};
 
 	// Short-circuit if no changes.
@@ -110,7 +108,7 @@ pub fn update(this: &mut WebGLGraphics, id: crate::Texture2D, info: &crate::Text
 }
 
 pub fn write(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &[u8]) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
+	let Some(texture) = this.objects.get_texture2d(id) else { return };
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 	this.metrics.bytes_uploaded = usize::wrapping_add(this.metrics.bytes_uploaded, data.len());
@@ -124,7 +122,7 @@ pub fn write(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &[
 }
 
 pub fn read_into(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &mut [u8]) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
+	let Some(texture) = this.objects.get_texture2d(id) else { return };
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 	this.metrics.bytes_downloaded = usize::wrapping_add(this.metrics.bytes_downloaded, data.len());
@@ -168,8 +166,6 @@ pub fn read_into(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data
 	unsafe { api::deleteFramebuffer(fbo) };
 }
 
-pub fn free(this: &mut WebGLGraphics, id: crate::Texture2D, mode: crate::FreeMode) {
-	assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-	let Some(texture) = this.textures.textures2d.remove(id) else { return };
+pub fn release(texture: &WebGLTexture2D) {
 	unsafe { api::deleteTexture(texture.texture) };
 }

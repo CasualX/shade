@@ -1,10 +1,6 @@
 use super::*;
 
-pub fn find(this: &GlGraphics, name: &str) -> crate::Shader {
-	this.shaders.find_id(name).unwrap_or(crate::Shader::INVALID)
-}
-
-pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> crate::Shader {
+pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
 	let mut success = true;
 	let mut status = 0;
 
@@ -37,7 +33,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 	if !success {
 		gl_check!(gl::DeleteShader(vertex_shader));
 		gl_check!(gl::DeleteShader(fragment_shader));
-		return crate::Shader::INVALID;
+		return crate::ShaderProgram::INVALID;
 	}
 
 	let program = gl_check!(gl::CreateProgram());
@@ -56,7 +52,7 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		gl_check!(gl::GetProgramInfoLog(program, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		println!("# Program link log:\n{}", String::from_utf8_lossy(&log));
 		gl_check!(gl::DeleteProgram(program));
-		return crate::Shader::INVALID;
+		return crate::ShaderProgram::INVALID;
 	}
 
 	let mut nattribs = 0;
@@ -103,10 +99,9 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, vertex_source: &str, fr
 		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 
-	this.shaders.insert(name, GlShader { program, attribs, uniforms })
+	this.objects.insert(GlShaderProgram { program, attribs, uniforms })
 }
 
-pub fn delete(this: &mut GlGraphics, id: crate::Shader) {
-	let Some(shader) = this.shaders.remove(id) else { return };
+pub fn release(shader: &GlShaderProgram) {
 	gl_check!(gl::DeleteProgram(shader.program));
 }

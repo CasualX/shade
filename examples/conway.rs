@@ -159,8 +159,8 @@ impl GlWindow {
 
 struct ConwayDemo {
 	pp: shade::d2::PostProcessQuad,
-	conway_shader: shade::Shader,
-	display_shader: shade::Shader,
+	conway_shader: shade::ShaderProgram,
+	display_shader: shade::ShaderProgram,
 	field_size: Vec2i,
 	ping: usize,
 	state: [shade::Texture2D; 2],
@@ -169,8 +169,8 @@ struct ConwayDemo {
 impl ConwayDemo {
 	fn new(g: &mut shade::Graphics) -> ConwayDemo {
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let conway_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
-		let display_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
+		let conway_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
+		let display_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
 
 		let field_size = Vec2::new(FIELD_WIDTH.max(1), FIELD_HEIGHT.max(1));
 		let seed = seed_data(field_size.x, field_size.y);
@@ -189,8 +189,8 @@ impl ConwayDemo {
 			},
 		};
 
-		let state0 = g.texture2d(Some("conway_state0"), &info, &seed);
-		let state1 = g.texture2d_create(Some("conway_state1"), &info);
+		let state0 = g.texture2d(&info, &seed);
+		let state1 = g.texture2d_create(&info);
 
 		ConwayDemo {
 			pp,

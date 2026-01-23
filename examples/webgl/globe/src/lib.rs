@@ -88,7 +88,7 @@ void main() {
 // Globe renderable
 
 struct GlobeMaterial {
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for GlobeMaterial {
@@ -117,11 +117,11 @@ impl GlobeRenderable {
 	fn create(g: &mut shade::Graphics) -> GlobeRenderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 
-		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
+		let shader = g.shader_compile(SPHERE_VS, SPHERE_FS);
 		let texture = {
 			let file_jpg = include_bytes!("../../../textures/2k_earth_daymap.jpg");
 			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap();
-			g.image(None, &image)
+			g.image(&image)
 		};
 		let material = GlobeMaterial { shader, texture };
 

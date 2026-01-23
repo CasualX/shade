@@ -162,8 +162,8 @@ void main() {
 "#;
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 	diffuse: shade::Texture2D,
 	normal_map: shade::Texture2D,
 	height_map: shade::Texture2D,
@@ -205,7 +205,7 @@ impl Renderable {
 		let indices = [0, 1, 2, 0, 2, 3];
 		let vertices = indices.map(|i| vertices[i]);
 
-		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
+		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
 
 		let props = shade::TextureProps {
 			mip_levels: 8,
@@ -219,21 +219,21 @@ impl Renderable {
 
 		let diffuse = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		let normal_map = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.normal.png").unwrap();
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		let height_map = {
 			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.height.png").unwrap();
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_create(None, VERTEX_SHADER, PARALLAX_SHADER);
-		let shadow_shader = g.shader_create(None, VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, PARALLAX_SHADER);
+		let shadow_shader = g.shader_compile(VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
 		let material = Material {
 			shader,
 			shadow_shader,

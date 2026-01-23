@@ -11,7 +11,7 @@ pub struct PipelineState {
 	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 	pub mask: DrawMask,
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 	pub uniform_index: u32,
 }
 
@@ -78,9 +78,9 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 		}
 	}
 
-	pub fn free(self, g: &mut Graphics) {
-		g.index_buffer_free(self.indices, FreeMode::Delete);
-		g.vertex_buffer_free(self.vertices, FreeMode::Delete);
+	pub fn release(self, g: &mut Graphics) {
+		g.release(self.indices);
+		g.release(self.vertices);
 	}
 }
 
@@ -214,7 +214,7 @@ pub struct DrawBuilder<V, U> {
 	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 	pub uniform: U,
 }
 
@@ -234,7 +234,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			depth_test: None,
 			cull_mode: None,
 
-			shader: Shader::INVALID,
+			shader: ShaderProgram::INVALID,
 			uniform: Default::default(),
 		}
 	}
@@ -253,14 +253,14 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		self.depth_test = None;
 		self.cull_mode = None;
 
-		self.shader = Shader::INVALID;
+		self.shader = ShaderProgram::INVALID;
 		self.uniform = Default::default();
 	}
 
 	/// Commit the DrawBuilder to a DrawBuffer.
 	pub fn commit(self, g: &mut Graphics, usage: BufferUsage) -> DrawBuffer<U> {
-		let vertices = g.vertex_buffer(None, &self.vertices, usage);
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, usage);
+		let vertices = g.vertex_buffer(&self.vertices, usage);
+		let indices = g.index_buffer(&self.indices, self.vertices.len() as IndexT, usage);
 
 		DrawBuffer {
 			vertices,
@@ -272,8 +272,8 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 
 	/// Draws the buffer.
 	pub fn draw(&self, g: &mut Graphics) {
-		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Stream);
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as IndexT, BufferUsage::Stream);
+		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Stream);
+		let indices = g.index_buffer(&self.indices, self.vertices.len() as IndexT, BufferUsage::Stream);
 
 		DrawBufferRef {
 			vertices,
@@ -282,8 +282,8 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			commands: &self.commands,
 		}.draw(g);
 
-		g.index_buffer_free(indices, FreeMode::Delete);
-		g.vertex_buffer_free(vertices, FreeMode::Delete);
+		g.release(indices);
+		g.release(vertices);
 	}
 
 	/// Checks if the uniforms have changed since last time.

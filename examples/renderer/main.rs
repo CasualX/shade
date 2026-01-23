@@ -63,8 +63,7 @@ struct RendererDemo {
 	oldtree: oldtree::Renderable,
 	parallax: parallax::Renderable,
 	globe: globe::Renderable,
-
-	color3d_shader: shade::Shader,
+	color3d_shader: shade::ShaderProgram,
 }
 impl RendererDemo {
 	fn create(g: &mut shade::Graphics) -> RendererDemo {
@@ -79,7 +78,7 @@ impl RendererDemo {
 		let shadow_map = shade::Texture2D::INVALID;
 
 		let axes = {
-			let shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+			let shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 			shade::d3::axes::AxesModel::create(g, shader)
 		};
 
@@ -89,8 +88,7 @@ impl RendererDemo {
 		let oldtree = oldtree::Renderable::create(g);
 		let parallax = parallax::Renderable::create(g);
 		let globe = globe::Renderable::create(g);
-
-		let color3d_shader = g.shader_create(None, shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+		let color3d_shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 
 		RendererDemo { epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe, color3d_shader }
 	}

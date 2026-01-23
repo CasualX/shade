@@ -34,11 +34,11 @@ impl Context {
 					wrap_v: shade::TextureWrap::Edge,
 					..Default::default()
 				};
-				g.image(Some("font"), &(&image, &props))
+				g.image(&(&image, &props))
 			};
 
 			// Compile the shader
-			let shader = g.shader_create(None, shade::webgl::shaders::MTSDF_VS, shade::webgl::shaders::MTSDF_FS);
+			let shader = g.shader_compile(shade::webgl::shaders::MTSDF_VS, shade::webgl::shaders::MTSDF_FS);
 
 			d2::FontResource { font, texture, shader }
 		};

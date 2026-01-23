@@ -92,8 +92,8 @@ void main() {
 "#;
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for Material {
@@ -119,10 +119,10 @@ pub struct Renderable {
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
 		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../oldtree/vertices.bin");
-		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
+		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-		let shadow_shader = g.shader_create(None, VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let shadow_shader = g.shader_compile(VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/oldtree/texture.png").unwrap();
 			let props = shade::TextureProps {
@@ -134,7 +134,7 @@ impl Renderable {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 		let material = Material { shader, shadow_shader, texture };
 

@@ -101,7 +101,7 @@ pub struct DrawArgs<'a> {
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 	/// Uniforms.
 	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Vertex buffers.
@@ -131,7 +131,7 @@ pub struct DrawIndexedArgs<'a> {
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 	/// Uniforms.
 	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Vertices.
@@ -146,15 +146,6 @@ pub struct DrawIndexedArgs<'a> {
 	///
 	/// If this is less than zero, instanced drawing is disabled.
 	pub instances: i32,
-}
-
-/// Free mode.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FreeMode {
-	/// Delete the resource immediately.
-	Delete,
-	/// Release the resource, but keep the handle valid for future use.
-	Release,
 }
 
 /// Drawing statistics.
@@ -176,6 +167,15 @@ pub struct DrawMetrics {
 ///
 /// See [Graphics](struct@Graphics) for a type-erased version.
 pub trait IGraphics {
+	/// Returns the type of the object.
+	fn get_type(&self, object: BaseObject) -> Option<ObjectType>;
+	/// Increases the reference count of the object.
+	fn add_ref(&mut self, object: BaseObject);
+	/// Decreases the reference count of the object and returns the new count.
+	///
+	/// If the reference count reaches zero, the object is freed and its resources are released.
+	fn release(&mut self, object: BaseObject) -> u32;
+
 	/// Begin drawing.
 	fn begin(&mut self, args: &BeginArgs);
 	/// Clear the surface.
@@ -190,34 +190,20 @@ pub trait IGraphics {
 	fn get_draw_metrics(&mut self, reset: bool) -> DrawMetrics;
 
 	/// Creates a vertex buffer.
-	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
-	/// Finds a vertex buffer by name.
-	fn vertex_buffer_find(&self, name: &str) -> VertexBuffer;
+	fn vertex_buffer_create(&mut self, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
 	/// Writes data to the vertex buffer.
 	fn vertex_buffer_write(&mut self, id: VertexBuffer, data: &[u8]);
-	/// Releases the resources of the vertex buffer.
-	fn vertex_buffer_free(&mut self, id: VertexBuffer, mode: FreeMode);
 
 	/// Creates an index buffer.
-	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
-	/// Finds an index buffer by name.
-	fn index_buffer_find(&self, name: &str) -> IndexBuffer;
+	fn index_buffer_create(&mut self, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
 	/// Writes data to the index buffer.
 	fn index_buffer_write(&mut self, id: IndexBuffer, data: &[u8]);
-	/// Releases the resources of the index buffer.
-	fn index_buffer_free(&mut self, id: IndexBuffer, mode: FreeMode);
 
 	/// Creates and compiles a shader.
-	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> Shader;
-	/// Finds a shader by name.
-	fn shader_find(&self, name: &str) -> Shader;
-	/// Releases the resources of the shader.
-	fn shader_free(&mut self, id: Shader);
+	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> ShaderProgram;
 
 	/// Creates a 2D texture.
-	fn texture2d_create(&mut self, name: Option<&str>, info: &Texture2DInfo) -> Texture2D;
-	/// Finds a 2D texture by name.
-	fn texture2d_find(&self, name: &str) -> Texture2D;
+	fn texture2d_create(&mut self, info: &Texture2DInfo) -> Texture2D;
 	/// Returns the info of the 2D texture.
 	fn texture2d_get_info(&self, id: Texture2D) -> Option<&Texture2DInfo>;
 	/// Generates mipmap for the 2D texture.
@@ -228,8 +214,6 @@ pub trait IGraphics {
 	fn texture2d_write(&mut self, id: Texture2D, level: u8, data: &[u8]);
 	/// Reads the data of the 2D texture into the buffer.
 	fn texture2d_read_into(&mut self, id: Texture2D, level: u8, data: &mut [u8]);
-	/// Releases the resources of the 2D texture.
-	fn texture2d_free(&mut self, id: Texture2D, mode: FreeMode);
 }
 
 /// Graphics interface.
@@ -263,12 +247,30 @@ impl ops::DerefMut for Graphics {
 }
 
 impl Graphics {
+	/// Attempts to cast the object to the specified type.
+	#[inline]
+	pub fn try_cast<T>(&self, object: impl Into<BaseObject>) -> Option<T> where BaseObject: ObjectCast<T> {
+		object.into().try_cast(self)
+	}
+	/// Increases the reference count of the object.
+	#[inline]
+	pub fn add_ref(&mut self, object: impl Into<BaseObject>) {
+		self.inner.add_ref(object.into())
+	}
+	/// Decreases the reference count of the object and returns the new count.
+	///
+	/// If the reference count reaches zero, the object is freed and its resources are released.
+	#[inline]
+	pub fn release(&mut self, object: impl Into<BaseObject>) -> u32 {
+		self.inner.release(object.into())
+	}
+
 	/// Creates a texture from an image.
 	#[inline]
-	pub fn image<F: ImageToTexture>(&mut self, name: Option<&str>, image: &F) -> Texture2D {
+	pub fn image<F: ImageToTexture>(&mut self, image: &F) -> Texture2D {
 		let info = image.info();
 		let data = image.data();
-		let tex = self.texture2d_create(name, &info);
+		let tex = self.texture2d_create(&info);
 		self.texture2d_write(tex, 0, data);
 		self.texture2d_generate_mipmap(tex);
 		return tex;
@@ -284,7 +286,7 @@ impl Graphics {
 					height: frame.height,
 					props: *props,
 				};
-				let tex = self.texture2d_create(None, &info);
+				let tex = self.texture2d_create(&info);
 				self.texture2d_write(tex, 0, frame.as_bytes());
 				self.texture2d_generate_mipmap(tex);
 				tex
@@ -302,8 +304,8 @@ impl Graphics {
 	}
 	/// Creates and writes data to the 2D texture.
 	#[inline]
-	pub fn texture2d(&mut self, name: Option<&str>, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
-		let texture = self.texture2d_create(name, info);
+	pub fn texture2d(&mut self, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
+		let texture = self.texture2d_create(info);
 		self.texture2d_write(texture, 0, data);
 		self.texture2d_generate_mipmap(texture);
 		return texture;
@@ -326,9 +328,9 @@ impl Graphics {
 	}
 	/// Creates and writes data to the vertex buffer.
 	#[inline]
-	pub fn vertex_buffer<T: TVertex>(&mut self, name: Option<&str>, data: &[T], usage: BufferUsage) -> VertexBuffer {
+	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> VertexBuffer {
 		let this = &mut self.inner;
-		let id = this.vertex_buffer_create(name, mem::size_of_val(data), T::LAYOUT, usage);
+		let id = this.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
 		this.vertex_buffer_write(id, dataview::bytes(data));
 		return id;
 	}
@@ -339,7 +341,7 @@ impl Graphics {
 	}
 	/// Creates and writes data to the index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndices + ?Sized>(&mut self, name: Option<&str>, data: &T, _nverts: T::Index, usage: BufferUsage) -> IndexBuffer {
+	pub fn index_buffer<T: TIndices + ?Sized>(&mut self, data: &T, _nverts: T::Index, usage: BufferUsage) -> IndexBuffer {
 		let data = data.as_indices();
 
 		#[cfg(debug_assertions)]
@@ -351,7 +353,7 @@ impl Graphics {
 			}
 		}
 		let this = &mut self.inner;
-		let id = this.index_buffer_create(name, mem::size_of_val(data), T::Index::TYPE, usage);
+		let id = this.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
 		this.index_buffer_write(id, dataview::bytes(data));
 		return id;
 	}

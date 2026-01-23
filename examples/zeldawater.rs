@@ -188,15 +188,13 @@ struct ZeldaWaterDemo {
 	indices: shade::IndexBuffer,
 	texture: shade::Texture2D,
 	distortion: shade::Texture2D,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	epoch: time::Instant,
 }
 
 impl ZeldaWaterDemo {
 	fn new(g: &mut shade::Graphics) -> ZeldaWaterDemo {
-		let vertices = g.vertex_buffer(
-			None,
-			&[
+		let vertices = g.vertex_buffer(&[
 				Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
 				Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
 				Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
@@ -205,7 +203,7 @@ impl ZeldaWaterDemo {
 			shade::BufferUsage::Static,
 		);
 
-		let indices = g.index_buffer(None, &[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
+		let indices = g.index_buffer(&[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
 
 		let texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/zeldawater/water.png").unwrap();
@@ -218,7 +216,7 @@ impl ZeldaWaterDemo {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(Some("font"), &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		let distortion = {
@@ -232,10 +230,10 @@ impl ZeldaWaterDemo {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 		let epoch = time::Instant::now();
 
 		ZeldaWaterDemo { vertices, indices, texture, distortion, shader, epoch }

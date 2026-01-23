@@ -155,8 +155,8 @@ void main() {
 // Cube renderable
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for Material {
@@ -183,9 +183,9 @@ pub struct Renderable {
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
 		// Create the vertex and index buffers
-		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
+		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
 		let vertices_len: u32 = VERTICES.len() as u32;
-		let indices = g.index_buffer(None, &INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
+		let indices = g.index_buffer(&INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
 		let mesh = shade::d3::VertexIndexedMesh {
@@ -209,12 +209,12 @@ impl Renderable {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(Some("brick 24"), &(&image, &props))
+			g.image(&(&image, &props))
 		};
 
 		// Create the shader
-		let shader = g.shader_create(None, CUBE_VS, CUBE_FS);
-		let shadow_shader = g.shader_create(None, CUBE_VS, CUBE_SHADOW_FS);
+		let shader = g.shader_compile(CUBE_VS, CUBE_FS);
+		let shadow_shader = g.shader_compile(CUBE_VS, CUBE_SHADOW_FS);
 
 		let material = Material { shader, shadow_shader, texture };
 

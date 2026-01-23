@@ -100,8 +100,8 @@ void main() {
 "#;
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, _set: &mut dyn shade::UniformSetter) {
@@ -125,11 +125,11 @@ pub struct Renderable {
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
 		dataview::embed!(VERTICES: [Vertex] = "../colortree/vertices.bin");
-		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
+		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		// Create the material
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
-		let shadow_shader = g.shader_create(None, VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let shadow_shader = g.shader_compile(VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
 		let material = Material { shader, shadow_shader };
 
 		let instance = Instance {

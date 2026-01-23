@@ -152,8 +152,8 @@ void main() {
 // Globe renderable
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
 impl shade::UniformVisitor for Material {
@@ -182,8 +182,8 @@ impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 
-		let shader = g.shader_create(None, SPHERE_VS, SPHERE_FS);
-		let shadow_shader = g.shader_create(None, SPHERE_VS, SPHERE_SHADOW_FS);
+		let shader = g.shader_compile(SPHERE_VS, SPHERE_FS);
+		let shadow_shader = g.shader_compile(SPHERE_VS, SPHERE_SHADOW_FS);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap();
 			let props = shade::TextureProps {
@@ -195,7 +195,7 @@ impl Renderable {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(None, &(&image, &props))
+			g.image(&(&image, &props))
 		};
 		let material = Material { shader, shadow_shader, texture };
 

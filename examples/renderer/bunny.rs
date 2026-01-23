@@ -85,8 +85,8 @@ void main() {
 "#;
 
 pub struct Material {
-	shader: shade::Shader,
-	shadow_shader: shade::Shader,
+	shader: shade::ShaderProgram,
+	shadow_shader: shade::ShaderProgram,
 }
 
 pub struct Instance {
@@ -135,14 +135,14 @@ impl Renderable {
 		};
 
 		// Create the vertex and index buffers
-		let mesh = shade::d3::VertexMesh::new(g, None, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
+		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
 
 		// println!("Bunny # vertices: {}", mesh.vertices_len);
 		// println!("Bunny bounds: {:#?}", mesh.bounds);
 
 		// Create the shader
-		let shader = g.shader_create(None, BUNNY_VS, BUNNY_FS);
-		let shadow_shader = g.shader_create(None, BUNNY_VS, BUNNY_SHADOW_FS);
+		let shader = g.shader_compile(BUNNY_VS, BUNNY_FS);
+		let shadow_shader = g.shader_compile(BUNNY_VS, BUNNY_SHADOW_FS);
 		let material = Material { shader, shadow_shader };
 		let instance = Instance {
 			model: Transform3f::translate(Vec3f(-10.0, 30.0, 0.0)) * Transform3f::scale(Vec3::dup(0.25)),

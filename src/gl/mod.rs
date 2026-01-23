@@ -4,13 +4,11 @@ OpenGL graphics backend.
 
 use std::{mem, ops, ptr, slice, time};
 use std::any::type_name_of_val as name_of;
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 
 /// Re-exported OpenGL bindings.
 pub use gl as capi;
 use gl::types::*;
-
-use crate::resources::{Resource, ResourceMap};
 
 type NameBuf = crate::sstring::SmallString<64>;
 
@@ -30,116 +28,16 @@ macro_rules! gl_check {
 	};
 }
 
+mod cvt;
 mod draw;
 mod shader;
 mod texture2d;
+mod objects;
+
+use self::cvt::*;
+use self::objects::*;
 
 pub mod shaders;
-
-fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
-	(match wrap {
-		crate::TextureWrap::Edge => gl::CLAMP_TO_EDGE,
-		crate::TextureWrap::Border => gl::CLAMP_TO_BORDER,
-		crate::TextureWrap::Repeat => gl::REPEAT,
-		crate::TextureWrap::Mirror => gl::MIRRORED_REPEAT,
-	}) as GLint
-}
-fn gl_texture_filter_mag(filter: crate::TextureFilter) -> GLint {
-	(match filter {
-		crate::TextureFilter::Nearest => gl::NEAREST,
-		crate::TextureFilter::Linear => gl::LINEAR,
-	}) as GLint
-}
-
-fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
-	(if props.mip_levels > 1 {
-		match props.filter_min {
-			crate::TextureFilter::Nearest => gl::NEAREST_MIPMAP_NEAREST,
-			crate::TextureFilter::Linear => gl::LINEAR_MIPMAP_LINEAR,
-		}
-	}
-	else {
-		match props.filter_min {
-			crate::TextureFilter::Nearest => gl::NEAREST,
-			crate::TextureFilter::Linear => gl::LINEAR,
-		}
-	}) as GLint
-}
-
-fn gl_depth_func(v: crate::Compare) -> GLenum {
-	match v {
-		crate::Compare::Never => gl::NEVER,
-		crate::Compare::Less => gl::LESS,
-		crate::Compare::Equal => gl::EQUAL,
-		crate::Compare::LessEqual => gl::LEQUAL,
-		crate::Compare::Greater => gl::GREATER,
-		crate::Compare::NotEqual => gl::NOTEQUAL,
-		crate::Compare::GreaterEqual => gl::GEQUAL,
-		crate::Compare::Always => gl::ALWAYS,
-	}
-}
-
-struct GlVertexBuffer {
-	buffer: GLuint,
-	_size: usize,
-	usage: crate::BufferUsage,
-	layout: &'static crate::VertexLayout,
-}
-impl Resource for GlVertexBuffer {
-	type Handle = crate::VertexBuffer;
-}
-
-struct GlIndexBuffer {
-	buffer: GLuint,
-	_size: usize,
-	usage: crate::BufferUsage,
-	ty: crate::IndexType,
-}
-impl Resource for GlIndexBuffer {
-	type Handle = crate::IndexBuffer;
-}
-
-#[allow(dead_code)]
-struct GlActiveAttrib {
-	location: u32,
-	size: GLint,
-	ty: GLenum,
-}
-
-struct GlActiveUniform {
-	location: GLint,
-	array_size: GLint, // Number of elements in array, 1 if not an array
-	ty: GLenum,
-	texture_unit: i8, // Texture unit, -1 if not a sampler
-}
-
-struct GlShader {
-	program: GLuint,
-	attribs: HashMap<NameBuf, GlActiveAttrib>,
-	uniforms: HashMap<NameBuf, GlActiveUniform>,
-}
-impl Resource for GlShader {
-	type Handle = crate::Shader;
-}
-
-struct GlTexture2D {
-	texture: GLuint,
-	info: crate::Texture2DInfo,
-}
-impl Resource for GlTexture2D {
-	type Handle = crate::Texture2D;
-}
-
-struct GlTextures {
-	textures2d: ResourceMap<GlTexture2D>,
-	textures2d_default: GlTexture2D,
-}
-
-impl GlTextures {
-	fn get2d(&self, id: crate::Texture2D) -> &GlTexture2D {
-		self.textures2d.get(id).unwrap_or(&self.textures2d_default)
-	}
-}
 
 #[derive(Clone, Debug)]
 pub struct GlConfig {
@@ -154,10 +52,8 @@ impl Default for GlConfig {
 }
 
 pub struct GlGraphics {
-	vbuffers: ResourceMap<GlVertexBuffer>,
-	ibuffers: ResourceMap<GlIndexBuffer>,
-	shaders: ResourceMap<GlShader>,
-	textures: GlTextures,
+	objects: ObjectMap,
+	texture2d_default: crate::Texture2D,
 	dynamic_vao: GLuint,
 	drawing: bool,
 	draw_begin: time::Instant,
@@ -172,6 +68,15 @@ impl GlGraphics {
 		let mut dynamic_vao = 0;
 		gl_check!(gl::GenVertexArrays(1, &mut dynamic_vao));
 
+		if config.srgb {
+			gl_check!(gl::Enable(gl::FRAMEBUFFER_SRGB));
+		}
+		else {
+			gl_check!(gl::Disable(gl::FRAMEBUFFER_SRGB));
+		}
+
+		let mut objects = ObjectMap::new();
+
 		let mut default_texture2d = 0;
 		{
 			gl_check!(gl::GenTextures(1, &mut default_texture2d));
@@ -180,39 +85,30 @@ impl GlGraphics {
 			gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as GLint, 1, 1, 0, gl::RGBA, gl::UNSIGNED_BYTE, color.as_ptr() as *const GLvoid));
 			gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 		}
+		let texture2d_default = GlTexture2D {
+			texture: default_texture2d,
+			info: crate::Texture2DInfo {
+				format: crate::TextureFormat::RGBA8,
+				width: 1,
+				height: 1,
+				props: crate::TextureProps {
+					mip_levels: 1,
+					usage: crate::TextureUsage::TEXTURE,
+					filter_min: crate::TextureFilter::Nearest,
+					filter_mag: crate::TextureFilter::Nearest,
+					wrap_u: crate::TextureWrap::Edge,
+					wrap_v: crate::TextureWrap::Edge,
+					compare: None,
+					border_color: [0.0, 0.0, 0.0, 0.0],
+				}
+			},
+		};
+		let default_texture2d_handle = objects.insert(texture2d_default);
 
-		if config.srgb {
-			gl_check!(gl::Enable(gl::FRAMEBUFFER_SRGB));
-		}
-		else {
-			gl_check!(gl::Disable(gl::FRAMEBUFFER_SRGB));
-		}
 
 		GlGraphics {
-			vbuffers: ResourceMap::new(),
-			ibuffers: ResourceMap::new(),
-			shaders: ResourceMap::new(),
-			textures: GlTextures {
-				textures2d: ResourceMap::new(),
-				textures2d_default: GlTexture2D {
-					texture: default_texture2d,
-					info: crate::Texture2DInfo {
-						format: crate::TextureFormat::RGBA8,
-						width: 1,
-						height: 1,
-						props: crate::TextureProps {
-							mip_levels: 1,
-							usage: crate::TextureUsage::TEXTURE,
-							filter_min: crate::TextureFilter::Nearest,
-							filter_mag: crate::TextureFilter::Nearest,
-							wrap_u: crate::TextureWrap::Edge,
-							wrap_v: crate::TextureWrap::Edge,
-							compare: None,
-							border_color: [0.0, 0.0, 0.0, 0.0],
-						}
-					},
-				},
-			},
+			objects,
+			texture2d_default: default_texture2d_handle,
 			dynamic_vao,
 			drawing: false,
 			draw_begin: time::Instant::now(),
@@ -229,6 +125,16 @@ impl GlGraphics {
 }
 
 impl crate::IGraphics for GlGraphics {
+	fn get_type(&self, object: crate::BaseObject) -> Option<crate::ObjectType> {
+		self.objects.get_type(object)
+	}
+	fn add_ref(&mut self, object: crate::BaseObject) {
+		self.objects.add_ref(object);
+	}
+	fn release(&mut self, object: crate::BaseObject) -> u32 {
+		self.objects.release(object)
+	}
+
 	fn begin(&mut self, args: &crate::BeginArgs) {
 		draw::begin(self, args)
 	}
@@ -258,20 +164,15 @@ impl crate::IGraphics for GlGraphics {
 		}
 	}
 
-	fn vertex_buffer_create(&mut self, name: Option<&str>, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
+	fn vertex_buffer_create(&mut self, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
 		let mut buffer = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
 
-		let id = self.vbuffers.insert(name, GlVertexBuffer { buffer, _size: size, usage, layout });
-		return id;
-	}
-
-	fn vertex_buffer_find(&self, name: &str) -> crate::VertexBuffer {
-		self.vbuffers.find_id(name).unwrap_or(crate::VertexBuffer::INVALID)
+		self.objects.insert(GlVertexBuffer { buffer, _size: size, usage, layout })
 	}
 
 	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, data: &[u8]) {
-		let Some(buf) = self.vbuffers.get_mut(id) else { return };
+		let Some(buf) = self.objects.get_vertex_buffer(id) else { return };
 		let size = mem::size_of_val(data);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
 		let gl_usage = match buf.usage {
@@ -284,26 +185,14 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 	}
 
-	fn vertex_buffer_free(&mut self, id: crate::VertexBuffer, mode: crate::FreeMode) {
-		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(buf) = self.vbuffers.remove(id) else { return };
-		gl_check!(gl::DeleteBuffers(1, &buf.buffer));
-	}
-
-	fn index_buffer_create(&mut self, name: Option<&str>, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
+	fn index_buffer_create(&mut self, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
 		let mut buffer = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
-
-		let id = self.ibuffers.insert(name, GlIndexBuffer { buffer, _size: size, usage, ty });
-		return id;
-	}
-
-	fn index_buffer_find(&self, name: &str) -> crate::IndexBuffer {
-		self.ibuffers.find_id(name).unwrap_or(crate::IndexBuffer::INVALID)
+		self.objects.insert(GlIndexBuffer { buffer, _size: size, usage, ty })
 	}
 
 	fn index_buffer_write(&mut self, id: crate::IndexBuffer, data: &[u8]) {
-		let Some(buf) = self.ibuffers.get_mut(id) else { return };
+		let Some(buf) = self.objects.get_index_buffer(id) else { return };
 		let size = mem::size_of_val(data);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
 		let gl_usage = match buf.usage {
@@ -316,30 +205,12 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 	}
 
-	fn index_buffer_free(&mut self, id: crate::IndexBuffer, mode: crate::FreeMode) {
-		assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-		let Some(buf) = self.ibuffers.remove(id) else { return };
-		gl_check!(gl::DeleteBuffers(1, &buf.buffer));
+	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
+		shader::compile(self, vertex_source, fragment_source)
 	}
 
-	fn shader_create(&mut self, name: Option<&str>, vertex_source: &str, fragment_source: &str) -> crate::Shader {
-		shader::create(self, name, vertex_source, fragment_source)
-	}
-
-	fn shader_find(&self, name: &str) -> crate::Shader {
-		shader::find(self, name)
-	}
-
-	fn shader_free(&mut self, id: crate::Shader) {
-		shader::delete(self, id)
-	}
-
-	fn texture2d_create(&mut self, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
-		texture2d::create(self, name, info)
-	}
-
-	fn texture2d_find(&self, name: &str) -> crate::Texture2D {
-		texture2d::find(self, name)
+	fn texture2d_create(&mut self, info: &crate::Texture2DInfo) -> crate::Texture2D {
+		texture2d::create(self, info)
 	}
 
 	fn texture2d_get_info(&self, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
@@ -360,10 +231,6 @@ impl crate::IGraphics for GlGraphics {
 
 	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
 		texture2d::read_into(self, id, level, data)
-	}
-
-	fn texture2d_free(&mut self, id: crate::Texture2D, mode: crate::FreeMode) {
-		texture2d::free(self, id, mode)
 	}
 }
 

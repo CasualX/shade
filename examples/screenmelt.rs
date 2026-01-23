@@ -117,8 +117,8 @@ impl GlWindow {
 struct ScreenMeltDemo {
 	epoch: time::Instant,
 	pp: shade::d2::PostProcessQuad,
-	pp_copy_shader: shade::Shader,
-	pp_melt_shader: shade::Shader,
+	pp_copy_shader: shade::ShaderProgram,
+	pp_melt_shader: shade::ShaderProgram,
 	gameplay_texture: shade::Texture2D,
 	main_menu_texture: shade::Texture2D,
 	delay_texture: shade::Texture2D,
@@ -151,22 +151,22 @@ impl ScreenMeltDemo {
 					..Default::default()
 				},
 			};
-			g.texture2d(None, &info, &delays)
+			g.texture2d(&info, &delays)
 		};
 
 		let gameplay_texture = {
 			let image = shade::image::DecodedImage::load_file_gif("examples/screenmelt/e1m1.gif").unwrap();
-			g.image(None, &image)
+			g.image(&image)
 		};
 
 		let main_menu_texture = {
 			let image = shade::image::DecodedImage::load_file_png("examples/screenmelt/main-menu.png").unwrap();
-			g.image(None, &image)
+			g.image(&image)
 		};
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let pp_copy_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_COPY_FS);
-		let pp_melt_shader = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_MELT_FS);
+		let pp_copy_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_COPY_FS);
+		let pp_melt_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_MELT_FS);
 
 		ScreenMeltDemo {
 			epoch,

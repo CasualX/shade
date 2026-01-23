@@ -149,14 +149,12 @@ impl GlWindow {
 
 struct TriangleDemo {
 	vertices: shade::VertexBuffer,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 }
 
 impl TriangleDemo {
 	fn new(g: &mut shade::Graphics) -> TriangleDemo {
-		let vertices = g.vertex_buffer(
-			None,
-			&[
+		let vertices = g.vertex_buffer(&[
 				TriangleVertex { position: Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
 				TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
 				TriangleVertex { position: Vec2(0.5, -0.5), color: [0, 0, 255, 255] },
@@ -164,7 +162,7 @@ impl TriangleDemo {
 			shade::BufferUsage::Static,
 		);
 
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
 		TriangleDemo { vertices, shader }
 	}

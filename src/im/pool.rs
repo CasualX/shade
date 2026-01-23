@@ -36,8 +36,8 @@ impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
 		self.clear();
 	}
 	fn data(&self, g: &mut Graphics) -> DrawData {
-		let vertices = g.vertex_buffer(None, &self.vertices, BufferUsage::Static);
-		let indices = g.index_buffer(None, &self.indices, self.vertices.len() as u16, BufferUsage::Static);
+		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Static).unwrap();
+		let indices = g.index_buffer(&self.indices, self.vertices.len() as u16, BufferUsage::Static).unwrap();
 		DrawData { vertices, indices }
 	}
 	fn draw(&self, g: &mut Graphics) {
@@ -73,8 +73,8 @@ pub struct DrawBatch<'a> {
 
 /// Draws the DrawBuilder.
 fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics) {
-	let vertices = g.vertex_buffer(None, &this.vertices, BufferUsage::Static);
-	let indices = g.index_buffer(None, &this.indices, this.vertices.len() as u16, BufferUsage::Static);
+	let vertices = g.vertex_buffer(&this.vertices, BufferUsage::Static).unwrap();
+	let indices = g.index_buffer(&this.indices, this.vertices.len() as u16, BufferUsage::Static).unwrap();
 	let range = DrawBatch {
 		commands: &this.commands,
 		vertices,
@@ -82,8 +82,8 @@ fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics) {
 	};
 
 	draw_range(this, g, &range);
-	g.index_buffer_free(indices, FreeMode::Delete);
-	g.vertex_buffer_free(vertices, FreeMode::Delete);
+	g.release(indices);
+	g.release(vertices);
 }
 
 /// Draws the specified commands from the buffer.
@@ -233,8 +233,8 @@ impl DrawPool {
 
 		// Free the buffers
 		for data in data.values() {
-			g.index_buffer_free(data.indices, FreeMode::Delete);
-			g.vertex_buffer_free(data.vertices, FreeMode::Delete);
+			g.release(data.indices);
+			g.release(data.vertices);
 		}
 	}
 

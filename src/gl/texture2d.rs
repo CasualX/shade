@@ -49,7 +49,37 @@ impl GlTextureFormat {
 }
 
 
-pub fn create(this: &mut GlGraphics, name: Option<&str>, info: &crate::Texture2DInfo) -> crate::Texture2D {
+fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
+	(match wrap {
+		crate::TextureWrap::Edge => gl::CLAMP_TO_EDGE,
+		crate::TextureWrap::Border => gl::CLAMP_TO_BORDER,
+		crate::TextureWrap::Repeat => gl::REPEAT,
+		crate::TextureWrap::Mirror => gl::MIRRORED_REPEAT,
+	}) as GLint
+}
+fn gl_texture_filter_mag(filter: crate::TextureFilter) -> GLint {
+	(match filter {
+		crate::TextureFilter::Nearest => gl::NEAREST,
+		crate::TextureFilter::Linear => gl::LINEAR,
+	}) as GLint
+}
+
+fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
+	(if props.mip_levels > 1 {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => gl::NEAREST_MIPMAP_NEAREST,
+			crate::TextureFilter::Linear => gl::LINEAR_MIPMAP_LINEAR,
+		}
+	}
+	else {
+		match props.filter_min {
+			crate::TextureFilter::Nearest => gl::NEAREST,
+			crate::TextureFilter::Linear => gl::LINEAR,
+		}
+	}) as GLint
+}
+
+pub fn create(this: &mut GlGraphics, info: &crate::Texture2DInfo) -> crate::Texture2D {
 	let mut texture = 0;
 	gl_check!(gl::GenTextures(1, &mut texture));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
@@ -69,48 +99,47 @@ pub fn create(this: &mut GlGraphics, name: Option<&str>, info: &crate::Texture2D
 	let GlTextureFormat { internal_format, .. } = GlTextureFormat::get(info.format, &this.config);
 	gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.props.mip_levels as GLsizei, internal_format, info.width, info.height));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
-	let id = this.textures.textures2d.insert(name, GlTexture2D { texture, info: *info });
-	return id;
-}
-
-pub fn find(this: &GlGraphics, name: &str) -> crate::Texture2D {
-	this.textures.textures2d.find_id(name).unwrap_or(crate::Texture2D::INVALID)
+	this.objects.insert(GlTexture2D { texture, info: *info })
 }
 
 pub fn get_info(this: &GlGraphics, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-	this.textures.textures2d.get(id).map(|texture| &texture.info)
+	let Some(tex2d) = this.objects.get_texture2d(id) else { return None };
+	return Some(&tex2d.info);
 }
 
 pub fn generate_mipmap(this: &mut GlGraphics, id: crate::Texture2D) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
-	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
+	let Some(tex2d) = this.objects.get_texture2d(id) else { return };
+	gl_check!(gl::BindTexture(gl::TEXTURE_2D, tex2d.texture));
 	gl_check!(gl::GenerateMipmap(gl::TEXTURE_2D));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 }
 
 pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-	let Some(texture) = this.textures.textures2d.get_mut(id) else {
-		return create(this, None, info);
+	if id == crate::Texture2D::INVALID {
+		return create(this, info);
+	}
+	let Some(tex2d) = this.objects.get_texture2d_mut(id) else {
+		return crate::Texture2D::INVALID;
 	};
 
 	// Short-circuit if no changes.
-	if &texture.info == info {
+	if &tex2d.info == info {
 		return id;
 	}
 
 	// With TexStorage2D, the texture storage is immutable. Any change to
 	// format/size/mip count requires creating a new GL texture object.
-	let realloc = texture.info.width != info.width
-		|| texture.info.height != info.height
-		|| texture.info.format != info.format
-		|| texture.info.props.mip_levels != info.props.mip_levels;
+	let realloc = tex2d.info.width != info.width
+		|| tex2d.info.height != info.height
+		|| tex2d.info.format != info.format
+		|| tex2d.info.props.mip_levels != info.props.mip_levels;
 
 	if realloc {
-		gl_check!(gl::DeleteTextures(1, &texture.texture));
-		gl_check!(gl::GenTextures(1, &mut texture.texture));
+		gl_check!(gl::DeleteTextures(1, &tex2d.texture));
+		gl_check!(gl::GenTextures(1, &mut tex2d.texture));
 	}
 
-	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
+	gl_check!(gl::BindTexture(gl::TEXTURE_2D, tex2d.texture));
 	if realloc {
 		let GlTextureFormat { internal_format, .. } = GlTextureFormat::get(info.format, &this.config);
 		gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.props.mip_levels as GLsizei, internal_format, info.width, info.height));
@@ -131,12 +160,12 @@ pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture
 	gl_check!(gl::TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, info.props.border_color.as_ptr()));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 
-	texture.info = *info;
+	tex2d.info = *info;
 	return id;
 }
 
 pub fn write(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &[u8]) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
+	let Some(texture) = this.objects.get_texture2d(id) else { return };
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 	this.metrics.bytes_uploaded = usize::wrapping_add(this.metrics.bytes_uploaded, data.len());
@@ -150,7 +179,7 @@ pub fn write(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &[u8]
 }
 
 pub fn read_into(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &mut [u8]) {
-	let Some(texture) = this.textures.textures2d.get(id) else { return };
+	let Some(texture) = this.objects.get_texture2d(id) else { return };
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 	this.metrics.bytes_downloaded = usize::wrapping_add(this.metrics.bytes_downloaded, data.len());
@@ -163,8 +192,6 @@ pub fn read_into(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 }
 
-pub fn free(this: &mut GlGraphics, id: crate::Texture2D, mode: crate::FreeMode) {
-	assert_eq!(mode, crate::FreeMode::Delete, "Only FreeMode::Delete is implemented");
-	let Some(texture) = this.textures.textures2d.remove(id) else { return };
+pub fn release(texture: &GlTexture2D) {
 	gl_check!(gl::DeleteTextures(1, &texture.texture));
 }

@@ -1,1 +1,1 @@
-define_handle!(Shader);
+define_handle!(ShaderProgram);

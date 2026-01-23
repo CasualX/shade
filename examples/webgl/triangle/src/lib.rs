@@ -72,7 +72,7 @@ void main() {
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: Vec2i,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 }
 
 impl Context {
@@ -83,7 +83,7 @@ impl Context {
 		let g = webgl.as_graphics();
 
 		// Create the triangle shader
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let screen_size = Vec2::ZERO;
 		Context { webgl, screen_size, shader }
@@ -104,7 +104,7 @@ impl Context {
 		let rotation = Mat2::rotate(Angle(time as f32));
 
 		// Create the triangle vertices
-		let vertices = g.vertex_buffer(None, &[
+		let vertices = g.vertex_buffer(&[
 			TriangleVertex { position: rotation * Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
 			TriangleVertex { position: rotation * Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
 			TriangleVertex { position: rotation * Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
@@ -129,7 +129,7 @@ impl Context {
 			instances: -1,
 		});
 
-		g.vertex_buffer_free(vertices, shade::FreeMode::Delete);
+		g.release(vertices);
 
 		g.end();
 	}

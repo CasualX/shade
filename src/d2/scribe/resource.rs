@@ -8,7 +8,7 @@ pub struct FontResource<F> {
 	/// The texture containing the font's glyphs.
 	pub texture: Texture2D,
 	/// The shader to use for rendering text.
-	pub shader: Shader,
+	pub shader: ShaderProgram,
 }
 
 impl<F: IFont> FontResource<F> {

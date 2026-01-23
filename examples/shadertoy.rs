@@ -124,7 +124,7 @@ impl GlWindow {
 struct ShaderToyDemo {
 	epoch: time::Instant,
 	pp: shade::d2::PostProcessQuad,
-	shadertoy: shade::Shader,
+	shadertoy: shade::ShaderProgram,
 }
 
 impl ShaderToyDemo {
@@ -132,7 +132,7 @@ impl ShaderToyDemo {
 		let epoch = time::Instant::now();
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let shadertoy = g.shader_create(None, shade::gl::shaders::POST_PROCESS_VS, SHADER_TOY_FS);
+		let shadertoy = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, SHADER_TOY_FS);
 
 		ShaderToyDemo {
 			epoch,

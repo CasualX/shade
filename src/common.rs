@@ -8,6 +8,7 @@ define_handle!(IndexBuffer);
 pub enum IndexType { U8, U16, U32 }
 
 impl IndexType {
+	#[inline]
 	pub const fn size(self) -> usize {
 		match self {
 			IndexType::U8 => 1,
@@ -32,6 +33,7 @@ impl TIndex for u32 {
 	const TYPE: IndexType = IndexType::U32;
 }
 
+/// Trait for index collections.
 pub trait TIndices {
 	type Index: TIndex;
 
@@ -62,6 +64,7 @@ impl<T: TIndex> TIndices for Vec<T> {
 	}
 }
 
+/// Triangle indices.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(C)]
 pub struct Index3 {

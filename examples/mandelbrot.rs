@@ -254,7 +254,7 @@ impl GlWindow {
 
 struct MandelbrotDemo {
 	vertices: shade::VertexBuffer,
-	shader: shade::Shader,
+	shader: shade::ShaderProgram,
 	gradient: shade::Texture2D,
 	pan_start: Point2f,
 	panning: bool,
@@ -264,11 +264,11 @@ struct MandelbrotDemo {
 
 impl MandelbrotDemo {
 	fn new(g: &mut shade::Graphics) -> MandelbrotDemo {
-		let vertices = g.vertex_buffer(None, &VERTICES, shade::BufferUsage::Static);
-		let shader = g.shader_create(None, VERTEX_SHADER, FRAGMENT_SHADER);
+		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
+		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 		let gradient = {
 			let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
-			g.image(None, &gradient)
+			g.image(&gradient)
 		};
 
 		MandelbrotDemo {

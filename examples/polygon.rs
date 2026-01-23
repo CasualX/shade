@@ -9,7 +9,7 @@ const PICK_RADIUS_PX: f32 = 12.0;
 const NO_DRAG: usize = usize::MAX;
 
 struct PolygonDemo {
-	color_shader: shade::Shader,
+	color_shader: shade::ShaderProgram,
 	points: Vec<Point2f>,
 	cursor_px: Vec2f,
 	view_offset: Vec2f,
@@ -21,7 +21,7 @@ struct PolygonDemo {
 
 impl PolygonDemo {
 	fn new(g: &mut shade::Graphics) -> PolygonDemo {
-		let color_shader = g.shader_create(None, shade::gl::shaders::COLOR_VS, shade::gl::shaders::COLOR_FS);
+		let color_shader = g.shader_compile(shade::gl::shaders::COLOR_VS, shade::gl::shaders::COLOR_FS);
 		PolygonDemo {
 			color_shader,
 			points: Vec::new(),
