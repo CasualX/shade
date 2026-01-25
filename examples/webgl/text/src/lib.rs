@@ -11,9 +11,11 @@ pub struct Context {
 
 impl Context {
 	pub fn new() -> Context {
-		api::setup_panic_hook();
+		shade::webgl::setup_panic_hook();
 
-		let mut webgl = shade::webgl::WebGLGraphics::new();
+		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
+			srgb: false,
+		});
 		let g = webgl.as_graphics();
 
 		let font = {

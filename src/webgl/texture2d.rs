@@ -18,8 +18,11 @@ impl WebGLTextureFormat {
 			crate::TextureFormat::RGB32F => (api::RGB32F, api::RGB, api::FLOAT, 4),
 			crate::TextureFormat::RG32F => (api::RG32F, api::RG, api::FLOAT, 4),
 			crate::TextureFormat::R32F => (api::R32F, api::RED, api::FLOAT, 4),
-			crate::TextureFormat::SRGBA8 => (api::SRGB8_ALPHA8, api::RGBA, api::UNSIGNED_BYTE, 1),
-			crate::TextureFormat::SRGB8 => (api::SRGB8, api::RGB, api::UNSIGNED_BYTE, 1),
+			// FIXME: SRGB surface not working right now...
+			// crate::TextureFormat::SRGBA8 => (api::SRGB8_ALPHA8, api::RGBA, api::UNSIGNED_BYTE, 1),
+			// crate::TextureFormat::SRGB8 => (api::SRGB8, api::RGB, api::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::SRGBA8 => (api::RGBA8, api::RGBA, api::UNSIGNED_BYTE, 1),
+			crate::TextureFormat::SRGB8 => (api::RGB8, api::RGB, api::UNSIGNED_BYTE, 1),
 			crate::TextureFormat::Depth16 => (api::DEPTH_COMPONENT16, api::DEPTH_COMPONENT, api::UNSIGNED_SHORT, 2),
 			crate::TextureFormat::Depth24 => (api::DEPTH_COMPONENT24, api::DEPTH_COMPONENT, api::UNSIGNED_INT, 4),
 			crate::TextureFormat::Depth32F => (api::DEPTH_COMPONENT32F, api::DEPTH_COMPONENT, api::FLOAT, 4),

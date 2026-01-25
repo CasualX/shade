@@ -11,7 +11,8 @@ uniform vec4 u_colorModulation;
 varying vec4 v_color;
 
 vec3 srgbToLinear(vec3 c) {
-	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+	return c;
+	// return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }
 
 vec4 srgbToLinear(vec4 c) {

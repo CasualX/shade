@@ -1,6 +1,6 @@
 //! WebGL graphics backend.
 
-use std::{fmt, mem, ops, slice, time};
+use std::{fmt, mem, ops, panic, slice, time};
 use std::any::type_name_of_val as name_of;
 use std::collections::HashMap;
 
@@ -20,6 +20,11 @@ type NameBuf = crate::sstring::SmallString<64>;
 pub fn log(s: impl fmt::Display) {
 	let s = s.to_string();
 	unsafe { api::consoleLog(s.as_ptr(), s.len()) };
+}
+
+/// Sets up panic hook to log panics to the JavaScript console.
+pub fn setup_panic_hook() {
+	panic::set_hook(Box::new(|info| log(info)));
 }
 
 fn gl_texture_wrap(wrap: crate::TextureWrap) -> GLint {
@@ -65,9 +70,22 @@ fn gl_depth_func(v: crate::Compare) -> GLenum {
 	}
 }
 
+#[derive(Clone, Debug)]
+pub struct WebGLConfig {
+	pub srgb: bool,
+}
+impl Default for WebGLConfig {
+	fn default() -> Self {
+		WebGLConfig {
+			srgb: true,
+		}
+	}
+}
+
 pub struct WebGLGraphics {
 	objects: ObjectMap,
 	texture2d_default: crate::Texture2D,
+	_config: WebGLConfig,
 	drawing: bool,
 	draw_begin: f64,
 	metrics: crate::DrawMetrics,
@@ -76,7 +94,7 @@ pub struct WebGLGraphics {
 }
 
 impl WebGLGraphics {
-	pub fn new() -> Self {
+	pub fn new(config: WebGLConfig) -> Self {
 
 		let default_texture2d;
 		unsafe {
@@ -113,6 +131,7 @@ impl WebGLGraphics {
 		WebGLGraphics {
 			objects,
 			texture2d_default,
+			_config: config,
 			drawing: false,
 			draw_begin: 0.0,
 			metrics: Default::default(),

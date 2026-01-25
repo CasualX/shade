@@ -1,4 +1,4 @@
-use std::{fmt, panic, ptr};
+use std::ptr;
 
 use crate::Context;
 
@@ -83,33 +83,4 @@ pub extern "C" fn free(p: *mut u8, nbytes: usize) {
 		let p = ptr::slice_from_raw_parts_mut(p as *mut u64, (nbytes + 7) / 8);
 		let _ = Box::from_raw(p);
 	}
-}
-
-pub fn setup_panic_hook() {
-	panic::set_hook(Box::new(|info| {
-		let message = if let Some(s) = info.payload().downcast_ref::<&str>() {
-			*s
-		}
-		else if let Some(s) = info.payload().downcast_ref::<String>() {
-			s.as_str()
-		}
-		else {
-			"Unknown panic payload"
-		};
-
-		struct DisplayLocation<'a>(&'a panic::PanicHookInfo<'a>);
-		impl<'a> fmt::Display for DisplayLocation<'a> {
-			fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-				let info = self.0;
-				if let Some(loc) = info.location() {
-					write!(f, "{}:{}:{}", loc.file(), loc.line(), loc.column())
-				}
-				else {
-					f.write_str("unknown location")
-				}
-			}
-		}
-
-		shade::webgl::log(format_args!("Panic at {}: {}", DisplayLocation(info), message));
-	}));
 }
