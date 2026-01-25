@@ -166,48 +166,64 @@ impl crate::IGraphics for WebGLGraphics {
 		}
 	}
 
-	fn vertex_buffer_create(&mut self, _size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
-		let buffer = unsafe { api::createBuffer() };
+	fn vertex_buffer_create(&mut self, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
+		// Ensure non-zero size? What to do with zero sized buffers?
+		let alloc_size = if size == 0 { 1 } else { size };
 
 		if layout.size >= 256 {
 			panic!("Vertex layout size {} exceeds WebGL 1.0 limit of 256 bytes", layout.size);
 		}
 
-		return self.objects.insert(WebGLVertexBuffer { buffer, _size, layout, usage });
+		let buffer = unsafe { api::createBuffer() };
+		let usage_enum = match usage {
+			crate::BufferUsage::Static => api::STATIC_DRAW,
+			crate::BufferUsage::Dynamic => api::DYNAMIC_DRAW,
+			crate::BufferUsage::Stream => api::STREAM_DRAW,
+		};
+
+		unsafe { api::bindBuffer(api::ARRAY_BUFFER, buffer) };
+		unsafe { api::bufferData(api::ARRAY_BUFFER, alloc_size as GLsizeiptr, std::ptr::null(), usage_enum) };
+		unsafe { api::bindBuffer(api::ARRAY_BUFFER, 0) };
+
+		return self.objects.insert(WebGLVertexBuffer { buffer, size, layout, _usage: usage });
 	}
 
-	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, data: &[u8]) {
+	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, offset: usize, data: &[u8]) {
 		let Some(buf) = self.objects.get_vertex_buffer(id) else { return };
 
 		let size = mem::size_of_val(data);
+		debug_assert!(offset + size <= buf.size, "Vertex buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
-		let usage = match buf.usage {
-			crate::BufferUsage::Static => api::STATIC_DRAW,
-			crate::BufferUsage::Dynamic => api::DYNAMIC_DRAW,
-			crate::BufferUsage::Stream => api::STREAM_DRAW,
-		};
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, buf.buffer) };
-		unsafe { api::bufferData(api::ARRAY_BUFFER, size as GLsizeiptr, data.as_ptr(), usage) };
+		unsafe { api::bufferSubData(api::ARRAY_BUFFER, offset as GLintptr, size as GLsizeiptr, data.as_ptr()) };
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, 0) };
 	}
 
-	fn index_buffer_create(&mut self, _size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
+	fn index_buffer_create(&mut self, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
+		// Ensure non-zero size? What to do with zero sized buffers?
+		let alloc_size = if size == 0 { 1 } else { size };
+
 		let buffer = unsafe { api::createBuffer() };
-
-		return self.objects.insert(WebGLIndexBuffer { buffer, _size, usage, ty });
-	}
-
-	fn index_buffer_write(&mut self, id: crate::IndexBuffer, data: &[u8]) {
-		let Some(buf) = self.objects.get_index_buffer(id) else { return };
-		let size = mem::size_of_val(data);
-		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
-		let usage = match buf.usage {
+		let usage_enum = match usage {
 			crate::BufferUsage::Static => api::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => api::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => api::STREAM_DRAW,
 		};
+
+		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, buffer) };
+		unsafe { api::bufferData(api::ELEMENT_ARRAY_BUFFER, alloc_size as GLsizeiptr, std::ptr::null(), usage_enum) };
+		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
+
+		return self.objects.insert(WebGLIndexBuffer { buffer, size, _usage: usage, ty });
+	}
+
+	fn index_buffer_write(&mut self, id: crate::IndexBuffer, offset: usize, data: &[u8]) {
+		let Some(buf) = self.objects.get_index_buffer(id) else { return };
+		let size = mem::size_of_val(data);
+		debug_assert!(offset + size <= buf.size, "Index buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
+		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
 		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, buf.buffer) };
-		unsafe { api::bufferData(api::ELEMENT_ARRAY_BUFFER, size as GLsizeiptr, data.as_ptr(), usage) };
+		unsafe { api::bufferSubData(api::ELEMENT_ARRAY_BUFFER, offset as GLintptr, size as GLsizeiptr, data.as_ptr()) };
 		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
 	}
 

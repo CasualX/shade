@@ -11,8 +11,8 @@ pub trait GlObjectTrait {
 
 pub struct GlVertexBuffer {
 	pub buffer: GLuint,
-	pub _size: usize,
-	pub usage: crate::BufferUsage,
+	pub size: usize,
+	pub _usage: crate::BufferUsage,
 	pub layout: &'static crate::VertexLayout,
 }
 impl GlObjectTrait for GlVertexBuffer {
@@ -30,8 +30,8 @@ impl GlObjectTrait for GlVertexBuffer {
 
 pub struct GlIndexBuffer {
 	pub buffer: GLuint,
-	pub _size: usize,
-	pub usage: crate::BufferUsage,
+	pub size: usize,
+	pub _usage: crate::BufferUsage,
 	pub ty: crate::IndexType,
 }
 impl GlObjectTrait for GlIndexBuffer {

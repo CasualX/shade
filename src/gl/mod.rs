@@ -165,43 +165,58 @@ impl crate::IGraphics for GlGraphics {
 	}
 
 	fn vertex_buffer_create(&mut self, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
+		// Ensure non-zero size? What to do with zero sized buffers?
+		let alloc_size = if size == 0 { 1 } else { size };
+
 		let mut buffer = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
-
-		self.objects.insert(GlVertexBuffer { buffer, _size: size, usage, layout })
-	}
-
-	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, data: &[u8]) {
-		let Some(buf) = self.objects.get_vertex_buffer(id) else { return };
-		let size = mem::size_of_val(data);
-		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
-		let gl_usage = match buf.usage {
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buffer));
+		let gl_usage = match usage {
 			crate::BufferUsage::Static => gl::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
+		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null(), gl_usage));
+		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
+
+		self.objects.insert(GlVertexBuffer { buffer, size, _usage: usage, layout })
+	}
+
+	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, offset: usize, data: &[u8]) {
+		let Some(buf) = self.objects.get_vertex_buffer(id) else { return };
+		let size = mem::size_of_val(data);
+		debug_assert!(offset + size <= buf.size, "Vertex buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
+		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buf.buffer));
-		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, size as GLsizeiptr, data.as_ptr() as *const _, gl_usage));
+		gl_check!(gl::BufferSubData(gl::ARRAY_BUFFER, offset as GLintptr, size as GLsizeiptr, data.as_ptr() as *const _));
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 	}
 
 	fn index_buffer_create(&mut self, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
+		// Ensure non-zero size? What to do with zero sized buffers?
+		let alloc_size = if size == 0 { 1 } else { size };
+
 		let mut buffer = 0;
 		gl_check!(gl::GenBuffers(1, &mut buffer));
-		self.objects.insert(GlIndexBuffer { buffer, _size: size, usage, ty })
-	}
-
-	fn index_buffer_write(&mut self, id: crate::IndexBuffer, data: &[u8]) {
-		let Some(buf) = self.objects.get_index_buffer(id) else { return };
-		let size = mem::size_of_val(data);
-		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
-		let gl_usage = match buf.usage {
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buffer));
+		let gl_usage = match usage {
 			crate::BufferUsage::Static => gl::STATIC_DRAW,
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
+		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null(), gl_usage));
+		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
+
+		self.objects.insert(GlIndexBuffer { buffer, size, _usage: usage, ty })
+	}
+
+	fn index_buffer_write(&mut self, id: crate::IndexBuffer, offset: usize, data: &[u8]) {
+		let Some(buf) = self.objects.get_index_buffer(id) else { return };
+		let size = mem::size_of_val(data);
+		debug_assert!(offset + size <= buf.size, "Index buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
+		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, buf.buffer));
-		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size as GLsizeiptr, data.as_ptr() as *const _, gl_usage));
+		gl_check!(gl::BufferSubData(gl::ELEMENT_ARRAY_BUFFER, offset as GLintptr, size as GLsizeiptr, data.as_ptr() as *const _));
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 	}
 

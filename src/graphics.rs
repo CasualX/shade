@@ -192,12 +192,12 @@ pub trait IGraphics {
 	/// Creates a vertex buffer.
 	fn vertex_buffer_create(&mut self, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
 	/// Writes data to the vertex buffer.
-	fn vertex_buffer_write(&mut self, id: VertexBuffer, data: &[u8]);
+	fn vertex_buffer_write(&mut self, id: VertexBuffer, offset: usize, data: &[u8]);
 
 	/// Creates an index buffer.
 	fn index_buffer_create(&mut self, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
 	/// Writes data to the index buffer.
-	fn index_buffer_write(&mut self, id: IndexBuffer, data: &[u8]);
+	fn index_buffer_write(&mut self, id: IndexBuffer, offset: usize, data: &[u8]);
 
 	/// Creates and compiles a shader.
 	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> ShaderProgram;
@@ -331,13 +331,13 @@ impl Graphics {
 	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> VertexBuffer {
 		let this = &mut self.inner;
 		let id = this.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
-		this.vertex_buffer_write(id, dataview::bytes(data));
+		this.vertex_buffer_write(id, 0, dataview::bytes(data));
 		return id;
 	}
 	/// Writes data to the vertex buffer.
 	#[inline]
-	pub fn vertex_buffer_write<T: TVertex>(&mut self, id: VertexBuffer, data: &[T]) {
-		self.inner.vertex_buffer_write(id, dataview::bytes(data))
+	pub fn vertex_buffer_write<T: TVertex>(&mut self, id: VertexBuffer, offset: usize, data: &[T]) {
+		self.inner.vertex_buffer_write(id, offset, dataview::bytes(data))
 	}
 	/// Creates and writes data to the index buffer.
 	#[inline]
@@ -354,12 +354,12 @@ impl Graphics {
 		}
 		let this = &mut self.inner;
 		let id = this.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
-		this.index_buffer_write(id, dataview::bytes(data));
+		this.index_buffer_write(id, 0, dataview::bytes(data));
 		return id;
 	}
 	/// Writes data to the index buffer.
 	#[inline]
-	pub fn index_buffer_write<T: TIndex>(&mut self, id: IndexBuffer, data: &[T]) {
-		self.inner.index_buffer_write(id, dataview::bytes(data))
+	pub fn index_buffer_write<T: TIndex>(&mut self, id: IndexBuffer, offset: usize, data: &[T]) {
+		self.inner.index_buffer_write(id, offset, dataview::bytes(data))
 	}
 }

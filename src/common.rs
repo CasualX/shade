@@ -74,11 +74,11 @@ pub struct Index3 {
 }
 unsafe impl dataview::Pod for Index3 {}
 impl TIndices for Vec<Index3> {
-	type Index = u16;
+	type Index = u32;
 
 	#[inline]
 	fn as_indices(&self) -> &[Self::Index] {
-		unsafe { slice::from_raw_parts(self.as_ptr() as *const u16, self.len() * 3) }
+		unsafe { slice::from_raw_parts(self.as_ptr() as *const u32, self.len() * 3) }
 	}
 }
 

@@ -88,9 +88,18 @@ export function createWasmAPI(canvas, options) {
 		createBuffer() { return handles.add(gl.createBuffer()); },
 		bindBuffer(target, buffer) { gl.bindBuffer(target, handles.get(buffer)); },
 		bufferData(target, size, data_ptr, usage) {
+			if (data_ptr === 0) {
+				gl.bufferData(target, size, usage);
+			}
+			else if (memory) {
+				const data = new Uint8Array(memory.buffer, data_ptr, size);
+				gl.bufferData(target, data, usage);
+			}
+		},
+		bufferSubData(target, offset, size, data_ptr) {
 			if (!memory) return;
 			const data = new Uint8Array(memory.buffer, data_ptr, size);
-			gl.bufferData(target, data, usage);
+			gl.bufferSubData(target, offset, data);
 		},
 		deleteBuffer(buffer) {
 			gl.deleteBuffer(handles.get(buffer));

@@ -11,8 +11,8 @@ pub trait WebGLObjectTrait {
 
 pub struct WebGLVertexBuffer {
 	pub buffer: GLuint,
-	pub _size: usize,
-	pub usage: crate::BufferUsage,
+	pub size: usize,
+	pub _usage: crate::BufferUsage,
 	pub layout: &'static crate::VertexLayout,
 }
 impl WebGLObjectTrait for WebGLVertexBuffer {
@@ -29,8 +29,8 @@ impl WebGLObjectTrait for WebGLVertexBuffer {
 
 pub struct WebGLIndexBuffer {
 	pub buffer: GLuint,
-	pub _size: usize,
-	pub usage: crate::BufferUsage,
+	pub size: usize,
+	pub _usage: crate::BufferUsage,
 	pub ty: crate::IndexType,
 }
 impl WebGLObjectTrait for WebGLIndexBuffer {

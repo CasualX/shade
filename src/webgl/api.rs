@@ -36,6 +36,7 @@ extern "C" {
 	pub fn bindBuffer(target: types::GLenum, buffer: types::GLuint);
 	pub fn deleteBuffer(buffer: types::GLuint);
 	pub fn bufferData(target: types::GLenum, size: types::GLsizeiptr, data: *const u8, usage: types::GLenum);
+	pub fn bufferSubData(target: types::GLenum, offset: types::GLintptr, size: types::GLsizeiptr, data: *const u8);
 	pub fn enableVertexAttribArray(index: types::GLuint);
 	pub fn disableVertexAttribArray(index: types::GLuint);
 	// pub fn disableVertexAttribArray(index: types::GLuint);
