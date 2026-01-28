@@ -85,10 +85,15 @@ pub enum TextureFilter {
 pub struct TextureUsage(u8);
 impl TextureUsage {
 	pub const NONE: TextureUsage = TextureUsage(0x0);
+	/// Texture can be written to using [IGraphics::texture2d_write].
 	pub const WRITE: TextureUsage = TextureUsage(0x1);
+	/// Texture can be read back using [IGraphics::texture2d_read_into].
 	pub const READBACK: TextureUsage = TextureUsage(0x2);
+	/// Texture can be sampled in shaders.
 	pub const SAMPLED: TextureUsage = TextureUsage(0x4);
+	/// Texture can be used as a color render target.
 	pub const COLOR_TARGET: TextureUsage = TextureUsage(0x8);
+	/// Texture can be used as a depth/stencil render target.
 	pub const DEPTH_STENCIL_TARGET: TextureUsage = TextureUsage(0x10);
 
 	/// Common usage for textures used as sampled textures.

@@ -28,6 +28,7 @@ pub mod im;
 
 pub mod color;
 pub mod image;
+pub mod dither;
 
 #[cfg(feature = "gl")]
 pub mod gl;

@@ -4,7 +4,7 @@ use super::*;
 mod tests;
 
 /// In memory image buffer.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Image<T> {
 	pub width: i32,
 	pub height: i32,

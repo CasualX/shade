@@ -1,6 +1,7 @@
 use super::*;
 
 /// Decoded image data.
+#[derive(Clone, Debug)]
 pub enum DecodedImage {
 	/// An RGBA image.
 	RGBA(ImageRGBA),
