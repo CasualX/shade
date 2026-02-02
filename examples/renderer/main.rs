@@ -11,6 +11,7 @@ mod globe;
 mod cube;
 mod oldtree;
 mod parallax;
+mod particles;
 
 trait IRenderable {
 	fn update(&mut self, globals: &Globals);
@@ -55,6 +56,7 @@ struct RendererDemo {
 	epoch: time::Instant,
 	camera: shade::d3::ArcballCamera,
 	shadow_map: shade::Texture2D,
+	draw_bounds: bool,
 
 	axes: shade::d3::axes::AxesModel,
 	cube: cube::Renderable,
@@ -63,6 +65,7 @@ struct RendererDemo {
 	oldtree: oldtree::Renderable,
 	parallax: parallax::Renderable,
 	globe: globe::Renderable,
+	particles: particles::Renderable,
 	color3d_shader: shade::ShaderProgram,
 }
 impl RendererDemo {
@@ -76,6 +79,7 @@ impl RendererDemo {
 		};
 
 		let shadow_map = shade::Texture2D::INVALID;
+		let draw_bounds = false;
 
 		let axes = {
 			let shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
@@ -88,15 +92,31 @@ impl RendererDemo {
 		let oldtree = oldtree::Renderable::create(g);
 		let parallax = parallax::Renderable::create(g);
 		let globe = globe::Renderable::create(g);
+		let particles = particles::Renderable::create(g);
 		let color3d_shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
 
-		RendererDemo { epoch, camera, shadow_map, axes, cube, bunny, color_tree, oldtree, parallax, globe, color3d_shader }
+		RendererDemo {
+			epoch,
+			camera,
+			shadow_map,
+			draw_bounds,
+			axes,
+			cube,
+			bunny,
+			color_tree,
+			oldtree,
+			parallax,
+			globe,
+			particles,
+			color3d_shader,
+		}
 	}
 	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
 		let time = self.epoch.elapsed().as_secs_f32();
 		let globals = Globals { time };
 
 		self.cube.update(&globals);
+		self.particles.update_positions(g, &globals);
 
 		let renderables = [
 			&self.cube as &dyn IRenderable,
@@ -105,6 +125,7 @@ impl RendererDemo {
 			&self.oldtree as &dyn IRenderable,
 			&self.parallax as &dyn IRenderable,
 			&self.globe as &dyn IRenderable,
+			&self.particles as &dyn IRenderable,
 		];
 
 		self.shadow_map = g.texture2d_update(self.shadow_map, &shade::Texture2DInfo {
@@ -203,7 +224,7 @@ impl RendererDemo {
 			depth_test: None,
 		});
 
-		{
+		if self.draw_bounds {
 			let mut buf = shade::im::DrawBuilder::<shade::d3::ColorVertex3, shade::d3::ColorUniform3>::new();
 			buf.shader = self.color3d_shader;
 			buf.blend_mode = shade::BlendMode::Alpha;
