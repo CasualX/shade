@@ -78,10 +78,10 @@ unsafe impl TVertex for Vertex {
 }
 
 static VERTICES: [Vertex; 6] = [
-	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 1.0) },
-	Vertex { pos: Vec2f( 1.0, -1.0), uv: Vec2f(1.0, 1.0) },
-	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 0.0) },
-	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 1.0) },
-	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 0.0) },
-	Vertex { pos: Vec2f(-1.0,  1.0), uv: Vec2f(0.0, 0.0) },
+	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+	Vertex { pos: Vec2f( 1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 1.0) },
+	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 1.0) },
+	Vertex { pos: Vec2f(-1.0,  1.0), uv: Vec2f(0.0, 1.0) },
 ];

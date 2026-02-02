@@ -49,7 +49,7 @@ impl GlObjectTrait for GlIndexBuffer {
 
 #[allow(dead_code)]
 pub struct GlActiveAttrib {
-	pub location: u32,
+	pub location: GLuint,
 	pub size: GLint,
 	pub ty: GLenum,
 }

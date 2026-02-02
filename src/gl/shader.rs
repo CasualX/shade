@@ -65,11 +65,13 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		assert!((namelen as usize) < namebuf.len(), "Attribute name too long: {}", name);
 
 		let location = gl_check!(gl::GetAttribLocation(program, namebuf.as_ptr() as *const _));
-		assert!(location >= 0, "Attribute not found?!: {}", String::from_utf8_lossy(&namebuf));
+		if location < 0 {
+			// println!("Warning: Attribute not found (maybe optimized out): {}", name);
+			continue;
+		}
 
-		let location = location as u32;
+		let location = location as GLuint;
 		attribs.insert(name.into(), GlActiveAttrib { location, size, ty });
-		// println!("Attribute: {} (location: {})", shader.attribs.last().unwrap().name(), location);
 	}
 
 	let mut nuniforms = 0;
@@ -83,7 +85,10 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		assert!((namelen as usize) < namebuf.len(), "Uniform name too long: {}", name);
 
 		let location = gl_check!(gl::GetUniformLocation(program, namebuf.as_ptr() as *const _));
-		assert!(location >= 0, "Uniform not found?!: {}", String::from_utf8_lossy(&namebuf));
+		if location < 0 {
+			// println!("Warning: Uniform not found (maybe optimized out): {}", name);
+			continue;
+		}
 
 		let needs_texture_unit = matches!(ty,
 			| gl::SAMPLER_1D
