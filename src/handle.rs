@@ -5,7 +5,7 @@ use super::*;
 /// Can be upcasted to specific object handles:
 /// ```no_run
 ///# use todo as placeholder;
-/// let g: shade::Graphics = placeholder!();
+/// let g: &mut shade::Graphics = placeholder!();
 /// let base: shade::BaseObject = placeholder!();
 /// let vbuf: shade::VertexBuffer = g.try_cast(base).unwrap();
 /// ```

@@ -175,7 +175,7 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// ```
 /// use shade::{cvmath, d2, im};
 ///
-/// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: shade::Shader) {
+/// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: shade::ShaderProgram) {
 /// 	// Construct a new DrawBuilder instance
 /// 	let mut cv = im::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///

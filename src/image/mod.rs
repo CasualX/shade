@@ -11,6 +11,7 @@ mod format;
 mod image;
 mod io;
 
+pub use self::algorithms::BlitGutterMode;
 pub use self::animated::*;
 pub use self::binpack::*;
 pub use self::decoded::*;
