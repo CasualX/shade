@@ -13,6 +13,7 @@ pub mod types {
 	pub type GLfloat = f32;
 }
 
+#[cfg(target_family = "wasm")]
 #[link(wasm_import_module = "webgl")]
 extern "C" {
 	pub fn consoleLog(message_ptr: *const u8, message_len: usize);
@@ -122,6 +123,101 @@ extern "C" {
 	pub fn drawArraysInstanced(mode: types::GLenum, first: types::GLint, count: types::GLsizei, instancecount: types::GLsizei);
 	pub fn drawElementsInstanced(mode: types::GLenum, count: types::GLsizei, type_: types::GLenum, indices: types::GLintptr, instancecount: types::GLsizei);
 }
+
+#[cfg(not(target_family = "wasm"))]
+mod stubs {
+	#![allow(non_snake_case)]
+	use super::types::*;
+
+	pub unsafe fn consoleLog(_message_ptr: *const u8, _message_len: usize) {}
+	pub unsafe fn now() -> f64 { 0.0 }
+
+	pub unsafe fn enable(_cap: GLenum) {}
+	pub unsafe fn disable(_cap: GLenum) {}
+	pub unsafe fn scissor(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) {}
+	pub unsafe fn blendFunc(_sfactor: GLenum, _dfactor: GLenum) {}
+	pub unsafe fn blendEquation(_mode: GLenum) {}
+	pub unsafe fn depthFunc(_func: GLenum) {}
+	pub unsafe fn cullFace(_mode: GLenum) {}
+	pub unsafe fn clearColor(_red: f32, _green: f32, _blue: f32, _alpha: f32) {}
+	pub unsafe fn clearDepth(_depth: f64) {}
+	pub unsafe fn clearStencil(_s: GLint) {}
+	pub unsafe fn clear(_mask: GLbitfield) {}
+	pub unsafe fn colorMask(_red: GLboolean, _green: GLboolean, _blue: GLboolean, _alpha: GLboolean) {}
+	pub unsafe fn depthMask(_flag: GLboolean) {}
+	pub unsafe fn stencilMask(_mask: GLuint) {}
+	pub unsafe fn viewport(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei) {}
+
+	pub unsafe fn createBuffer() -> GLuint { 0 }
+	pub unsafe fn bindBuffer(_target: GLenum, _buffer: GLuint) {}
+	pub unsafe fn deleteBuffer(_buffer: GLuint) {}
+	pub unsafe fn bufferData(_target: GLenum, _size: GLsizeiptr, _data: *const u8, _usage: GLenum) {}
+	pub unsafe fn bufferSubData(_target: GLenum, _offset: GLintptr, _size: GLsizeiptr, _data: *const u8) {}
+
+	pub unsafe fn enableVertexAttribArray(_index: GLuint) {}
+	pub unsafe fn disableVertexAttribArray(_index: GLuint) {}
+	pub unsafe fn vertexAttribPointer(_index: GLuint, _size: GLint, _type_: GLenum, _normalized: GLboolean, _stride: GLsizei, _offset: GLintptr) {}
+
+	pub unsafe fn createProgram() -> GLuint { 0 }
+	pub unsafe fn deleteProgram(_program: GLuint) {}
+
+	pub unsafe fn createShader(_shader_type: GLenum) -> GLuint { 0 }
+	pub unsafe fn deleteShader(_shader: GLuint) {}
+	pub unsafe fn shaderSource(_shader: GLuint, _source_ptr: *const u8, _source_len: usize) {}
+	pub unsafe fn compileShader(_shader: GLuint) {}
+	pub unsafe fn getShaderParameter(_shader: GLuint, _pname: GLenum) -> GLint { 0 }
+	pub unsafe fn getShaderInfoLog(_shader: GLuint) {}
+	pub unsafe fn attachShader(_program: GLuint, _shader: GLuint) {}
+	pub unsafe fn linkProgram(_program: GLuint) {}
+	pub unsafe fn useProgram(_program: GLuint) {}
+	pub unsafe fn getProgramParameter(_program: GLuint, _pname: GLenum) -> GLint { 0 }
+	pub unsafe fn getProgramInfoLog(_program: GLuint) {}
+	pub unsafe fn getActiveUniform(_program: GLuint, _index: GLuint, _bufSize: GLsizei, _length: *mut GLsizei, _size: *mut GLint, _type_: *mut GLenum, _name: *mut u8) {}
+	pub unsafe fn getUniformLocation(_program: GLuint, _name_ptr: *const u8, _name_len: usize) -> GLint { -1 }
+	pub unsafe fn getActiveAttrib(_program: GLuint, _index: GLuint, _bufSize: GLsizei, _length: *mut GLsizei, _size: *mut GLint, _type_: *mut GLenum, _name: *mut u8) {}
+	pub unsafe fn getAttribLocation(_program: GLuint, _name_ptr: *const u8, _name_len: usize) -> GLint { -1 }
+
+	pub unsafe fn uniform1fv(_location: GLuint, _count: GLsizei, _value: *const f32) {}
+	pub unsafe fn uniform2fv(_location: GLuint, _count: GLsizei, _value: *const [f32; 2]) {}
+	pub unsafe fn uniform3fv(_location: GLuint, _count: GLsizei, _value: *const [f32; 3]) {}
+	pub unsafe fn uniform4fv(_location: GLuint, _count: GLsizei, _value: *const [f32; 4]) {}
+	pub unsafe fn uniform1iv(_location: GLuint, _count: GLsizei, _value: *const GLint) {}
+	pub unsafe fn uniform2iv(_location: GLuint, _count: GLsizei, _value: *const [GLint; 2]) {}
+	pub unsafe fn uniform3iv(_location: GLuint, _count: GLsizei, _value: *const [GLint; 3]) {}
+	pub unsafe fn uniform4iv(_location: GLuint, _count: GLsizei, _value: *const [GLint; 4]) {}
+	pub unsafe fn uniformMatrix2fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 2]; 2]) {}
+	pub unsafe fn uniformMatrix3fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 3]; 3]) {}
+	pub unsafe fn uniformMatrix4fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 4]; 4]) {}
+	pub unsafe fn vertexAttribDivisor(_index: GLuint, _divisor: GLuint) {}
+
+	pub unsafe fn createTexture() -> GLuint { 0 }
+	pub unsafe fn deleteTexture(_texture: GLuint) {}
+	pub unsafe fn activeTexture(_texture: GLenum) {}
+	pub unsafe fn bindTexture(_target: GLenum, _texture: GLuint) {}
+	pub unsafe fn generateMipmap(_target: GLenum) {}
+	pub unsafe fn pixelStorei(_pname: GLenum, _param: GLint) {}
+	pub unsafe fn texParameteri(_target: GLenum, _pname: GLenum, _param: GLint) {}
+	pub unsafe fn texStorage2D(_target: GLenum, _levels: GLsizei, _internalformat: GLenum, _width: GLsizei, _height: GLsizei) {}
+	pub unsafe fn texImage2D(_target: GLenum, _level: GLint, _internalformat: GLenum, _width: GLsizei, _height: GLsizei, _border: GLint, _format: GLenum, _type_: GLenum, _pixels_ptr: *const u8, _pixels_len: usize) {}
+	pub unsafe fn texSubImage2D(_target: GLenum, _level: GLint, _xoffset: GLint, _yoffset: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type_: GLenum, _pixels_ptr: *const u8, _pixels_len: usize) {}
+
+	pub unsafe fn createFramebuffer() -> GLuint { 0 }
+	pub unsafe fn deleteFramebuffer(_framebuffer: GLuint) {}
+	pub unsafe fn bindFramebuffer(_target: GLenum, _framebuffer: GLuint) {}
+	pub unsafe fn framebufferTexture2D(_target: GLenum, _attachment: GLenum, _textarget: GLenum, _texture: GLuint, _level: GLint) {}
+	pub unsafe fn drawBuffers(_n: GLsizei, _bufs: *const GLenum) {}
+	pub unsafe fn readBuffer(_src: GLenum) {}
+	pub unsafe fn checkFramebufferStatus(_target: GLenum) -> GLenum { 0 }
+	pub unsafe fn readPixels(_x: GLint, _y: GLint, _width: GLsizei, _height: GLsizei, _format: GLenum, _type_: GLenum, _pixels_ptr: *mut u8, _pixels_len: usize) {}
+
+	pub unsafe fn drawArrays(_mode: GLenum, _first: GLint, _count: GLsizei) {}
+	pub unsafe fn drawElements(_mode: GLenum, _count: GLsizei, _type_: GLenum, _indices: GLintptr) {}
+	pub unsafe fn drawArraysInstanced(_mode: GLenum, _first: GLint, _count: GLsizei, _instancecount: GLsizei) {}
+	pub unsafe fn drawElementsInstanced(_mode: GLenum, _count: GLsizei, _type_: GLenum, _indices: GLintptr, _instancecount: GLsizei) {}
+}
+
+#[cfg(not(target_family = "wasm"))]
+pub use stubs::*;
 
 pub const FALSE: types::GLboolean = false;
 pub const TRUE: types::GLboolean = true;
