@@ -25,7 +25,7 @@ fn sprite_quad() {
 		top_right: (),
 		bottom_right: (),
 	};
-	let pos = Transform2::translate(Vec2(10.0, 20.0));
+	let pos = Transform2::translation(Vec2(10.0, 20.0));
 	buf.sprite_quad(&stamp, &pos);
 	assert_eq!(buf.commands.len(), 1);
 	assert_eq!(buf.vertices.len(), 4);

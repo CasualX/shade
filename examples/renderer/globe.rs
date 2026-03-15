@@ -242,6 +242,6 @@ impl super::IRenderable for Renderable {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
-		(self.mesh.bounds, Transform3f::translate(self.instance.position) * Transform3f::scale(Vec3f::dup(self.instance.radius)))
+		(self.mesh.bounds, Transform3f::translation(self.instance.position) * Transform3f::scaling(Vec3f::dup(self.instance.radius)))
 	}
 }

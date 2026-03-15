@@ -133,7 +133,7 @@ impl Renderable {
 		let material = Material { shader, shadow_shader };
 
 		let instance = Instance {
-			model: Transform3f::scale(Vec3f::dup(0.01)),
+			model: Transform3f::scaling(Vec3f::dup(0.01)),
 		};
 
 		Renderable { mesh, material, instance }

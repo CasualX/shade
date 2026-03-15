@@ -139,7 +139,7 @@ impl Renderable {
 		let material = Material { shader, shadow_shader, texture };
 
 		let instance = Instance {
-			model: Transform3f::translate(Vec3f(0.0, -20.0, 0.0)) * Transform3f::scale(Vec3::dup(5.0)),
+			model: Transform3f::translation(Vec3f(0.0, -20.0, 0.0)) * Transform3f::scaling(Vec3::dup(5.0)),
 		};
 
 		Renderable { mesh, material, instance }

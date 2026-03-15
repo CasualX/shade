@@ -145,7 +145,7 @@ impl Renderable {
 		let shadow_shader = g.shader_compile(BUNNY_VS, BUNNY_SHADOW_FS);
 		let material = Material { shader, shadow_shader };
 		let instance = Instance {
-			model: Transform3f::translate(Vec3f(-10.0, 30.0, 0.0)) * Transform3f::scale(Vec3::dup(0.25)),
+			model: Transform3f::translation(Vec3f(-10.0, 30.0, 0.0)) * Transform3f::scaling(Vec3::dup(0.25)),
 		};
 
 		Renderable { mesh, material, instance }

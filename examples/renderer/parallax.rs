@@ -244,7 +244,7 @@ impl Renderable {
 		};
 
 		let instance = Instance {
-			model: Transform3f::scale(Vec3::dup(10.0)),
+			model: Transform3f::scaling(Vec3::dup(10.0)),
 		};
 
 		Renderable { mesh, material, instance }

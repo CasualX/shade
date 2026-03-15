@@ -38,7 +38,7 @@ impl FirstPersonCamera {
 
 		let forward = self.forward;
 		let right = forward.cross(self.up).norm();
-		let rotation = Mat3f::rotate(self.up, yaw) * Mat3f::rotate(right, pitch);
+		let rotation = Mat3f::rotation(self.up, yaw) * Mat3f::rotation(right, pitch);
 
 		self.forward = (rotation * forward).norm();
 	}

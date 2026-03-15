@@ -103,7 +103,7 @@ impl Context {
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
 
 		// Compute rotation matrix from time
-		let rotation = Mat2::rotate(Angle(time as f32));
+		let rotation = Mat2::rotation(Angle(time as f32));
 
 		// Create the triangle vertices
 		let vertices = g.vertex_buffer(&[

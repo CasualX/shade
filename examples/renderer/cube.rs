@@ -259,9 +259,9 @@ impl Renderable {
 
 impl super::IRenderable for Renderable {
 	fn update(&mut self, globals: &crate::Globals) {
-		let local = Transform3f::translate(Vec3f(-15.0, 0.0, 10.0)) * Transform3f::scale(Vec3::dup(5.0));
-		let rot_a = Transform3f::rotate(Vec3f(0.0, 1.0, 0.0), Angle(globals.time * 0.7));
-		let rot_b = Transform3f::rotate(Vec3f(1.0, 0.25, 0.1).norm(), Angle(globals.time * 1.3));
+		let local = Transform3f::translation(Vec3f(-15.0, 0.0, 10.0)) * Transform3f::scaling(Vec3::dup(5.0));
+		let rot_a = Transform3f::rotation(Vec3f(0.0, 1.0, 0.0), Angle(globals.time * 0.7));
+		let rot_b = Transform3f::rotation(Vec3f(1.0, 0.25, 0.1).norm(), Angle(globals.time * 1.3));
 		let model = local * rot_a * rot_b;
 		self.instance.model = model;
 	}

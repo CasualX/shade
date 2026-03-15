@@ -220,7 +220,7 @@ impl RendererDemo {
 		print!("\rDrawn {} objects  ", count);
 
 		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
-			local: Transform3f::translate(self.camera.pivot) * Transform3f::scale(Vec3::dup(self.camera.pivot.distance(self.camera.position()) * 0.25)),
+			local: Transform3f::translation(self.camera.pivot) * Transform3f::scaling(Vec3::dup(self.camera.pivot.distance(self.camera.position()) * 0.25)),
 			depth_test: None,
 		});
 

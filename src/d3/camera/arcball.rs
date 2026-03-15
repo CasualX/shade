@@ -51,7 +51,7 @@ impl ArcballCamera {
 
 	/// Pans the camera parallel to the view plane.
 	pub fn pan(&mut self, dx: f32, dy: f32) {
-		let rotation = Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch);
+		let rotation = Mat3f::rotation(self.yaw_axis, self.yaw) * Mat3f::rotation(self.pitch_axis, self.pitch);
 		let right = rotation * self.pitch_axis;
 		let up = rotation * self.yaw_axis;
 
@@ -74,14 +74,14 @@ impl ArcballCamera {
 	/// Returns the view direction vector from the camera to the pivot point.
 	pub fn view_dir(&self) -> Vec3f {
 		let forward = self.yaw_axis.cross(self.pitch_axis).norm();
-		Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch) * forward
+		Mat3f::rotation(self.yaw_axis, self.yaw) * Mat3f::rotation(self.pitch_axis, self.pitch) * forward
 	}
 
 	/// Returns the view matrix using the given handedness.
 	pub fn view_matrix(&self, hand: Hand) -> Transform3f {
 		// Compute the proper up vector based on the yaw and pitch axes
 		// It's cheaper to just use the yaw axis, but this breaks when looking straight up or down
-		let up = Mat3f::rotate(self.yaw_axis, self.yaw) * Mat3f::rotate(self.pitch_axis, self.pitch) * self.yaw_axis;
+		let up = Mat3f::rotation(self.yaw_axis, self.yaw) * Mat3f::rotation(self.pitch_axis, self.pitch) * self.yaw_axis;
 		Transform3f::look_at(self.position(), self.pivot, up, hand)
 	}
 }
