@@ -10,8 +10,8 @@ members = [
 
 [package]
 name = "shade"
-version = "0.0.4"
-edition = "2021"
+version = "0.0.5"
+edition = "2024"
 
 authors = ["Casper <CasualX@users.noreply.github.com>"]
 description = "Another graphics library"

@@ -1,6 +1,10 @@
 WebGL Demo
 ==========
 
+Live demos are available here:
+
+<https://casualhacks.net/shade/>
+
 Usage
 -----
 

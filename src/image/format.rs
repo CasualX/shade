@@ -38,7 +38,7 @@ impl crate::ImageToTexture for DecodedImage {
 
 impl crate::ImageToTexture for (&DecodedImage, &crate::TextureProps) {
 	fn info(&self) -> crate::Texture2DInfo {
-		let (image, &props) = self;
+		let &(image, &props) = self;
 		match image {
 			DecodedImage::RGBA(image) => crate::Texture2DInfo {
 				format: crate::TextureFormat::SRGBA8,
@@ -91,7 +91,7 @@ impl<T: PixelFormat + Copy + dataview::Pod> crate::ImageToTexture for Image<T> {
 impl<T: PixelFormat + Copy + dataview::Pod> crate::ImageToTexture for (&Image<T>, &crate::TextureProps) {
 	#[inline]
 	fn info(&self) -> crate::Texture2DInfo {
-		let (image, &props) = self;
+		let &(image, &props) = self;
 		crate::Texture2DInfo {
 			format: T::FORMAT,
 			width: image.width,
