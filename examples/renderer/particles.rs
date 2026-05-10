@@ -181,7 +181,7 @@ impl Renderable {
 		let mesh = g.vertex_buffer(&INSTANCE_QUAD, shade::BufferUsage::Static);
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let update_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, UPDATE_POSITIONS_FS).unwrap();
+		let update_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, UPDATE_POSITIONS_FS).unwrap();
 
 		Renderable { mesh, material, instance, positions: [positions, positions2], index: false, pp, update_shader }
 	}

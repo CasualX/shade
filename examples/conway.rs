@@ -169,8 +169,8 @@ struct ConwayDemo {
 impl ConwayDemo {
 	fn new(g: &mut shade::Graphics) -> ConwayDemo {
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let conway_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, CONWAY_FS);
-		let display_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, DISPLAY_FS);
+		let conway_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, CONWAY_FS);
+		let display_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, DISPLAY_FS);
 
 		let field_size = Vec2::new(FIELD_WIDTH.max(1), FIELD_HEIGHT.max(1));
 		let seed = seed_data(field_size.x, field_size.y);

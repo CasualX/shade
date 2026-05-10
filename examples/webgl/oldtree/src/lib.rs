@@ -49,7 +49,7 @@ out vec3 v_fragPos;
 out vec3 v_normal;
 out vec2 v_uv;
 
-uniform mat4 u_model;
+uniform mat4x3 u_model;
 uniform mat4 u_viewProjMatrix;
 
 uniform mat3 u_normalMatrix;

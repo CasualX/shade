@@ -29,10 +29,10 @@ unsafe impl shade::TVertex for Vertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"
+const FRAGMENT_SHADER: &str = r#"#version 300 es
 precision highp float;
 
-varying vec2 v_uv;
+in vec2 v_uv;
 
 uniform sampler2D u_texture;
 uniform sampler2D u_displacement;
@@ -41,36 +41,38 @@ uniform vec3 u_waterbase;
 uniform vec3 u_wavehighlight;
 uniform vec3 u_waveshadow;
 
+out vec4 o_fragColor;
+
 void main() {
 	vec2 uv = v_uv;
 
 	// Layered distortion
-	float distortion1 = texture2D(u_displacement, fract(uv * 1.0 + vec2(u_time * 0.2, u_time * 0.25))).r;
-	float distortion2 = texture2D(u_displacement, fract(uv * 2.5 + vec2(-u_time * 0.15, u_time * 0.1))).r;
-	float distortion3 = texture2D(u_displacement, fract(uv * 0.75 + vec2(u_time * 0.05, -u_time * 0.2))).r;
+	float distortion1 = texture(u_displacement, fract(uv * 1.0 + vec2(u_time * 0.2, u_time * 0.25))).r;
+	float distortion2 = texture(u_displacement, fract(uv * 2.5 + vec2(-u_time * 0.15, u_time * 0.1))).r;
+	float distortion3 = texture(u_displacement, fract(uv * 0.75 + vec2(u_time * 0.05, -u_time * 0.2))).r;
 
 	float distortion = (distortion1 * 0.5 + distortion2 * 0.3 + distortion3 * 0.2) - 0.5;
 	uv += vec2(distortion * 0.1, distortion * 0.15);
 
 	// Main wave layer
-	float v = texture2D(u_texture, uv * vec2(4.0, 4.0)).r;
+	float v = texture(u_texture, uv * vec2(4.0, 4.0)).r;
 	vec3 mainColor = mix(vec3(0.0, 0.0, 0.5), vec3(0.5, 0.8, 1.0), v);
 
 	// Shadow wave layer
-	float u = texture2D(u_texture, uv * vec2(2.0, 2.0) + vec2(0.3, 0.3) + vec2(u_time * 0.05, -u_time * 0.05)).r;
+	float u = texture(u_texture, uv * vec2(2.0, 2.0) + vec2(0.3, 0.3) + vec2(u_time * 0.05, -u_time * 0.05)).r;
 	vec3 shadowColor = mix(vec3(0.0, 0.0, 0.0), u_waveshadow, u);
 
 	vec3 finalColor = mainColor - shadowColor * 0.5;
 
-	gl_FragColor = vec4(finalColor, 1.0);
+	o_fragColor = vec4(finalColor, 1.0);
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
-attribute vec2 a_pos;
-attribute vec2 a_uv;
+const VERTEX_SHADER: &str = r#"#version 300 es
+in vec2 a_pos;
+in vec2 a_uv;
 
-varying vec2 v_uv;
+out vec2 v_uv;
 
 void main() {
 	v_uv = a_uv;

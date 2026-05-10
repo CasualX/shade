@@ -255,21 +255,21 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
-			debug_assert_eq!(u.ty, api::FLOAT_MAT3, "Uniform {name:?} expected `mat3` type in shader");
+			debug_assert_eq!(u.ty, api::FLOAT_MAT3x2, "Uniform {name:?} expected `mat3x2` type in shader");
 			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
-				let transposed = data.mat3().into_column_major();
-				unsafe { api::uniformMatrix3fv(u.location + i as u32, 1, false, &transposed) };
+				let transposed = data.into_column_major();
+				unsafe { api::uniformMatrix3x2fv(u.location + i as u32, 1, false, &transposed) };
 			}
 		}
 	}
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
-			debug_assert_eq!(u.ty, api::FLOAT_MAT4, "Uniform {name:?} expected `mat4` type in shader");
+			debug_assert_eq!(u.ty, api::FLOAT_MAT4x3, "Uniform {name:?} expected `mat4x3` type in shader");
 			debug_assert_eq!(u.size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.size, data.len());
 			for (i, data) in data.iter().enumerate() {
-				let transposed = data.mat4().into_column_major();
-				unsafe { api::uniformMatrix4fv(u.location + i as u32, 1, false, &transposed) };
+				let transposed = data.into_column_major();
+				unsafe { api::uniformMatrix4x3fv(u.location + i as u32, 1, false, &transposed) };
 			}
 		}
 	}

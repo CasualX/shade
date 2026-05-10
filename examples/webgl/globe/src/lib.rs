@@ -5,15 +5,17 @@ mod api;
 //----------------------------------------------------------------
 // Uniforms and shaders
 
-const SPHERE_FS: &str = r#"
+const SPHERE_FS: &str = r#"#version 300 es
 precision highp float;
+
+in vec3 v_worldPos;
 
 uniform vec3 u_cameraPosition;
 uniform vec3 u_globePosition;
 uniform float u_globeRadius;
 uniform sampler2D u_texture;
 
-varying vec3 v_worldPos;
+out vec4 o_fragColor;
 
 const float PI = 3.141592653589793;
 
@@ -57,30 +59,30 @@ void main() {
 	// Keep within [0,1) for wrapping samplers.
 	u = fract(u);
 
-	vec3 color = texture2D(u_texture, vec2(u, v)).rgb;
-	gl_FragColor = vec4(color, 1.0);
+	vec3 color = texture(u_texture, vec2(u, v)).rgb;
+	o_fragColor = vec4(color, 1.0);
 }
 "#;
 
-const SPHERE_VS: &str = r#"
+const SPHERE_VS: &str = r#"#version 300 es
 precision highp float;
 
-attribute vec3 a_pos;
+in vec3 a_pos;
 
-uniform mat4 u_viewMatrix;
+out vec3 v_worldPos;
+
+uniform mat4x3 u_viewMatrix;
 uniform mat4 u_projMatrix;
 
 uniform vec3 u_globePosition;
 uniform float u_globeRadius;
-
-varying vec3 v_worldPos;
 
 void main() {
 	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
 	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
 	vec4 worldPos = vec4(world, 1.0);
 	v_worldPos = worldPos.xyz;
-	gl_Position = u_projMatrix * u_viewMatrix * worldPos;
+	gl_Position = u_projMatrix * vec4(u_viewMatrix * worldPos, 1.0);
 }
 "#;
 

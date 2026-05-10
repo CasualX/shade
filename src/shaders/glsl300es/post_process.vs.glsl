@@ -1,11 +1,10 @@
-// WebGL GLSL ES 1.00
-
+#version 300 es
 precision highp float;
 
-attribute vec2 a_pos;
-attribute vec2 a_uv;
+in vec2 a_pos;
+in vec2 a_uv;
 
-varying vec2 v_uv;
+out vec2 v_uv;
 
 void main() {
 	v_uv = a_uv;

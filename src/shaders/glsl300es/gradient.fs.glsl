@@ -1,17 +1,19 @@
+#version 300 es
 precision highp float;
+
+out vec4 o_fragColor;
 
 const float PI = 3.14159265358979323846;
 const float TAU = PI + PI;
 
-varying vec4 v_color1;
-varying vec4 v_color2;
-varying vec2 v_uv;
+in vec4 v_color1;
+in vec4 v_color2;
+in vec2 v_uv;
 
 #ifdef SOURCE_TEXTURE
 uniform sampler2D u_texture;
 #endif
 
-// -- Compute Gradient Distance -----------------------------------
 float compute_distance(vec2 uv) {
 	#ifdef SHAPE_LINEAR
 		return uv.x;
@@ -44,23 +46,19 @@ float apply_repeat(float d) {
 	#endif
 }
 
-float fract(float x) {
-	return x - floor(x);
-}
-
 vec4 get_gradient_color(float s) {
 	#ifdef SOURCE_COLOR
 		s = smoothstep(0.0, 1.0, s);
 		return mix(v_color1, v_color2, s);
 	#elif defined(SOURCE_TEXTURE)
-		return texture2D(u_texture, vec2(0.5, s));
+		return texture(u_texture, vec2(0.5, s));
 	#else
-		return vec4(1.0, 0.0, 1.0, 1.0); // fallback pink
+		return vec4(1.0, 0.0, 1.0, 1.0);
 	#endif
 }
 
 void main() {
 	float d = compute_distance(v_uv);
 	float s = apply_repeat(d);
-	gl_FragColor = get_gradient_color(s);
+	o_fragColor = get_gradient_color(s);
 }

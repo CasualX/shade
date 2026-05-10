@@ -30,7 +30,6 @@ void main() {
 
 	float width = screen_px_range();
 
-	// Discard fragments outside the glyph's encoded distance field (fully transparent areas)
 	if (d_sdf <= 0.0)
 		discard;
 

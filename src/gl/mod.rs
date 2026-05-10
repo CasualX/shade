@@ -14,12 +14,13 @@ type NameBuf = crate::sstring::SmallString<64>;
 
 #[cfg(debug_assertions)]
 macro_rules! gl_check {
-	(gl::$f:ident($($e:expr),*)) => {
+	(gl::$f:ident($($e:expr),* $(,)?)) => {{
+		assert!(gl::$f::is_loaded(), "OpenGL function gl{} was not loaded.", stringify!($f));
 		check(|| {
 			// println!(concat!("gl", stringify!($f), "(", $(stringify!($e),"={:?}, ",)* ")"), $($e),*);
 			unsafe { gl::$f($($e),*) }
 		})
-	};
+	}};
 }
 #[cfg(not(debug_assertions))]
 macro_rules! gl_check {
@@ -36,8 +37,6 @@ mod objects;
 
 use self::cvt::*;
 use self::objects::*;
-
-pub mod shaders;
 
 #[derive(Clone, Debug)]
 pub struct GlConfig {

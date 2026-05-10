@@ -239,14 +239,18 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT3x2, "Uniform {name:?} expected `mat3x2` type in shader");
 			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
-			gl_check!(gl::UniformMatrix3x2fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+			crate::slice_map::<_, _, _, 32>(data, cvmath::Transform2f::into_column_major, |mapped| {
+				gl_check!(gl::UniformMatrix3x2fv(u.location, mapped.len() as i32, gl::FALSE, mapped.as_ptr() as *const f32));
+			});
 		}
 	}
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT4x3, "Uniform {name:?} expected `mat4x3` type in shader");
 			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
-			gl_check!(gl::UniformMatrix4x3fv(u.location, data.len() as i32, gl::TRUE, data.as_ptr() as *const f32));
+			crate::slice_map::<_, _, _, 16>(data, cvmath::Transform3f::into_column_major, |mapped| {
+				gl_check!(gl::UniformMatrix4x3fv(u.location, mapped.len() as i32, gl::FALSE, mapped.as_ptr() as *const f32));
+			});
 		}
 	}
 	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
@@ -324,8 +328,11 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], levels: O
 
 	// Specify which color attachments to draw to
 	if color.is_empty() {
-		gl_check!(gl::DrawBuffer(gl::NONE));
-		gl_check!(gl::ReadBuffer(gl::NONE));
+		let none = [gl::NONE];
+		gl_check!(gl::DrawBuffers(1, none.as_ptr()));
+		if gl::ReadBuffer::is_loaded() {
+			gl_check!(gl::ReadBuffer(gl::NONE));
+		}
 	}
 	else {
 		gl_check!(gl::DrawBuffers(color.len() as i32, draw_buffers.as_ptr()));
@@ -385,7 +392,7 @@ pub fn clear(this: &mut GlGraphics, args: &crate::ClearArgs) {
 	}
 	if let Some(depth) = args.depth {
 		gl_check!(gl::DepthMask(gl::TRUE));
-		gl_check!(gl::ClearDepth(depth as f64));
+		gl_check!(gl::ClearDepthf(depth));
 		mask |= gl::DEPTH_BUFFER_BIT;
 	}
 	if let Some(stencil) = args.stencil{

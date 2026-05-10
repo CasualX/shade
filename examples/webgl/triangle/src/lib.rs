@@ -32,24 +32,23 @@ unsafe impl shade::TVertex for TriangleVertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"
+const FRAGMENT_SHADER: &str = r#"#version 300 es
 precision highp float;
 
-// Varying from vertex shader
-varying vec4 VertexColor;
+in vec4 VertexColor;
+
+out vec4 o_fragColor;
 
 void main() {
-	gl_FragColor = VertexColor;
+	o_fragColor = VertexColor;
 }
 "#;
 
-const VERTEX_SHADER: &str = r#"
-// Attributes
-attribute vec2 aPos;
-attribute vec4 aColor;
+const VERTEX_SHADER: &str = r#"#version 300 es
+in vec2 aPos;
+in vec4 aColor;
 
-// Varying to pass to fragment shader
-varying vec4 VertexColor;
+out vec4 VertexColor;
 
 vec3 srgbToLinear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
@@ -60,7 +59,6 @@ vec4 srgbToLinear(vec4 c) {
 }
 
 void main() {
-	// Gamma correction (sRGB -> linear)
 	VertexColor = srgbToLinear(aColor);
 
 	gl_Position = vec4(aPos, 0.0, 1.0);

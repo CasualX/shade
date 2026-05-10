@@ -7,6 +7,7 @@ pub use cvmath;
 mod handle;
 
 mod common;
+mod util;
 mod graphics;
 mod vertex;
 mod texture;
@@ -16,11 +17,14 @@ mod sstring;
 
 pub use self::handle::*;
 pub use self::common::*;
+use self::util::*;
 pub use self::graphics::*;
 pub use self::vertex::*;
 pub use self::texture::*;
 pub use self::uniform::*;
 pub use self::shader::*;
+
+pub mod shaders;
 
 pub mod d2;
 pub mod d3;

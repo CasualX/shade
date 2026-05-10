@@ -10,8 +10,6 @@ mod shader;
 mod texture2d;
 mod objects;
 
-pub mod shaders;
-
 use self::objects::*;
 use api::types::*;
 

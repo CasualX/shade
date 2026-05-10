@@ -21,7 +21,7 @@ struct PolygonDemo {
 
 impl PolygonDemo {
 	fn new(g: &mut shade::Graphics) -> PolygonDemo {
-		let color_shader = g.shader_compile(shade::gl::shaders::COLOR_VS, shade::gl::shaders::COLOR_FS);
+		let color_shader = g.shader_compile(shade::shaders::glsl330core::COLOR_VS, shade::shaders::glsl330core::COLOR_FS);
 		PolygonDemo {
 			color_shader,
 			points: Vec::new(),

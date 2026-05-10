@@ -106,7 +106,7 @@ impl TextDemo {
 				g.image(&image)
 			};
 
-			let shader = g.shader_compile(shade::gl::shaders::MTSDF_VS, shade::gl::shaders::MTSDF_FS);
+			let shader = g.shader_compile(shade::shaders::glsl330core::MTSDF_VS, shade::shaders::glsl330core::MTSDF_FS);
 
 			d2::FontResource { font, texture, shader }
 		};

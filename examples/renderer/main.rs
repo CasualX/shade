@@ -82,7 +82,7 @@ impl RendererDemo {
 		let draw_bounds = false;
 
 		let axes = {
-			let shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+			let shader = g.shader_compile(shade::shaders::glsl330core::COLOR3D_VS, shade::shaders::glsl330core::COLOR3D_FS);
 			shade::d3::axes::AxesModel::create(g, shader)
 		};
 
@@ -93,7 +93,7 @@ impl RendererDemo {
 		let parallax = parallax::Renderable::create(g);
 		let globe = globe::Renderable::create(g);
 		let particles = particles::Renderable::create(g);
-		let color3d_shader = g.shader_compile(shade::gl::shaders::COLOR3D_VS, shade::gl::shaders::COLOR3D_FS);
+		let color3d_shader = g.shader_compile(shade::shaders::glsl330core::COLOR3D_VS, shade::shaders::glsl330core::COLOR3D_FS);
 
 		RendererDemo {
 			epoch,

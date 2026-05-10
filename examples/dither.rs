@@ -69,7 +69,7 @@ impl DitherDemo {
 		};
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let pp_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, POST_PROCESS_DITHER_FS);
+		let pp_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, POST_PROCESS_DITHER_FS);
 
 		DitherDemo {
 			pp,

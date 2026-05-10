@@ -165,8 +165,8 @@ impl ScreenMeltDemo {
 		};
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let pp_copy_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_COPY_FS);
-		let pp_melt_shader = g.shader_compile(shade::gl::shaders::POST_PROCESS_VS, shade::gl::shaders::POST_PROCESS_MELT_FS);
+		let pp_copy_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, shade::shaders::glsl330core::POST_PROCESS_COPY_FS);
+		let pp_melt_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, shade::shaders::glsl330core::POST_PROCESS_MELT_FS);
 
 		ScreenMeltDemo {
 			epoch,

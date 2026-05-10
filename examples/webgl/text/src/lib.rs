@@ -40,7 +40,7 @@ impl Context {
 			};
 
 			// Compile the shader
-			let shader = g.shader_compile(shade::webgl::shaders::MTSDF_VS, shade::webgl::shaders::MTSDF_FS);
+			let shader = g.shader_compile(shade::shaders::glsl300es::MTSDF_VS, shade::shaders::glsl300es::MTSDF_FS);
 
 			d2::FontResource { font, texture, shader }
 		};

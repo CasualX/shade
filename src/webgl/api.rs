@@ -15,7 +15,7 @@ pub mod types {
 
 #[cfg(target_family = "wasm")]
 #[link(wasm_import_module = "webgl")]
-extern "C" {
+unsafe extern "C" {
 	pub fn consoleLog(message_ptr: *const u8, message_len: usize);
 	pub fn now() -> f64;
 	pub fn enable(cap: types::GLenum);
@@ -77,6 +77,8 @@ extern "C" {
 	pub fn uniformMatrix2fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 2]; 2]);
 	pub fn uniformMatrix3fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 3]; 3]);
 	pub fn uniformMatrix4fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 4]; 4]);
+	pub fn uniformMatrix3x2fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 2]; 3]);
+	pub fn uniformMatrix4x3fv(location: types::GLuint, count: types::GLsizei, transpose: types::GLboolean, value: *const [[f32; 3]; 4]);
 	pub fn vertexAttribDivisor(index: types::GLuint, divisor: types::GLuint);
 	pub fn createTexture() -> types::GLuint;
 	pub fn deleteTexture(texture: types::GLuint);
@@ -188,6 +190,8 @@ mod stubs {
 	pub unsafe fn uniformMatrix2fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 2]; 2]) {}
 	pub unsafe fn uniformMatrix3fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 3]; 3]) {}
 	pub unsafe fn uniformMatrix4fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 4]; 4]) {}
+	pub unsafe fn uniformMatrix3x2fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 2]; 3]) {}
+	pub unsafe fn uniformMatrix4x3fv(_location: GLuint, _count: GLsizei, _transpose: GLboolean, _value: *const [[f32; 3]; 4]) {}
 	pub unsafe fn vertexAttribDivisor(_index: GLuint, _divisor: GLuint) {}
 
 	pub unsafe fn createTexture() -> GLuint { 0 }
