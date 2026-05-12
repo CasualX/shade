@@ -195,8 +195,8 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// 	};
 ///
 /// 	// Using the paint bucket, fill some shapes
-/// 	cv.fill_edge_rect(&paint, &cvmath::Bounds2::c(50.0, 50.0, 100.0, 100.0), 0.2);
-/// 	cv.fill_ring(&paint, &cvmath::Bounds2::c(50.0, 50.0, 150.0, 150.0), 5.0, 19);
+/// 	cv.fill_edge_rect(&paint, &cvmath::Bounds2!(50.0, 50.0, 100.0, 100.0), 0.2);
+/// 	cv.fill_ring(&paint, &cvmath::Bounds2!(50.0, 50.0, 150.0, 150.0), 5.0, 19);
 ///
 /// 	// Draw to the back buffer
 /// 	cv.draw(g);

@@ -121,7 +121,7 @@ impl TextDemo {
 
 		let mut cv = d2::TextBuffer::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, viewport.width() as f32, viewport.height() as f32));
+		cv.uniform.transform = Transform2::ortho(Bounds2!(0.0, 0.0, viewport.width() as f32, viewport.height() as f32));
 		cv.uniform.outline_width_relative = 0.125;
 
 		let mut pos = Vec2(0.0, 0.0);
@@ -146,7 +146,7 @@ impl TextDemo {
 		scribe.font_width_scale = 1.0;
 		scribe.color = Vec4(255, 255, 0, 255);
 
-		let bounds = Bounds2::c(0.0, 0.0, viewport.width() as f32, viewport.height() as f32);
+		let bounds = Bounds2!(0.0, 0.0, viewport.width() as f32, viewport.height() as f32);
 		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
 		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleLeft, "[\x1b[draw_mask=false]#\x1b[draw_mask=true]] Emptyness\n[#] Fullness");
 		cv.text_box(&self.font, &scribe, &bounds, d2::TextAlign::MiddleRight, "↑↓←→↔↕\n★☆✓✗●○\n▴▾◂▸\n▲▼◀▶\n△▽◁▷\n☐☑☒🗹🗷\n⏰💎🔹⚡⛔🏁");
@@ -176,7 +176,7 @@ impl App {
 		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
 		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }

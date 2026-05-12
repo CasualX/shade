@@ -145,8 +145,8 @@ pub fn flex2d<const N: usize>(rect: Bounds2<f32>, orientation: Orientation, gap:
 	let mut rects = [Bounds2::ZERO; N];
 	for (i, &[begin, end]) in values.iter().enumerate() {
 		match orientation {
-			Orientation::Vertical => rects[i] = Bounds2::c(rect.mins.x, begin, rect.maxs.x, end),
-			Orientation::Horizontal => rects[i] = Bounds2::c(begin, rect.mins.y, end, rect.maxs.y),
+			Orientation::Vertical => rects[i] = Bounds2!(rect.mins.x, begin, rect.maxs.x, end),
+			Orientation::Horizontal => rects[i] = Bounds2!(begin, rect.mins.y, end, rect.maxs.y),
 		}
 	}
 	rects

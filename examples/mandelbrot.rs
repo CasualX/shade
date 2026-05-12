@@ -125,7 +125,7 @@ static DEFAULT_VIEW: ZoomView = ZoomView {
 impl ZoomView {
 	fn to_bounds(&self, aspect_ratio: f32) -> Bounds2f {
 		let width = self.height * aspect_ratio;
-		Bounds2::c(
+		Bounds2!(
 			self.center.x - width / 2.0,
 			self.center.y - self.height / 2.0,
 			self.center.x + width / 2.0,
@@ -330,7 +330,7 @@ impl App {
 		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
 		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }

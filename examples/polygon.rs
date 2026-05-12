@@ -154,7 +154,7 @@ impl PolygonDemo {
 		cv.blend_mode = shade::BlendMode::Alpha;
 		let w = (viewport.maxs.x - viewport.mins.x) as f32;
 		let h = (viewport.maxs.y - viewport.mins.y) as f32;
-		let world = Bounds2::c(
+		let world = Bounds2!(
 			self.view_offset.x,
 			self.view_offset.y,
 			self.view_offset.x + w,
@@ -212,7 +212,7 @@ impl PolygonDemo {
 
 		for p in &self.points {
 			let r = 4.0;
-			let rc = Bounds2::c(p.x - r, p.y - r, p.x + r, p.y + r);
+			let rc = Bounds2!(p.x - r, p.y - r, p.x + r, p.y + r);
 			cv.fill_ellipse(&point_paint, &rc, 12);
 		}
 
@@ -325,7 +325,7 @@ impl App {
 	}
 
 	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
 		self.demo.draw(self.opengl.as_graphics(), viewport);
 		self.dirty = false;
 	}

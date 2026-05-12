@@ -206,7 +206,7 @@ impl ConwayDemo {
 		let src = self.state[self.ping];
 		let dst = self.state[1 - self.ping];
 
-		let viewport = Bounds2::c(0, 0, self.field_size.x, self.field_size.y);
+		let viewport = Bounds2!(0, 0, self.field_size.x, self.field_size.y);
 		g.begin(&shade::BeginArgs::Immediate {
 			viewport,
 			color: &[dst],
@@ -278,7 +278,7 @@ impl App {
 		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
 		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }

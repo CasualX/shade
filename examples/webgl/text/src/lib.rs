@@ -59,7 +59,7 @@ impl Context {
 		let font = &self.font;
 
 		// Render the frame
-		let viewport = Bounds2::c(0, 0, size.x, size.y);
+		let viewport = Bounds2!(0, 0, size.x, size.y);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		// Clear the screen
@@ -67,7 +67,7 @@ impl Context {
 
 		let mut cv = d2::TextBuffer::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.uniform.transform = Transform2::ortho(Bounds2::c(0.0, 0.0, size.x as f32, size.y as f32));
+		cv.uniform.transform = Transform2::ortho(Bounds2!(0.0, 0.0, size.x as f32, size.y as f32));
 		cv.uniform.outline_width_relative = 0.125;
 
 		let mut pos = Vec2(0.0, 0.0);
@@ -86,7 +86,7 @@ impl Context {
 		scribe.line_height = 32.0;
 		scribe.font_width_scale = 1.0;
 		scribe.color = Vec4(255, 255, 0, 255);
-		cv.text_box(&font, &scribe, &Bounds2::c(0.0, 0.0, size.x as f32, size.y as f32), d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
+		cv.text_box(&font, &scribe, &Bounds2!(0.0, 0.0, size.x as f32, size.y as f32), d2::TextAlign::MiddleCenter, "These\nare\nmultiple\nlines.\n");
 
 		scribe.top_skew = 8.0;
 		let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";

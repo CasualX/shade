@@ -169,7 +169,7 @@ impl App {
 		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
-		let viewport = Bounds2::c(0, 0, self.window.size.width as i32, self.window.size.height as i32);
+		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
 		self.demo.draw(self.opengl.as_graphics(), viewport);
 	}
 }
