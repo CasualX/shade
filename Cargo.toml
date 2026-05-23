@@ -4,6 +4,7 @@ members = [
 	"examples/webgl/triangle",
 	"examples/webgl/oldtree",
 	"examples/webgl/text",
+	"examples/webgl/pixelart",
 	"examples/webgl/zeldawater",
 	"examples/webgl/globe",
 ]
@@ -46,3 +47,4 @@ winit = "0.30"
 raw-window-handle = "0.6"
 stl = "0.2"
 urandom = "0.2"
+rustydialogs = "0.4.2"

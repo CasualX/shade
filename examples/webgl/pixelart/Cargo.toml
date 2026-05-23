@@ -1,0 +1,11 @@
+[package]
+name = "webpixelart"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shade = { path = "../../..", features = ["webgl"] }
+serde_json = "1.0"

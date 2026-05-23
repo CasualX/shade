@@ -9,6 +9,9 @@ pub const GRADIENT_FS: &str = include_str!("glsl330core/gradient.fs.glsl");
 pub const TEXTURED_VS: &str = include_str!("glsl330core/textured.vs.glsl");
 pub const TEXTURED_FS: &str = include_str!("glsl330core/textured.fs.glsl");
 
+pub const PIXELART_VS: &str = TEXTURED_VS;
+pub const PIXELART_FS: &str = include_str!("glsl330core/pixelart.fs.glsl");
+
 pub const MTSDF_VS: &str = include_str!("glsl330core/mtsdf.vs.glsl");
 pub const MTSDF_FS: &str = include_str!("glsl330core/mtsdf.fs.glsl");
 
@@ -17,4 +20,5 @@ pub const COLOR3D_FS: &str = include_str!("glsl330core/color3d.fs.glsl");
 
 pub const POST_PROCESS_VS: &str = include_str!("glsl330core/post_process.vs.glsl");
 pub const POST_PROCESS_COPY_FS: &str = include_str!("glsl330core/post_process.copy.fs.glsl");
+pub const POST_PROCESS_PIXELART_FS: &str = include_str!("glsl330core/post_process.pixelart.fs.glsl");
 pub const POST_PROCESS_MELT_FS: &str = include_str!("glsl330core/post_process.melt.fs.glsl");

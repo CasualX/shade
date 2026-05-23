@@ -26,3 +26,29 @@ impl TVertex3 for TexturedVertexN {
 		self.pos
 	}
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TexturedUniform3 {
+	pub transform: Mat4f,
+	pub texture: Texture2D,
+	pub colormod: Vec4f,
+}
+
+impl Default for TexturedUniform3 {
+	#[inline]
+	fn default() -> Self {
+		TexturedUniform3 {
+			transform: Mat4::IDENTITY,
+			texture: Texture2D::INVALID,
+			colormod: Vec4::ONE,
+		}
+	}
+}
+
+impl UniformVisitor for TexturedUniform3 {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_texture", &self.texture);
+		set.value("u_colorModulation", &self.colormod);
+	}
+}
