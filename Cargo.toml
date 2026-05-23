@@ -1,12 +1,7 @@
 [workspace]
 members = [
 	".",
-	"examples/webgl/triangle",
-	"examples/webgl/oldtree",
-	"examples/webgl/text",
-	"examples/webgl/pixelart",
-	"examples/webgl/zeldawater",
-	"examples/webgl/globe",
+	"examples/webgl",
 ]
 
 [package]

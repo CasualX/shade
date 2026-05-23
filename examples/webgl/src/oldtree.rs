@@ -1,7 +1,5 @@
 use shade::cvmath::*;
 
-mod api;
-
 const FRAGMENT_SHADER: &str = r#"#version 300 es
 precision highp float;
 
@@ -15,26 +13,16 @@ uniform vec3 u_cameraPosition;
 out vec4 o_fragColor;
 
 void main() {
-	// Define light direction (normalized)
 	vec3 lightDir = normalize(vec3(1.0, -1.0, 1.0));
-
-	// Calculate diffuse lighting
 	vec3 norm = normalize(v_normal);
 	float diff = max(dot(norm, lightDir), 0.0);
-
-	// Sample texture and discard transparent fragments
 	vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
 	vec4 texColor = texture(u_diffuse, uv);
 	if (texColor.a < 0.1) {
 		discard;
 	}
-
-	// Apply quantized diffuse lighting to texture color
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
-
 	o_fragColor = vec4(finalColor, texColor.a);
-
-	// o_fragColor = vec4(norm * 0.5 + 0.5, 1.0);
 }
 "#;
 
@@ -51,31 +39,21 @@ out vec2 v_uv;
 
 uniform mat4x3 u_model;
 uniform mat4 u_viewProjMatrix;
-
 uniform mat3 u_normalMatrix;
 
 void main() {
-	// Calculate world position of the vertex
 	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
-
-	// Transform the normal properly (especially for scaling)
 	v_normal = u_normalMatrix * a_normal;
-
-	// Pass through UV
 	v_uv = a_uv;
-
-	// Final position for rasterization
 	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
 }
 "#;
-
-//----------------------------------------------------------------
-// OldTree renderable
 
 struct OldTreeMaterial {
 	shader: shade::ShaderProgram,
 	texture: shade::Texture2D,
 }
+
 impl shade::UniformVisitor for OldTreeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_diffuse", &self.texture);
@@ -85,6 +63,7 @@ impl shade::UniformVisitor for OldTreeMaterial {
 struct OldTreeInstance {
 	model: Transform3f,
 }
+
 impl shade::UniformVisitor for OldTreeInstance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_model", &self.model);
@@ -98,13 +77,14 @@ struct OldTreeRenderable {
 	material: OldTreeMaterial,
 	instance: OldTreeInstance,
 }
+
 impl OldTreeRenderable {
 	fn create(g: &mut shade::Graphics) -> OldTreeRenderable {
-		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../../oldtree/vertices.bin");
+		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../oldtree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let texture = {
-			let file_png = include_bytes!("../../../oldtree/texture.png");
+			let file_png = include_bytes!("../../oldtree/texture.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
@@ -118,18 +98,14 @@ impl OldTreeRenderable {
 			g.image(&(&image, &props))
 		};
 
-		// Create the shader
 		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
-
 		let material = OldTreeMaterial { shader, texture };
-		let instance = OldTreeInstance {
-			model: Transform3f::IDENTITY,
-		};
+		let instance = OldTreeInstance { model: Transform3f::IDENTITY };
 
 		OldTreeRenderable { mesh, material, instance }
 	}
+
 	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera, light: &Light) {
-		// Draw the model
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -157,11 +133,10 @@ impl OldTreeRenderable {
 	}
 }
 
-//----------------------------------------------------------------
-
 struct Light {
 	light_pos: Vec3f,
 }
+
 impl shade::UniformVisitor for Light {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_lightPos", &self.light_pos);
@@ -172,15 +147,6 @@ impl shade::UniformVisitor for Light {
 enum ProjectionType {
 	Perspective,
 	Orthographic,
-}
-#[allow(dead_code)]
-impl ProjectionType {
-	fn toggle(&mut self) {
-		*self = match *self {
-			ProjectionType::Perspective => ProjectionType::Orthographic,
-			ProjectionType::Orthographic => ProjectionType::Perspective,
-		};
-	}
 }
 
 pub struct Context {
@@ -200,7 +166,6 @@ impl Context {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
-
 		let tree = OldTreeRenderable::create(g);
 
 		let camera = {
@@ -218,19 +183,18 @@ impl Context {
 			auto_rotate: true,
 		}
 	}
+}
 
-	pub fn resize(&mut self, width: i32, height: i32) {
+impl crate::DemoContext for Context {
+	fn resize(&mut self, width: i32, height: i32) {
 		self.screen_size = Vec2(width, height);
 	}
 
-	pub fn draw(&mut self, _time: f64) {
+	fn draw(&mut self, _time: f64) {
 		let g = self.webgl.as_graphics();
-
-		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		// Clear the screen
 		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);
 
 		if self.auto_rotate {
@@ -253,13 +217,8 @@ impl Context {
 			shade::d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 		};
 
-		let light = Light {
-			light_pos: Vec3(4.0, 0.0, -230.0),
-		};
-
+		let light = Light { light_pos: Vec3(4.0, 0.0, -230.0) };
 		self.tree.draw(g, &camera, &light);
-
-		// Finish the frame
 		g.end();
 	}
 }

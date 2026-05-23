@@ -1,5 +1,5 @@
 [package]
-name = "webtext"
+name = "webgl"
 version = "0.0.1"
 edition = "2021"
 
@@ -8,5 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dataview = "1.0"
-shade = { path = "../../..", features = ["webgl"] }
+shade = { path = "../..", features = ["webgl"] }
 serde_json = "1.0"

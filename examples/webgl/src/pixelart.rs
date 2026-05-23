@@ -1,10 +1,8 @@
 use shade::cvmath::*;
 use shade::d2;
 
-mod api;
-
 const DEFAULT_IMAGE_NAME: &str = "lapras.png";
-const DEFAULT_IMAGE_BYTES: &[u8] = include_bytes!("../../../textures/lapras.png");
+const DEFAULT_IMAGE_BYTES: &[u8] = include_bytes!("../../textures/lapras.png");
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum FilterMode {
@@ -55,19 +53,13 @@ impl Context {
 		});
 		let g = webgl.as_graphics();
 
-		let textured_shader = g.shader_compile(
-			shade::shaders::glsl300es::TEXTURED_VS,
-			shade::shaders::glsl300es::TEXTURED_FS,
-		);
-		let pixelart_shader = g.shader_compile(
-			shade::shaders::glsl300es::PIXELART_VS,
-			shade::shaders::glsl300es::PIXELART_FS,
-		);
+		let textured_shader = g.shader_compile(shade::shaders::glsl300es::TEXTURED_VS, shade::shaders::glsl300es::TEXTURED_FS);
+		let pixelart_shader = g.shader_compile(shade::shaders::glsl300es::PIXELART_VS, shade::shaders::glsl300es::PIXELART_FS);
 		let hud_font = {
-			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../../font/font.json")).unwrap();
+			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../font/font.json")).unwrap();
 			let font: shade::msdfgen::Font = font.into();
 			let texture = {
-				let file_png = include_bytes!("../../../font/font.png");
+				let file_png = include_bytes!("../../font/font.png");
 				let image = shade::image::ImageRGBA::load_memory_png(file_png).unwrap()
 					.map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
 				let props = shade::TextureProps {
@@ -86,7 +78,6 @@ impl Context {
 		};
 
 		let image = shade::image::DecodedImage::load_memory_png(DEFAULT_IMAGE_BYTES).unwrap();
-		let image_size = Vec2(image.width() as f32, image.height() as f32);
 		let nearest_props = shade::TextureProps {
 			mip_levels: 1,
 			usage: shade::TextureUsage::TEXTURE,
@@ -116,7 +107,7 @@ impl Context {
 			hud_font,
 			nearest_texture,
 			linear_texture,
-			image_size,
+			image_size: Vec2(image.width() as f32, image.height() as f32),
 			filter_mode: FilterMode::PixelArt,
 			pan: Vec2::ZERO,
 			zoom: 1.0,
@@ -125,11 +116,31 @@ impl Context {
 		}
 	}
 
-	pub fn resize(&mut self, width: i32, height: i32) {
+	fn apply_zoom_delta(&mut self, delta: f32) {
+		self.zoom = (self.zoom * delta.exp()).clamp(1.0 / 64.0, 64.0);
+	}
+
+	fn shader(&self) -> shade::ShaderProgram {
+		match self.filter_mode {
+			FilterMode::Nearest | FilterMode::Linear => self.textured_shader,
+			FilterMode::PixelArt => self.pixelart_shader,
+		}
+	}
+
+	fn texture(&self) -> shade::Texture2D {
+		match self.filter_mode {
+			FilterMode::Nearest => self.nearest_texture,
+			FilterMode::Linear | FilterMode::PixelArt => self.linear_texture,
+		}
+	}
+}
+
+impl crate::DemoContext for Context {
+	fn resize(&mut self, width: i32, height: i32) {
 		self.screen_size = Vec2(width, height);
 	}
 
-	pub fn mousemove(&mut self, dx: f32, dy: f32) {
+	fn mousemove(&mut self, dx: f32, dy: f32) {
 		let delta = Vec2(dx, dy);
 		match self.drag_mode {
 			DragMode::None => {}
@@ -150,7 +161,7 @@ impl Context {
 		}
 	}
 
-	pub fn mousedown(&mut self, button: u32) {
+	fn mousedown(&mut self, button: u32) {
 		self.drag_mode = match button {
 			0 => DragMode::Pan,
 			2 => DragMode::TurnZoom,
@@ -158,17 +169,17 @@ impl Context {
 		};
 	}
 
-	pub fn mouseup(&mut self, button: u32) {
+	fn mouseup(&mut self, button: u32) {
 		if matches!(button, 0 | 2) {
 			self.drag_mode = DragMode::None;
 		}
 	}
 
-	pub fn wheel(&mut self, delta_y: f32) {
+	fn wheel(&mut self, delta_y: f32) {
 		self.apply_zoom_delta(-delta_y * 0.0025);
 	}
 
-	pub fn keydown(&mut self, key: u32) {
+	fn keydown(&mut self, key: u32) {
 		self.filter_mode = match key {
 			1 => FilterMode::Nearest,
 			2 => FilterMode::Linear,
@@ -177,7 +188,7 @@ impl Context {
 		};
 	}
 
-	pub fn draw(&mut self, _time: f64) {
+	fn draw(&mut self, _time: f64) {
 		let size = self.screen_size;
 		let shader = self.shader();
 		let texture = self.texture();
@@ -247,23 +258,5 @@ impl Context {
 		hud.draw(g);
 
 		g.end();
-	}
-
-	fn apply_zoom_delta(&mut self, delta: f32) {
-		self.zoom = (self.zoom * delta.exp()).clamp(1.0 / 64.0, 64.0);
-	}
-
-	fn shader(&self) -> shade::ShaderProgram {
-		match self.filter_mode {
-			FilterMode::Nearest | FilterMode::Linear => self.textured_shader,
-			FilterMode::PixelArt => self.pixelart_shader,
-		}
-	}
-
-	fn texture(&self) -> shade::Texture2D {
-		match self.filter_mode {
-			FilterMode::Nearest => self.nearest_texture,
-			FilterMode::Linear | FilterMode::PixelArt => self.linear_texture,
-		}
 	}
 }

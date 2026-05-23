@@ -8,10 +8,13 @@ Live demos are available here:
 Usage
 -----
 
-To run the WebGL demo, you need to have a web server set up. For example Live Server in Visual Studio Code or any other web server of your choice.
+To run the WebGL demo, you need to have a web server set up. For example Live Server or Show Preview in Visual Studio Code or any other web server of your choice.
 
-To build the sample use the `run.sh` script:
+Build the single WebGL wasm module and copy it into the HTML folder with one of these scripts:
 
 ```
-./run.sh oldtree [--release] [--wasm2map]
+./build.sh
+build.bat
 ```
+
+Both scripts run a release build for the `webgl` package and copy `target/wasm32-unknown-unknown/release/webgl.wasm` to `examples/webgl/html/webgl.wasm`.

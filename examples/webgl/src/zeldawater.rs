@@ -1,7 +1,6 @@
 use std::mem;
-use shade::cvmath::*;
 
-mod api;
+use shade::cvmath::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
@@ -45,25 +44,19 @@ out vec4 o_fragColor;
 
 void main() {
 	vec2 uv = v_uv;
-
-	// Layered distortion
 	float distortion1 = texture(u_displacement, fract(uv * 1.0 + vec2(u_time * 0.2, u_time * 0.25))).r;
 	float distortion2 = texture(u_displacement, fract(uv * 2.5 + vec2(-u_time * 0.15, u_time * 0.1))).r;
 	float distortion3 = texture(u_displacement, fract(uv * 0.75 + vec2(u_time * 0.05, -u_time * 0.2))).r;
-
 	float distortion = (distortion1 * 0.5 + distortion2 * 0.3 + distortion3 * 0.2) - 0.5;
 	uv += vec2(distortion * 0.1, distortion * 0.15);
 
-	// Main wave layer
 	float v = texture(u_texture, uv * vec2(4.0, 4.0)).r;
 	vec3 mainColor = mix(vec3(0.0, 0.0, 0.5), vec3(0.5, 0.8, 1.0), v);
 
-	// Shadow wave layer
 	float u = texture(u_texture, uv * vec2(2.0, 2.0) + vec2(0.3, 0.3) + vec2(u_time * 0.05, -u_time * 0.05)).r;
 	vec3 shadowColor = mix(vec3(0.0, 0.0, 0.0), u_waveshadow, u);
 
 	vec3 finalColor = mainColor - shadowColor * 0.5;
-
 	o_fragColor = vec4(finalColor, 1.0);
 }
 "#;
@@ -101,8 +94,6 @@ impl shade::UniformVisitor for Uniform {
 	}
 }
 
-//----------------------------------------------------------------
-
 pub struct Context {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: Vec2i,
@@ -121,12 +112,10 @@ impl Context {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
-
-		// Create the triangle shader
 		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
 		let texture = {
-			let file_png = include_bytes!("../../../zeldawater/water.png");
+			let file_png = include_bytes!("../../zeldawater/water.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
@@ -141,7 +130,7 @@ impl Context {
 		};
 
 		let distortion = {
-			let file_png = include_bytes!("../../../zeldawater/distort.png");
+			let file_png = include_bytes!("../../zeldawater/distort.png");
 			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 1,
@@ -155,7 +144,6 @@ impl Context {
 			g.image(&(&image, &props))
 		};
 
-		// Create the full screen quad vertex buffer
 		let vb = g.vertex_buffer(&[
 			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
 			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
@@ -163,38 +151,41 @@ impl Context {
 			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
 		], shade::BufferUsage::Static);
 
-		let ib = g.index_buffer(&[
-			0u16, 1, 2,
-			1, 3, 2,
-		], 4, shade::BufferUsage::Static);
+		let ib = g.index_buffer(&[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
 
-		let screen_size = Vec2::ZERO;
-		Context { webgl, screen_size, shader, texture, distortion, vb, ib }
+		Context {
+			webgl,
+			screen_size: Vec2::ZERO,
+			shader,
+			texture,
+			distortion,
+			vb,
+			ib,
+		}
 	}
+}
 
-	pub fn resize(&mut self, width: i32, height: i32) {
+impl crate::DemoContext for Context {
+	fn resize(&mut self, width: i32, height: i32) {
 		self.screen_size = Vec2(width, height);
 	}
 
-	pub fn draw(&mut self, time: f64) {
+	fn draw(&mut self, time: f64) {
 		let g = self.webgl.as_graphics();
-
-		// Render the frame
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
-		// Clear the screen
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 
-		let time = time as f32;
-		let texture = self.texture;
-		let distortion = self.distortion;
-		let waterbase = Vec3f(0.0, 0.0, 0.5);
-		let wavehighlight = Vec3f(0.5, 0.8, 1.0);
-		let waveshadow = Vec3f(0.1, 0.2, 0.3);
-		let uniform = Uniform { time, texture, distortion, waterbase, wavehighlight, waveshadow };
+		let uniform = Uniform {
+			time: time as f32,
+			texture: self.texture,
+			distortion: self.distortion,
+			waterbase: Vec3f(0.0, 0.0, 0.5),
+			wavehighlight: Vec3f(0.5, 0.8, 1.0),
+			waveshadow: Vec3f(0.1, 0.2, 0.3),
+		};
 
-		// Draw the quad
 		g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -214,7 +205,6 @@ impl Context {
 			instances: -1,
 		});
 
-		// Finish rendering
 		g.end();
 	}
 }

@@ -387,9 +387,10 @@ body {
     return () => ro.disconnect();
   }
 
-  async function runShadeDemo({ canvas, moduleName, resizeTo = null, onLoaded = null, onError = null }) {
+  async function runShadeDemo({ canvas, moduleName, constructorName, resizeTo = null, onLoaded = null, onError = null }) {
     if (!canvas) throw new Error('runShadeDemo: canvas is required');
     if (!moduleName) throw new Error('runShadeDemo: moduleName is required');
+    if (!constructorName) throw new Error('runShadeDemo: constructorName is required');
 
     const gl = canvas.getContext('webgl2');
     if (!gl) throw new Error('WebGL2 is not supported by your browser.');
@@ -518,14 +519,15 @@ body {
       wasmInstance = instance;
       webgl.bindInstance(instance);
 
-      if (!wasmInstance.exports.new) {
-        throw new Error('WASM module missing required export: new');
+      const constructor = wasmInstance.exports[constructorName];
+      if (!constructor) {
+        throw new Error(`WASM module missing required export: ${constructorName}`);
       }
       if (!wasmInstance.exports.draw) {
         throw new Error('WASM module missing required export: draw');
       }
 
-      ctx = wasmInstance.exports.new();
+      ctx = constructor();
       updatesize = (width, height) => {
         if (wasmInstance?.exports?.resize) {
           wasmInstance.exports.resize(ctx, width, height);
@@ -576,43 +578,49 @@ body {
       id: 'triangle',
       title: 'Triangle',
       hint: 'Minimal pipeline + draw call',
-      module: 'triangle.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/triangle',
+      module: 'webgl.wasm',
+      constructor: 'new_triangle',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/triangle.rs',
     },
     {
       id: 'oldtree',
       title: 'Old Tree',
       hint: 'Stylized scene rendering',
-      module: 'oldtree.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/oldtree',
+      module: 'webgl.wasm',
+      constructor: 'new_oldtree',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/oldtree.rs',
     },
     {
       id: 'text',
       title: 'Text',
       hint: 'Signed distance field text',
-      module: 'webtext.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/text',
+      module: 'webgl.wasm',
+      constructor: 'new_text',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/text.rs',
     },
     {
       id: 'pixelart',
       title: 'Pixel Art',
       hint: 'Interactive texture filtering demo',
-      module: 'webpixelart.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/pixelart',
+      module: 'webgl.wasm',
+      constructor: 'new_pixelart',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/pixelart.rs',
     },
     {
       id: 'zeldawater',
       title: 'Zelda Water',
       hint: 'Water shader experiment',
-      module: 'zeldawater.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/zeldawater',
+      module: 'webgl.wasm',
+      constructor: 'new_zeldawater',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/zeldawater.rs',
     },
     {
       id: 'globe',
       title: 'Globe',
       hint: 'Texturing + camera',
-      module: 'globe.wasm',
-      source: 'https://github.com/CasualX/shade/tree/master/examples/webgl/globe',
+      module: 'webgl.wasm',
+      constructor: 'new_globe',
+      source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/globe.rs',
     },
   ];
 
@@ -683,6 +691,7 @@ body {
     runShadeDemo({
       canvas,
       moduleName: demo.module,
+      constructorName: demo.constructor,
       resizeTo: playerStageEl,
       onLoaded() {
         playerStageEl.classList.remove('is-loading');

@@ -1,10 +1,6 @@
 use std::mem;
+
 use shade::cvmath::*;
-
-mod api;
-
-//----------------------------------------------------------------
-// The triangle's vertex
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
@@ -60,57 +56,53 @@ vec4 srgbToLinear(vec4 c) {
 
 void main() {
 	VertexColor = srgbToLinear(aColor);
-
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
 "#;
 
-//----------------------------------------------------------------
-
-pub struct Context {
+pub struct Triangle {
 	webgl: shade::webgl::WebGLGraphics,
 	screen_size: Vec2i,
 	shader: shade::ShaderProgram,
 }
 
-impl Context {
-	pub fn new() -> Context {
+impl Triangle {
+	pub fn new() -> Triangle {
 		shade::webgl::setup_panic_hook();
 
 		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
-
-		// Create the triangle shader
 		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
 
-		let screen_size = Vec2::ZERO;
-		Context { webgl, screen_size, shader }
+		Triangle {
+			webgl,
+			screen_size: Vec2::ZERO,
+			shader,
+		}
 	}
+}
 
-	pub fn resize(&mut self, width: i32, height: i32) {
+impl crate::DemoContext for Triangle {
+	fn resize(&mut self, width: i32, height: i32) {
 		self.screen_size = Vec2(width, height);
 	}
 
-	pub fn draw(&mut self, time: f64) {
+	fn draw(&mut self, time: f64) {
 		let g = self.webgl.as_graphics();
 		let viewport = Bounds2::vec(self.screen_size);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
 
-		// Compute rotation matrix from time
 		let rotation = Mat2::rotation(Angle(time as f32));
-
-		// Create the triangle vertices
 		let vertices = g.vertex_buffer(&[
-			TriangleVertex { position: rotation * Vec2( 0.0,  0.5), color: [255, 0, 0, 255] },
+			TriangleVertex { position: rotation * Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
 			TriangleVertex { position: rotation * Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
-			TriangleVertex { position: rotation * Vec2( 0.5, -0.5), color: [0, 0, 255, 255] },
+			TriangleVertex { position: rotation * Vec2(0.5, -0.5), color: [0, 0, 255, 255] },
 		], shade::BufferUsage::Static);
 
-		// Draw the triangle
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -130,7 +122,6 @@ impl Context {
 		});
 
 		g.release(vertices);
-
 		g.end();
 	}
 }
