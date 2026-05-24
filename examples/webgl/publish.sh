@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "$script_dir/../.." && pwd)"
+site_dir="$script_dir/html"
+pages_worktree="$repo_root/gh-pages"
+
+if [[ -t 1 ]]; then
+	color_reset=$'\033[0m'
+	color_bold=$'\033[1m'
+	color_dim=$'\033[2m'
+	color_blue=$'\033[34m'
+	color_yellow=$'\033[33m'
+	color_red=$'\033[31m'
+	color_green=$'\033[32m'
+else
+	color_reset=""
+	color_bold=""
+	color_dim=""
+	color_blue=""
+	color_yellow=""
+	color_red=""
+	color_green=""
+fi
+
+progress() {
+	printf "\n%b%s%b %b%s%b\n" "$color_blue" "==" "$color_reset" "$color_bold" "$1" "$color_reset"
+}
+
+is_ci() {
+	[[ -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ]]
+}
+
+pause_for_ack() {
+	local prompt="$1"
+	if is_ci; then
+		printf "\n%b•%b %s %b[auto-confirmed in CI]%b\n" "$color_yellow" "$color_reset" "$prompt" "$color_dim" "$color_reset"
+		return
+	fi
+	printf "\n%b•%b %s\n" "$color_yellow" "$color_reset" "$prompt"
+	printf "  %b[Press Enter to continue or Ctrl-C to abort]%b" "$color_dim" "$color_reset"
+	read -r _
+	printf "\n"
+}
+
+ensure_git_identity() {
+	local repo="$1"
+	if ! git -C "$repo" config user.name >/dev/null; then
+		git -C "$repo" config user.name "github-actions[bot]"
+	fi
+	if ! git -C "$repo" config user.email >/dev/null; then
+		git -C "$repo" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+	fi
+}
+
+warn_if_dirty_worktree() {
+	if ! git -C "$repo_root" diff-index --quiet HEAD --; then
+		printf "%bWarning:%b git working tree has staged or unstaged changes.\n" "$color_yellow" "$color_reset"
+		pause_for_ack "Continue with a dirty worktree?"
+	fi
+}
+
+cd "$repo_root"
+
+progress "Checking repository state"
+warn_if_dirty_worktree
+
+progress "Building release webgl artifact"
+cargo build --release --package webgl --target wasm32-unknown-unknown
+cp "$repo_root/target/wasm32-unknown-unknown/release/webgl.wasm" "$site_dir/webgl.wasm"
+
+pause_for_ack "About to recreate the gh-pages branch and worktree."
+
+progress "Verifying repository state before gh-pages setup"
+if git worktree list --porcelain | grep -Fqx "worktree $pages_worktree"; then
+	progress "Removing existing gh-pages worktree"
+	git worktree remove --force "$pages_worktree"
+fi
+
+if [[ -e "$pages_worktree" ]]; then
+	printf "%bError:%b %s exists after worktree cleanup.\n" "$color_red" "$color_reset" "$pages_worktree" >&2
+	printf "%bError:%b Refusing to continue because that path should be managed only by git worktree.\n" "$color_red" "$color_reset" >&2
+	exit 1
+fi
+
+progress "Recreating gh-pages branch and worktree"
+git branch -D gh-pages >/dev/null 2>&1 || true
+git worktree add --orphan "$pages_worktree"
+
+progress "Copying gh-pages contents"
+cp "$site_dir/index.html" "$pages_worktree/index.html"
+cp "$site_dir/index.css" "$pages_worktree/index.css"
+cp "$site_dir/index.js" "$pages_worktree/index.js"
+cp "$site_dir/shade.js" "$pages_worktree/shade.js"
+cp "$site_dir/webgl.wasm" "$pages_worktree/webgl.wasm"
+
+progress "Creating gh-pages commit"
+ensure_git_identity "$pages_worktree"
+git -C "$pages_worktree" add .
+git -C "$pages_worktree" commit --allow-empty -m "Publish from $(git -C "$repo_root" rev-parse --short HEAD)"
+
+progress "Removing gh-pages worktree"
+git worktree remove --force "$pages_worktree"
+
+pause_for_ack "About to force-push to origin/gh-pages."
+
+progress "Force-pushing gh-pages"
+git push -f origin gh-pages
+
+progress "Done. Wait for GitHub Pages to finish publishing."
+printf "%b✓%b Site URL: https://casualhacks.net/shade/\n" "$color_green" "$color_reset"
