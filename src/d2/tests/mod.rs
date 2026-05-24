@@ -42,6 +42,7 @@ impl UniformVisitor for MockUniform {
 }
 
 mod pen;
+mod panel;
 mod paint;
 mod sprite;
 mod triangulate;

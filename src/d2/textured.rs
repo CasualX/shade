@@ -48,6 +48,13 @@ impl ToVertex<TexturedVertex> for TexturedTemplate {
 	}
 }
 
+impl ToVertexUV<TexturedVertex> for TexturedTemplate {
+	#[inline]
+	fn to_vertex_uv(&self, pos: Vec2f, uv: Vec2f, _index: usize) -> TexturedVertex {
+		TexturedVertex { pos, uv, color: self.color }
+	}
+}
+
 /// Textured uniform.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TexturedUniform {
