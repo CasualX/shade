@@ -1,6 +1,7 @@
 use std::ffi::CString;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::time;
 
 use glutin::prelude::*;
 use shade::cvmath::*;
@@ -115,6 +116,21 @@ impl FilterMode {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
+enum PostProcessMode {
+	None,
+	Crt,
+}
+
+impl PostProcessMode {
+	fn next(self) -> PostProcessMode {
+		match self {
+			PostProcessMode::None => PostProcessMode::Crt,
+			PostProcessMode::Crt => PostProcessMode::None,
+		}
+	}
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum DragMode {
 	None,
 	Pan,
@@ -122,14 +138,20 @@ enum DragMode {
 }
 
 struct PixelArtDemo {
+	epoch: time::Instant,
 	textured_shader: shade::ShaderProgram,
 	pixelart_shader: shade::ShaderProgram,
+	pp: shade::d2::PostProcessQuad,
+	pp_copy_shader: shade::ShaderProgram,
+	pp_crt_shader: shade::ShaderProgram,
 	hud_font: d2::FontResource<shade::msdfgen::Font>,
 	nearest_texture: shade::Texture2D,
 	linear_texture: shade::Texture2D,
+	render_texture: shade::Texture2D,
 	image_path: PathBuf,
 	image_size: Vec2f,
 	filter_mode: FilterMode,
+	post_process_mode: PostProcessMode,
 	pan: Vec2f,
 	zoom: f32,
 	rotation: f32,
@@ -140,6 +162,7 @@ struct PixelArtDemo {
 
 impl PixelArtDemo {
 	fn new(g: &mut shade::Graphics) -> PixelArtDemo {
+		let epoch = time::Instant::now();
 		let textured_shader = g.shader_compile(
 			shade::shaders::glsl330core::TEXTURED_VS,
 			shade::shaders::glsl330core::TEXTURED_FS,
@@ -159,16 +182,31 @@ impl PixelArtDemo {
 			let shader = g.shader_compile(shade::shaders::glsl330core::MTSDF_VS, shade::shaders::glsl330core::MTSDF_FS);
 			d2::FontResource { font, texture, shader }
 		};
+		let pp = shade::d2::PostProcessQuad::create(g);
+		let pp_copy_shader = g.shader_compile(
+			shade::shaders::glsl330core::POST_PROCESS_VS,
+			shade::shaders::glsl330core::POST_PROCESS_COPY_FS,
+		);
+		let pp_crt_shader = g.shader_compile(
+			shade::shaders::glsl330core::POST_PROCESS_VS,
+			shade::shaders::glsl330core::POST_PROCESS_CRT_FS,
+		);
 
 		let mut demo = PixelArtDemo {
+			epoch,
 			textured_shader,
 			pixelart_shader,
+			pp,
+			pp_copy_shader,
+			pp_crt_shader,
 			hud_font,
 			nearest_texture: shade::Texture2D::INVALID,
 			linear_texture: shade::Texture2D::INVALID,
+			render_texture: shade::Texture2D::INVALID,
 			image_path: PathBuf::from(DEFAULT_IMAGE),
 			image_size: Vec2(1.0, 1.0),
 			filter_mode: FilterMode::PixelArt,
+			post_process_mode: PostProcessMode::Crt,
 			pan: Vec2::ZERO,
 			zoom: 1.0,
 			rotation: 0.0,
@@ -192,6 +230,24 @@ impl PixelArtDemo {
 			FilterMode::Nearest | FilterMode::Linear => self.textured_shader,
 			FilterMode::PixelArt => self.pixelart_shader,
 		}
+	}
+
+	fn ensure_render_texture(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		let info = shade::Texture2DInfo {
+			format: shade::TextureFormat::SRGBA8,
+			width: viewport.width().max(1),
+			height: viewport.height().max(1),
+			props: shade::TextureProps {
+				mip_levels: 1,
+				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Edge,
+				wrap_v: shade::TextureWrap::Edge,
+				..Default::default()
+			},
+		};
+		self.render_texture = g.texture2d_update(self.render_texture, &info);
 	}
 
 	fn texture(&self) -> shade::Texture2D {
@@ -287,8 +343,15 @@ impl PixelArtDemo {
 		}.pick_file()
 	}
 
-	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
-		g.begin(&shade::BeginArgs::BackBuffer { viewport });
+	fn draw_scene(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		self.ensure_render_texture(g, viewport);
+		let target_viewport = Bounds2!(0, 0, viewport.width().max(1), viewport.height().max(1));
+		g.begin(&shade::BeginArgs::Immediate {
+			viewport: target_viewport,
+			color: &[self.render_texture],
+			levels: None,
+			depth: shade::Texture2D::INVALID,
+		});
 		shade::clear!(g, color: Vec4(0.08, 0.09, 0.10, 1.0));
 
 		let mut cv = shade::d2::TexturedBuffer::new();
@@ -322,7 +385,10 @@ impl PixelArtDemo {
 		}
 
 		cv.draw(g);
+		g.end();
+	}
 
+	fn draw_hud(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
 		let mut hud = d2::TextBuffer::new();
 		hud.blend_mode = shade::BlendMode::Alpha;
 		hud.uniform.transform = Transform2::ortho(Bounds2!(0.0, 0.0, viewport.width() as f32, viewport.height() as f32));
@@ -337,14 +403,48 @@ impl PixelArtDemo {
 		};
 		scribe.set_baseline_relative(0.0);
 		let hud_text = format!(
-			"image: {}\nmode: {}\nzoom: {:.2}x\nrotation: {:.1} deg\n1 = nearest  2 = linear  3 = pixel art\nleft drag = pan\nright drag = rotate + zoom\nwheel = zoom\nF2 = open image",
+			"image: {}\nmode: {}\npost fx: {}\nzoom: {:.2}x\nrotation: {:.1} deg\n1 = nearest  2 = linear  3 = pixel art\nP = cycle post fx\nleft drag = pan\nright drag = rotate + zoom\nwheel = zoom\nF2 = open image",
 			self.image_name(),
 			self.filter_mode.label(),
+			match self.post_process_mode {
+				PostProcessMode::None => "none",
+				PostProcessMode::Crt => "crt",
+			},
 			self.zoom,
 			self.rotation.to_degrees(),
 		);
 		hud.text_write(&self.hud_font, &mut scribe, &mut pos, &hud_text);
 		hud.draw(g);
+	}
+
+	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+		self.draw_scene(g, viewport);
+
+		let elapsed = self.epoch.elapsed().as_secs_f32();
+		g.begin(&shade::BeginArgs::BackBuffer { viewport });
+		shade::clear!(g, color: Vec4(0.0, 0.0, 0.0, 1.0));
+
+		match self.post_process_mode {
+			PostProcessMode::None => self.pp.draw(g,
+				self.pp_copy_shader,
+				shade::BlendMode::Solid,
+				&[&shade::shaders::PostProcessCopyUniforms {
+					texture: self.render_texture,
+				}],
+			),
+			PostProcessMode::Crt => self.pp.draw(g,
+				self.pp_crt_shader,
+				shade::BlendMode::Solid,
+				&[&shade::shaders::PostProcessCrtUniforms {
+					texture: self.render_texture,
+					scanline_count: viewport.height() as f32 * 0.25,
+					time: elapsed,
+					..Default::default()
+				}],
+			),
+		}
+
+		self.draw_hud(g, viewport);
 		g.end();
 	}
 }
@@ -433,6 +533,7 @@ fn main() {
 								PhysicalKey::Code(KeyCode::Digit1) => app.demo.filter_mode = FilterMode::Nearest,
 								PhysicalKey::Code(KeyCode::Digit2) => app.demo.filter_mode = FilterMode::Linear,
 								PhysicalKey::Code(KeyCode::Digit3) => app.demo.filter_mode = FilterMode::PixelArt,
+								PhysicalKey::Code(KeyCode::KeyP) => app.demo.post_process_mode = app.demo.post_process_mode.next(),
 								PhysicalKey::Code(KeyCode::F2) => {
 									if let Some(path) = app.demo.open_file_dialog(&app.window.window) {
 										if let Err(err) = app.demo.load_image(app.opengl.as_graphics(), &path) {

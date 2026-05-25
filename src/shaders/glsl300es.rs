@@ -20,5 +20,6 @@ pub const COLOR3D_FS: &str = include_str!("glsl300es/color3d.fs.glsl");
 
 pub const POST_PROCESS_VS: &str = include_str!("glsl300es/post_process.vs.glsl");
 pub const POST_PROCESS_COPY_FS: &str = include_str!("glsl300es/post_process.copy.fs.glsl");
+pub const POST_PROCESS_CRT_FS: &str = include_str!("glsl300es/post_process.crt.fs.glsl");
 pub const POST_PROCESS_PIXELART_FS: &str = include_str!("glsl300es/post_process.pixelart.fs.glsl");
 pub const POST_PROCESS_MELT_FS: &str = include_str!("glsl300es/post_process.melt.fs.glsl");
