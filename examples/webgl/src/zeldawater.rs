@@ -28,10 +28,19 @@ unsafe impl shade::TVertex for Vertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"#version 300 es
+const PROGRAM: &str = r#"#version unified 300 es
 precision highp float;
 
-in vec2 v_uv;
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+#endif
 
 uniform sampler2D u_texture;
 uniform sampler2D u_displacement;
@@ -40,8 +49,14 @@ uniform vec3 u_waterbase;
 uniform vec3 u_wavehighlight;
 uniform vec3 u_waveshadow;
 
-out vec4 o_fragColor;
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
 
+#ifdef FRAGMENT_SHADER
 void main() {
 	vec2 uv = v_uv;
 	float distortion1 = texture(u_displacement, fract(uv * 1.0 + vec2(u_time * 0.2, u_time * 0.25))).r;
@@ -59,18 +74,7 @@ void main() {
 	vec3 finalColor = mainColor - shadowColor * 0.5;
 	o_fragColor = vec4(finalColor, 1.0);
 }
-"#;
-
-const VERTEX_SHADER: &str = r#"#version 300 es
-in vec2 a_pos;
-in vec2 a_uv;
-
-out vec2 v_uv;
-
-void main() {
-	v_uv = a_uv;
-	gl_Position = vec4(a_pos, 0.0, 1.0);
-}
+#endif
 "#;
 
 #[derive(Clone, Debug)]
@@ -112,7 +116,12 @@ impl Context {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 
 		let texture = {
 			let file_png = include_bytes!("../../zeldawater/water.png");

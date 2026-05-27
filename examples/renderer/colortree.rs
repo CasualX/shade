@@ -28,57 +28,19 @@ impl shade::TVertex3 for Vertex {
 	}
 }
 
-const FRAGMENT_SHADER: &str = r#"\
-#version 330 core
-
-out vec4 o_fragColor;
-
-in vec3 v_normal;
-in vec4 v_color;
-in vec3 v_fragPos;
-in vec4 v_lightClip;
-
-uniform vec3 u_lightPos;
-uniform sampler2DShadow u_shadowMap;
-
-void main() {
-	vec3 lightDir = normalize(u_lightPos - v_fragPos);
-	float diffLight = max(dot(v_normal, lightDir), 0.0);
-
-	// Simple shadow mapping
-	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	float bias = 0.001;
-	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
-
-	// Shadow should only reduce the direct (sun-facing) term.
-	// Back-facing surfaces (diffLight ~= 0) then look the same as shadowed ones.
-	float ambient = 0.2;
-	float direct_intensity = 0.6;
-	float lighting = ambient + visibility * (diffLight * direct_intensity);
-	o_fragColor = vec4(1.0, 1.0, 1.0, 1.0) * lighting * v_color;
-}
-"#;
-
-const SHADOW_FRAGMENT_SHADER: &str = r#"\
-#version 330 core
-void main() {}
-"#;
-
-const VERTEX_SHADER: &str = r#"\
-#version 330 core
-
+const COMMON: &str = r#"
+#ifdef VERTEX_SHADER
 in vec3 a_pos;
 in vec3 a_normal;
 in vec4 a_color;
+#endif
 
-out vec3 v_normal;
-out vec4 v_color;
-out vec3 v_fragPos;
-out vec4 v_lightClip;
+VARYING vec3 v_normal;
+VARYING vec4 v_color;
+VARYING vec3 v_fragPos;
+VARYING vec4 v_lightClip;
 
 uniform mat4x3 u_model;
-
 uniform mat4 u_transform;
 uniform mat4 u_lightTransform;
 
@@ -90,6 +52,7 @@ vec4 srgbToLinear(vec4 c) {
 	return vec4(srgbToLinear(c.rgb), c.a);
 }
 
+#ifdef VERTEX_SHADER
 void main() {
 	v_normal = a_normal;
 	v_color = srgbToLinear(a_color);
@@ -97,6 +60,40 @@ void main() {
 	v_lightClip = u_lightTransform * vec4(a_pos, 1.0);
 	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
+#endif
+"#;
+
+const PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+uniform vec3 u_lightPos;
+uniform sampler2DShadow u_shadowMap;
+
+void main() {
+	vec3 lightDir = normalize(u_lightPos - v_fragPos);
+	float diffLight = max(dot(v_normal, lightDir), 0.0);
+	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
+	float ambient = 0.2;
+	float direct_intensity = 0.6;
+	float lighting = ambient + visibility * (diffLight * direct_intensity);
+	o_fragColor = vec4(1.0, 1.0, 1.0, 1.0) * lighting * v_color;
+}
+#endif
+"#;
+
+const SHADOW_PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+void main() {}
+#endif
 "#;
 
 pub struct Material {
@@ -128,8 +125,15 @@ impl Renderable {
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		// Create the material
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
-		let shadow_shader = g.shader_compile(VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"common.glsl" => COMMON,
+				"main.glsl" => PROGRAM,
+				"shadow.glsl" => SHADOW_PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let material = Material { shader, shadow_shader };
 
 		let instance = Instance {

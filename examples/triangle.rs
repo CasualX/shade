@@ -34,32 +34,34 @@ unsafe impl shade::TVertex for TriangleVertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"
-#version 330 core
+const PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
+in vec2 aPos;
+in vec4 aColor;
+#endif
+
+VARYING vec4 v_color;
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
+#endif
 
-in vec4 v_color;
+#ifdef VERTEX_SHADER
+void main() {
+	v_color = aColor;
+	gl_Position = vec4(aPos, 0.0, 1.0);
+}
+#endif
 
+#ifdef FRAGMENT_SHADER
 void main() {
 	float levels = 10.0;
 	vec3 qColor = floor(v_color.rgb * levels) / (levels - 1.0);
 	o_fragColor = vec4(qColor, v_color.a);
 }
-"#;
-
-const VERTEX_SHADER: &str = r#"
-#version 330 core
-
-in vec2 aPos;
-in vec4 aColor;
-
-out vec4 v_color;
-
-void main() {
-	v_color = aColor;
-	gl_Position = vec4(aPos, 0.0, 1.0);
-}
+#endif
 "#;
 
 //----------------------------------------------------------------
@@ -162,7 +164,12 @@ impl TriangleDemo {
 			shade::BufferUsage::Static,
 		);
 
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 
 		TriangleDemo { vertices, shader }
 	}

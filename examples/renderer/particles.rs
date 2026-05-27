@@ -2,59 +2,76 @@ use cvmath::*;
 
 const N: i32 = 64;
 
-const PARTICLE_VS: &str = r#"
-#version 330 core
+const PARTICLE_PROGRAM: &str = r#"
+#version unified 330 core
+
+#ifdef VERTEX_SHADER
 in vec2 a_pos;
 in vec2 a_uv;
 in vec4 a_color;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
+out vec4 frag_color;
+#endif
 
 uniform sampler2D u_positions;
 uniform mat4 u_viewProjMatrix;
 uniform mat4x3 u_viewMatrix;
+uniform sampler2D u_texture;
 
-out vec2 v_uv;
-
+#ifdef VERTEX_SHADER
 void main() {
 	ivec2 particle_index = ivec2(gl_InstanceID % 64, gl_InstanceID / 64);
 	vec3 particle_pos = texelFetch(u_positions, particle_index, 0).rgb;
-
 	vec3 cam_right = vec3(u_viewMatrix[0][0], u_viewMatrix[1][0], u_viewMatrix[2][0]);
 	vec3 cam_up = vec3(u_viewMatrix[0][1], u_viewMatrix[1][1], u_viewMatrix[2][1]);
 	vec3 world_pos = particle_pos + cam_right * a_pos.x + cam_up * a_pos.y;
 	gl_Position = u_viewProjMatrix * vec4(world_pos, 1.0);
 	v_uv = a_uv;
 }
-"#;
+#endif
 
-const PARTICLE_FS: &str = r#"
-#version 330 core
-in vec2 v_uv;
-uniform sampler2D u_texture;
-out vec4 frag_color;
-
+#ifdef FRAGMENT_SHADER
 void main() {
 	frag_color = texture(u_texture, v_uv) * 0.5;
 	if (frag_color.a < 0.1) {
 		discard;
 	}
 }
+#endif
 "#;
 
-const UPDATE_POSITIONS_FS: &str = r#"
-#version 330 core
+const UPDATE_PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
 in vec2 a_pos;
 in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
+out vec3 out_position;
+#endif
 
 uniform sampler2D u_positions;
 uniform float u_deltaTime;
-
 uniform vec3 u_boundsMins;
 uniform vec3 u_boundsMaxs;
 uniform float u_time;
 
-out vec3 out_position;
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
 
+#ifdef FRAGMENT_SHADER
 void main() {
 	vec3 position = texelFetch(u_positions, ivec2(gl_FragCoord.xy), 0).rgb;
 	vec3 velocity = vec3(-4.0, 2.5, -10.0);
@@ -78,6 +95,7 @@ void main() {
 
 	out_position = position;
 }
+#endif
 "#;
 
 struct Material {
@@ -175,13 +193,19 @@ impl Renderable {
 
 		let positions2 = g.texture2d_create(&pos_info);
 
-		let shader = g.shader_compile(PARTICLE_VS, PARTICLE_FS).unwrap();
+		let mut source = shade::shader_interface! {
+			files {
+				"particle.glsl" => PARTICLE_PROGRAM,
+				"update.glsl" => UPDATE_PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "particle.glsl", &[]).unwrap();
 		let material = Material { shader, texture, positions };
 
 		let mesh = g.vertex_buffer(&INSTANCE_QUAD, shade::BufferUsage::Static);
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let update_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, UPDATE_POSITIONS_FS).unwrap();
+		let update_shader = g.shader_compile(&mut source, "update.glsl", &[]).unwrap();
 
 		Renderable { mesh, material, instance, positions: [positions, positions2], index: false, pp, update_shader }
 	}

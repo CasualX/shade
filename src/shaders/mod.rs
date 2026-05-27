@@ -1,7 +1,15 @@
 //! Bundled shader sources.
 
-pub mod glsl330core;
-pub mod glsl300es;
+pub const COLOR: &str = include_str!("color.glsl");
+pub const GRADIENT: &str = include_str!("gradient.glsl");
+pub const TEXTURED: &str = include_str!("textured.glsl");
+pub const PIXELART: &str = include_str!("pixelart.glsl");
+pub const MTSDF: &str = include_str!("mtsdf.glsl");
+pub const COLOR3D: &str = include_str!("color3d.glsl");
+pub const POST_PROCESS_COPY: &str = include_str!("post_process.copy.glsl");
+pub const POST_PROCESS_CRT: &str = include_str!("post_process.crt.glsl");
+pub const POST_PROCESS_PIXELART: &str = include_str!("post_process.pixelart.glsl");
+pub const POST_PROCESS_MELT: &str = include_str!("post_process.melt.glsl");
 
 #[derive(Copy, Clone)]
 pub struct PostProcessCopyUniforms {

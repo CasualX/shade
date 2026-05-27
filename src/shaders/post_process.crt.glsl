@@ -1,4 +1,4 @@
-#version 330 core
+#version unified 330 core, 300 es
 
 /*
 MIT License
@@ -24,9 +24,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-out vec4 o_fragColor;
+#ifdef GLSL_ES
+precision highp float;
+#endif
 
-in vec2 v_uv;
+VARYING vec2 v_uv;
+
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
 
 uniform sampler2D u_texture;
 uniform float u_scanline_intensity;
@@ -141,3 +156,4 @@ void main() {
 	pixel.rgb *= lighting_mask;
 	o_fragColor = pixel;
 }
+#endif

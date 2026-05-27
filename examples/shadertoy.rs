@@ -17,16 +17,31 @@ impl shade::UniformVisitor for ShaderToyUniforms {
 	}
 }
 
-const SHADER_TOY_FS: &str = r#"
-#version 330 core
+const PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
-
-in vec2 v_uv;
+#endif
 
 uniform float u_time;
 uniform float u_aspectRatio;
 
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 void main() {
 	vec2 p=(v_uv-0.5)*3.0;
 	p.x*=u_aspectRatio;
@@ -36,6 +51,7 @@ void main() {
 		v+=cos(v.yx*i+vec2(0,i)+u_time)/i+.7;
 	o_fragColor=tanh(exp(p.y*vec4(1,-1,-2,0))*exp(-4.*l.x)/o);
 }
+#endif
 "#;
 
 /// OpenGL Window wrapper.
@@ -132,7 +148,12 @@ impl ShaderToyDemo {
 		let epoch = time::Instant::now();
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let shadertoy = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, SHADER_TOY_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shadertoy = g.shader_compile(&mut source, "main.glsl", &[]);
 
 		ShaderToyDemo {
 			epoch,

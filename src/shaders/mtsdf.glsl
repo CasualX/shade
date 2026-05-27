@@ -1,10 +1,45 @@
-#version 330 core
+#version unified 330 core, 300 es
 
+#ifdef GLSL_ES
+precision highp float;
+#endif
+
+VARYING vec2 v_uv;
+VARYING vec4 v_color;
+VARYING vec4 v_outline;
+
+vec3 srgbToLinear(vec3 c) {
+	#ifdef GLSL_CORE
+		return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+	#else
+		return c;
+	#endif
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
+
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+in vec4 a_color;
+in vec4 a_outline;
+
+uniform mat3x2 u_transform;
+
+void main() {
+	v_uv = a_uv;
+	v_color = srgbToLinear(a_color);
+	v_outline = a_outline;
+
+	vec2 pos = u_transform * vec3(a_pos, 1.0);
+	gl_Position = vec4(pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
-
-in vec2 v_uv;
-in vec4 v_color;
-in vec4 v_outline;
 
 uniform sampler2D u_texture;
 uniform vec2 u_unitRange;
@@ -28,8 +63,6 @@ void main() {
 	float d_sdf = median(distances.rgb);
 
 	float width = screen_px_range();
-
-	// Discard fragments outside the glyph's encoded distance field (fully transparent areas)
 	if (d_sdf <= 0.0)
 		discard;
 
@@ -42,3 +75,4 @@ void main() {
 	vec4 color = v_color * inner + v_outline * (outer - inner);
 	o_fragColor = color;
 }
+#endif

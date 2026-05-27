@@ -1,19 +1,37 @@
 use shade::cvmath::*;
 
-const SPHERE_FS: &str = r#"#version 300 es
+const PROGRAM: &str = r#"#version unified 300 es
 precision highp float;
 
-in vec3 v_worldPos;
+#ifdef VERTEX_SHADER
+in vec3 a_pos;
+#endif
 
-uniform vec3 u_cameraPosition;
+VARYING vec3 v_worldPos;
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+#endif
+
+uniform mat4x3 u_viewMatrix;
+uniform mat4 u_projMatrix;
 uniform vec3 u_globePosition;
 uniform float u_globeRadius;
+uniform vec3 u_cameraPosition;
 uniform sampler2D u_texture;
-
-out vec4 o_fragColor;
 
 const float PI = 3.141592653589793;
 
+#ifdef VERTEX_SHADER
+void main() {
+	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
+	vec4 worldPos = vec4(world, 1.0);
+	v_worldPos = worldPos.xyz;
+	gl_Position = u_projMatrix * vec4(u_viewMatrix * worldPos, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 void main() {
 	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
 	vec3 rayOrigin = u_cameraPosition;
@@ -41,26 +59,7 @@ void main() {
 	vec3 color = texture(u_texture, vec2(u, v)).rgb;
 	o_fragColor = vec4(color, 1.0);
 }
-"#;
-
-const SPHERE_VS: &str = r#"#version 300 es
-precision highp float;
-
-in vec3 a_pos;
-
-out vec3 v_worldPos;
-
-uniform mat4x3 u_viewMatrix;
-uniform mat4 u_projMatrix;
-uniform vec3 u_globePosition;
-uniform float u_globeRadius;
-
-void main() {
-	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
-	vec4 worldPos = vec4(world, 1.0);
-	v_worldPos = worldPos.xyz;
-	gl_Position = u_projMatrix * vec4(u_viewMatrix * worldPos, 1.0);
-}
+#endif
 "#;
 
 struct GlobeMaterial {
@@ -95,7 +94,12 @@ struct GlobeRenderable {
 impl GlobeRenderable {
 	fn create(g: &mut shade::Graphics) -> GlobeRenderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
-		let shader = g.shader_compile(SPHERE_VS, SPHERE_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let texture = {
 			let file_jpg = include_bytes!("../../textures/2k_earth_daymap.jpg");
 			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap();

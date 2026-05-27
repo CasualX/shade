@@ -17,7 +17,7 @@ macro_rules! gl_check {
 	(gl::$f:ident($($e:expr),* $(,)?)) => {{
 		assert!(gl::$f::is_loaded(), "OpenGL function gl{} was not loaded.", stringify!($f));
 		check(|| {
-			// println!(concat!("gl", stringify!($f), "(", $(stringify!($e),"={:?}, ",)* ")"), $($e),*);
+			// eprintln!(concat!("gl", stringify!($f), "(", $(stringify!($e),"={:?}, ",)* ")"), $($e),*);
 			unsafe { gl::$f($($e),*) }
 		})
 	}};
@@ -219,8 +219,8 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 	}
 
-	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
-		shader::compile(self, vertex_source, fragment_source)
+	fn shader_compile(&mut self, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+		shader::compile2(self, interface, name, defines)
 	}
 
 	fn texture2d_create(&mut self, info: &crate::Texture2DInfo) -> crate::Texture2D {

@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn create(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
+pub fn compile(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
 	let mut success = true;
 
 	let vertex_shader = unsafe { api::createShader(api::VERTEX_SHADER) };
@@ -73,6 +73,12 @@ pub fn create(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &s
 	}
 
 	return this.objects.insert(WebGLShaderProgram { program, attribs, uniforms });
+}
+
+pub fn compile2(this: &mut WebGLGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, "300 es", "GLSL_ES", defines, interface);
+	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, "300 es", "GLSL_ES", defines, interface);
+	compile(this, &vertex_source, &fragment_source)
 }
 
 pub fn release(shader: &WebGLShaderProgram) {

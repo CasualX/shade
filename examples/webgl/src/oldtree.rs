@@ -1,17 +1,38 @@
 use shade::cvmath::*;
 
-const FRAGMENT_SHADER: &str = r#"#version 300 es
+const PROGRAM: &str = r#"#version unified 300 es
 precision highp float;
 
-in vec3 v_normal;
-in vec2 v_uv;
-in vec3 v_fragPos;
+#ifdef VERTEX_SHADER
+in vec3 a_pos;
+in vec3 a_normal;
+in vec2 a_uv;
+#endif
 
+VARYING vec3 v_fragPos;
+VARYING vec3 v_normal;
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+#endif
+
+uniform mat4x3 u_model;
+uniform mat4 u_viewProjMatrix;
+uniform mat3 u_normalMatrix;
 uniform sampler2D u_diffuse;
 uniform vec3 u_cameraPosition;
 
-out vec4 o_fragColor;
+#ifdef VERTEX_SHADER
+void main() {
+	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
+	v_normal = u_normalMatrix * a_normal;
+	v_uv = a_uv;
+	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
+}
+#endif
 
+#ifdef FRAGMENT_SHADER
 void main() {
 	vec3 lightDir = normalize(vec3(1.0, -1.0, 1.0));
 	vec3 norm = normalize(v_normal);
@@ -24,29 +45,7 @@ void main() {
 	vec3 finalColor = texColor.rgb * (0.4 + diff * 0.8);
 	o_fragColor = vec4(finalColor, texColor.a);
 }
-"#;
-
-const VERTEX_SHADER: &str = r#"#version 300 es
-precision highp float;
-
-in vec3 a_pos;
-in vec3 a_normal;
-in vec2 a_uv;
-
-out vec3 v_fragPos;
-out vec3 v_normal;
-out vec2 v_uv;
-
-uniform mat4x3 u_model;
-uniform mat4 u_viewProjMatrix;
-uniform mat3 u_normalMatrix;
-
-void main() {
-	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
-	v_normal = u_normalMatrix * a_normal;
-	v_uv = a_uv;
-	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
-}
+#endif
 "#;
 
 struct OldTreeMaterial {
@@ -98,7 +97,12 @@ impl OldTreeRenderable {
 			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let material = OldTreeMaterial { shader, texture };
 		let instance = OldTreeInstance { model: Transform3f::IDENTITY };
 

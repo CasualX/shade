@@ -1,14 +1,49 @@
-#version 300 es
-precision highp float;
+#version unified 330 core, 300 es
 
+#ifdef GLSL_ES
+precision highp float;
+#endif
+
+VARYING vec4 v_color1;
+VARYING vec4 v_color2;
+VARYING vec2 v_uv;
+
+vec3 srgbToLinear(vec3 c) {
+	#ifdef GLSL_CORE
+		return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+	#else
+		return c;
+	#endif
+}
+
+vec4 srgbToLinear(vec4 c) {
+	return vec4(srgbToLinear(c.rgb), c.a);
+}
+
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec4 a_color1;
+in vec4 a_color2;
+
+uniform mat3x2 u_transform;
+uniform mat3x2 u_pattern;
+uniform vec4 u_colorModulation;
+
+void main() {
+	vec2 pos = u_transform * vec3(a_pos, 1.0);
+	v_uv = u_pattern * vec3(a_pos, 1.0);
+
+	gl_Position = vec4(pos, 0.0, 1.0);
+	v_color1 = srgbToLinear(a_color1) * u_colorModulation;
+	v_color2 = srgbToLinear(a_color2) * u_colorModulation;
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
 
 const float PI = 3.14159265358979323846;
 const float TAU = PI + PI;
-
-in vec4 v_color1;
-in vec4 v_color2;
-in vec2 v_uv;
 
 #ifdef SOURCE_TEXTURE
 uniform sampler2D u_texture;
@@ -62,3 +97,4 @@ void main() {
 	float s = apply_repeat(d);
 	o_fragColor = get_gradient_color(s);
 }
+#endif

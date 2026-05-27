@@ -96,6 +96,11 @@ struct TextDemo {
 
 impl TextDemo {
 	fn new(g: &mut shade::Graphics) -> TextDemo {
+		let mut shader_source = shade::shader_interface! {
+			files {
+				"mtsdf.glsl" => include_str!("../src/shaders/mtsdf.glsl"),
+			}
+		};
 		let font = {
 			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("font/font.json")).unwrap();
 			let font: shade::msdfgen::Font = font.into();
@@ -106,7 +111,7 @@ impl TextDemo {
 				g.image(&image)
 			};
 
-			let shader = g.shader_compile(shade::shaders::glsl330core::MTSDF_VS, shade::shaders::glsl330core::MTSDF_FS);
+			let shader = g.shader_compile(&mut shader_source, "mtsdf.glsl", &[]);
 
 			d2::FontResource { font, texture, shader }
 		};

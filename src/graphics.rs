@@ -199,8 +199,18 @@ pub trait IGraphics {
 	/// Writes data to the index buffer.
 	fn index_buffer_write(&mut self, id: IndexBuffer, offset: usize, data: &[u8]);
 
-	/// Creates and compiles a shader.
-	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> ShaderProgram;
+	/// Creates and compiles a unified shader with preprocessor definitions and include support.
+	///
+	/// See [shader_interface!](macro@shader_interface) for a convenient way to create a shader interface from static files.
+	///
+	/// Unified shader source must start with `#version unified` followed by a comma separated list of #version targets, eg `#version unified 330 core, 300 es` for intended compatibility.
+	///
+	/// The following preprocessor definitions are provided by default:
+	/// - `#define VERTEX_SHADER` for vertex shader compilation.
+	/// - `#define FRAGMENT_SHADER` for fragment shader compilation.
+	/// - `#define VARYING in|out` for varying qualifier, depending on the shader kind.
+	/// - `#define GLSL_CORE` for desktop OpenGL and `#define GLSL_ES` for WebGL, depending on the graphics backend.
+	fn shader_compile(&mut self, interface: &mut dyn IShaderInterface, name: &str, defines: &[ShaderDefine<'_>]) -> ShaderProgram;
 
 	/// Creates a 2D texture.
 	fn texture2d_create(&mut self, info: &Texture2DInfo) -> Texture2D;

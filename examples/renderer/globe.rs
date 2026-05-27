@@ -1,151 +1,118 @@
 use cvmath::*;
 
-const SPHERE_FS: &str = r#"\
-#version 330 core
+const COMMON: &str = r#"
+#ifdef VERTEX_SHADER
+in vec3 a_pos;
+#endif
 
-out vec4 o_fragColor;
+VARYING vec3 v_worldPos;
 
-in vec3 v_worldPos;
-
-uniform vec3 u_cameraPosition;
+uniform mat4x3 u_viewMatrix;
+uniform mat4 u_projMatrix;
 uniform vec3 u_globePosition;
 uniform float u_globeRadius;
-uniform sampler2D u_texture;
 
-uniform vec3 u_lightPos;
-uniform sampler2DShadow u_shadowMap;
-
-uniform mat4 u_lightTransform;
-
-const float PI = 3.141592653589793;
-
+#ifdef VERTEX_SHADER
 void main() {
-	// Ray from camera through fragment
-	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
-	vec3 rayOrigin = u_cameraPosition;
+	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
+	vec4 worldPos = vec4(world, 1.0);
+	v_worldPos = worldPos.xyz;
+	gl_Position = u_projMatrix * mat4(u_viewMatrix) * worldPos;
+}
+#endif
+"#;
 
-	// Sphere centered at globePosition (world space)
+const RAYCAST: &str = r#"
+vec3 intersectGlobe(vec3 rayOrigin, vec3 rayDir) {
 	vec3 oc = rayOrigin - u_globePosition;
-
 	float a = dot(rayDir, rayDir);
 	float b = 2.0 * dot(oc, rayDir);
 	float c = dot(oc, oc) - u_globeRadius * u_globeRadius;
-
 	float discriminant = b*b - 4.0*a*c;
 	if (discriminant < 0.0) {
-	// Purple debug color
-		// o_fragColor = vec4(0.5, 0.0, 0.5, 1.0);
-		discard;
-		return;
+		return vec3(0.0 / 0.0);
 	}
-	// Nearest positive intersection (handles camera-inside-sphere too)
 	float sqrtD = sqrt(discriminant);
 	float t0 = (-b - sqrtD) / (2.0 * a);
 	float t1 = (-b + sqrtD) / (2.0 * a);
 	float t = (t0 > 0.0) ? t0 : t1;
-	if (t < 0.0) discard;
+	if (t < 0.0) {
+		return vec3(0.0 / 0.0);
+	}
+	return rayOrigin + t * rayDir;
+}
+"#;
 
-	vec3 hitPos = rayOrigin + t * rayDir;
+const PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+uniform vec3 u_cameraPosition;
+uniform sampler2D u_texture;
+uniform vec3 u_lightPos;
+uniform sampler2DShadow u_shadowMap;
+uniform mat4 u_lightTransform;
+
+const float PI = 3.141592653589793;
+
+#include "raycast.glsl"
+
+void main() {
+	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
+	vec3 hitPos = intersectGlobe(u_cameraPosition, rayDir);
+	if (any(isnan(hitPos))) {
+		discard;
+		return;
+	}
 	vec3 n = normalize(hitPos - u_globePosition);
-
 	vec3 lightDir = normalize(u_lightPos - hitPos);
 	float diffLight = max(dot(n, lightDir), 0.0);
-
 	vec4 lightClip = u_lightTransform * vec4(hitPos, 1.0);
 	vec3 lightNdc = lightClip.xyz / lightClip.w;
 	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
 	float bias = 0.001;
 	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
-
-	// Spherical UVs (equirectangular)
-	// World is Z-up in this demo (see ArcballCamera::new(..., up = Z)).
-	// Longitude around +Z axis, latitude from equator toward +Z.
 	float u = 0.5 + atan(n.y, n.x) / (2.0 * PI);
 	float v = 0.5 + asin(n.z) / PI;
-
-	// PNG rows decode top-to-bottom; OpenGL UV (0,0) samples the first row.
-	// Flip V so the image appears upright.
 	v = 1.0 - v;
-
-	// Keep within [0,1) for wrapping samplers.
 	u = fract(u);
-
 	vec2 uv = vec2(u, v);
 	vec2 uv_dx = dFdx(uv);
 	vec2 uv_dy = dFdy(uv);
-	// Fix discontinuity at the wrap seam so implicit mip selection doesn't explode.
 	if (abs(uv_dx.x) > 0.5) uv_dx.x -= sign(uv_dx.x);
 	if (abs(uv_dy.x) > 0.5) uv_dy.x -= sign(uv_dy.x);
-
 	vec3 color = textureGrad(u_texture, uv, uv_dx, uv_dy).rgb;
 	float ambient = 0.2;
 	float direct_intensity = 0.6;
 	float lighting = ambient + visibility * (diffLight * direct_intensity);
 	o_fragColor = vec4(color * lighting, 1.0);
 }
+#endif
 "#;
 
-const SPHERE_SHADOW_FS: &str = r#"\
-#version 330 core
+const SHADOW_PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
 
-in vec3 v_worldPos;
-
+#ifdef FRAGMENT_SHADER
 uniform vec3 u_cameraPosition;
-uniform vec3 u_globePosition;
-uniform float u_globeRadius;
 
-uniform mat4x3 u_viewMatrix;
-uniform mat4 u_projMatrix;
+#include "raycast.glsl"
 
 void main() {
-	// Ray from light-camera through fragment
 	vec3 rayDir = normalize(v_worldPos - u_cameraPosition);
-	vec3 rayOrigin = u_cameraPosition;
-	vec3 oc = rayOrigin - u_globePosition;
-
-	float a = dot(rayDir, rayDir);
-	float b = 2.0 * dot(oc, rayDir);
-	float c = dot(oc, oc) - u_globeRadius * u_globeRadius;
-
-	float discriminant = b*b - 4.0*a*c;
-	if (discriminant < 0.0) {
+	vec3 hitPos = intersectGlobe(u_cameraPosition, rayDir);
+	if (any(isnan(hitPos))) {
 		discard;
 		return;
 	}
-
-	float sqrtD = sqrt(discriminant);
-	float t0 = (-b - sqrtD) / (2.0 * a);
-	float t1 = (-b + sqrtD) / (2.0 * a);
-	float t = (t0 > 0.0) ? t0 : t1;
-	if (t < 0.0) discard;
-
-	vec3 hitPos = rayOrigin + t * rayDir;
 	vec4 clip = u_projMatrix * mat4(u_viewMatrix) * vec4(hitPos, 1.0);
 	float ndcDepth = clip.z / clip.w;
 	gl_FragDepth = ndcDepth * 0.5 + 0.5;
 }
-"#;
-
-const SPHERE_VS: &str = r#"\
-#version 330 core
-
-in vec3 a_pos;
-
-uniform mat4x3 u_viewMatrix;
-uniform mat4 u_projMatrix;
-
-uniform vec3 u_globePosition;
-uniform float u_globeRadius;
-
-out vec3 v_worldPos;
-
-void main() {
-	// The mesh is a unit icosahedron in [-1, 1]^3. Scale it to radius (R) and translate.
-	vec3 world = u_globePosition + a_pos * (1.27 * u_globeRadius);
-	vec4 worldPos = vec4(world, 1.0);
-	v_worldPos = worldPos.xyz;
-	gl_Position = u_projMatrix * mat4(u_viewMatrix) * worldPos;
-}
+#endif
 "#;
 
 //----------------------------------------------------------------
@@ -182,8 +149,16 @@ impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 
-		let shader = g.shader_compile(SPHERE_VS, SPHERE_FS);
-		let shadow_shader = g.shader_compile(SPHERE_VS, SPHERE_SHADOW_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"common.glsl" => COMMON,
+				"raycast.glsl" => RAYCAST,
+				"main.glsl" => PROGRAM,
+				"shadow.glsl" => SHADOW_PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap();
 			let props = shade::TextureProps {

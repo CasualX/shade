@@ -20,14 +20,33 @@ impl shade::UniformVisitor for PostProcessDitherUniforms {
 	}
 }
 
-const POST_PROCESS_DITHER_FS: &str = r#"
-#version 330 core
-in vec2 v_uv;
+const PROGRAM: &str = r#"
+#version unified 330 core
+
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
 out vec4 frag_color;
+#endif
+
 uniform sampler2D u_texture;
 uniform sampler2D u_dither;
 uniform float u_dither_scale;
 uniform float u_levels;
+
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 void main() {
 	ivec2 pixel_pos = ivec2(gl_FragCoord.xy);
 	ivec2 dither_size = textureSize(u_dither, 0);
@@ -41,6 +60,7 @@ void main() {
 	vec3 out_rgb = clamp(quant / (levels - 1.0), 0.0, 1.0);
 	frag_color = vec4(out_rgb, color.a);
 }
+#endif
 "#;
 
 /// Rendering state for the dither demo.
@@ -69,7 +89,12 @@ impl DitherDemo {
 		};
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let pp_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, POST_PROCESS_DITHER_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let pp_shader = g.shader_compile(&mut source, "main.glsl", &[]);
 
 		DitherDemo {
 			pp,

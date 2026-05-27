@@ -32,37 +32,24 @@ unsafe impl shade::TVertex for MyVertex3 {
 //----------------------------------------------------------------
 // Shader and uniforms
 
-const FRAGMENT_SHADER: &str = r#"
-#version 330 core
+const PROGRAM: &str = r#"
+#version unified 330 core
 
-out vec4 o_fragColor;
-
-in vec4 v_color;
-in vec2 v_uv;
-
-uniform sampler2D u_texture;
-
-void main() {
-	ivec2 texSize = textureSize(u_texture, 0);
-	vec4 color = texture(u_texture, v_uv / texSize) * v_color;
-	if (color.a < 0.5) {
-		discard;
-	}
-	color.a = 1.0;
-	o_fragColor = color;
-}
-"#;
-
-const VERTEX_SHADER: &str = r#"
-#version 330 core
+#ifdef VERTEX_SHADER
 in vec3 a_pos;
 in vec2 a_uv;
 in vec4 a_color;
+#endif
 
-out vec4 v_color;
-out vec2 v_uv;
+VARYING vec4 v_color;
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+#endif
 
 uniform mat4x4 u_transform;
+uniform sampler2D u_texture;
 
 vec3 srgbToLinear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
@@ -72,11 +59,25 @@ vec4 srgbToLinear(vec4 c) {
 	return vec4(srgbToLinear(c.rgb), c.a);
 }
 
+#ifdef VERTEX_SHADER
 void main() {
 	v_color = srgbToLinear(a_color);
 	v_uv = a_uv;
 	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
+#endif
+
+#ifdef FRAGMENT_SHADER
+void main() {
+	ivec2 texSize = textureSize(u_texture, 0);
+	vec4 color = texture(u_texture, v_uv / texSize) * v_color;
+	if (color.a < 0.5) {
+		discard;
+	}
+	color.a = 1.0;
+	o_fragColor = color;
+}
+#endif
 "#;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -208,7 +209,12 @@ impl SceneDemo {
 			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let epoch = time::Instant::now();
 
 		SceneDemo { texture, shader, epoch }

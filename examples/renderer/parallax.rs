@@ -1,89 +1,54 @@
 use cvmath::*;
 
-const VERTEX_SHADER: &str = r#"\
-#version 330 core
-
+const COMMON: &str = r#"
+#ifdef VERTEX_SHADER
 in vec3 a_pos;
 in vec3 a_normal;
 in vec2 a_uv;
+#endif
 
-out vec3 v_fragPos;
-out vec3 v_normal;
-out vec2 v_uv;
-out vec4 v_lightClip;
+VARYING vec3 v_fragPos;
+VARYING vec3 v_normal;
+VARYING vec2 v_uv;
+VARYING vec4 v_lightClip;
 
 uniform mat4x3 u_model;
-
 uniform mat4 u_viewProjMatrix;
 uniform mat4 u_lightTransform;
 
+#ifdef VERTEX_SHADER
 void main() {
-	// Calculate world position of the vertex
 	v_fragPos = vec3(u_model * vec4(a_pos, 1.0));
-
-	// Transform the normal properly (especially for scaling)
 	v_normal = transpose(inverse(mat3(u_model))) * a_normal;
-
-	// Pass through UV
 	v_uv = a_uv;
 	v_lightClip = u_lightTransform * vec4(a_pos, 1.0);
-
-	// Final position for rasterization
 	gl_Position = u_viewProjMatrix * vec4(v_fragPos, 1.0);
 }
+#endif
 "#;
 
-
-const PARALLAX_SHADER: &str = r#"
-#version 330 core
-
-out vec4 o_fragColor;
-
-in vec2 v_uv;
-in vec3 v_normal;
-in vec3 v_fragPos;
-in vec4 v_lightClip;
-
-uniform sampler2D u_diffuse;
-uniform sampler2D u_normalMap;
-uniform sampler2D u_heightMap;
-uniform vec3 u_cameraPosition;
-uniform vec3 u_lightPos;
-
-uniform sampler2DShadow u_shadowMap;
-
-uniform float u_heightScale;
-
-// Construct TBN matrix using derivatives (quad assumed)
+const POM: &str = r#"
 mat3 computeTBN(vec3 normal, vec3 pos, vec2 uv) {
 	vec3 dp1 = dFdx(pos);
 	vec3 dp2 = dFdy(pos);
 	vec2 duv1 = dFdx(uv);
 	vec2 duv2 = dFdy(uv);
-
 	vec3 t = normalize(dp1 * duv2.y - dp2 * duv1.y);
 	vec3 b = normalize(cross(normal, t));
 	return mat3(t, -b, normal);
 }
 
-// Parallax Occlusion Mapping
-vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent, vec2 uv_dx, vec2 uv_dy) {
+vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent, vec2 uv_dx, vec2 uv_dy, sampler2D heightMap, float heightScale) {
 	const float minLayers = 8.0;
 	const float maxLayers = 48.0;
-
-	// More layers at grazing angles.
 	float ndotv = clamp(viewDirTangent.z, 0.0, 1.0);
 	float numLayers = mix(maxLayers, minLayers, ndotv);
 	float layerDepth = 1.0 / numLayers;
-
-	// Scale parallax by view angle to avoid excessive stepping artifacts.
-	vec2 P = (viewDirTangent.xy / max(viewDirTangent.z, 0.05)) * u_heightScale;
+	vec2 P = (viewDirTangent.xy / max(viewDirTangent.z, 0.05)) * heightScale;
 	vec2 deltaUV = -P / numLayers;
-
 	vec2 currUV = uv;
 	float currLayerDepth = 0.0;
-	float currHeight = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
-
+	float currHeight = textureGrad(heightMap, currUV, uv_dx, uv_dy).r;
 	int steps = int(numLayers);
 	for (int i = 0; i < steps; i++) {
 		if (currLayerDepth >= currHeight) {
@@ -91,74 +56,71 @@ vec2 parallaxOcclusionMap(vec2 uv, vec3 viewDirTangent, vec2 uv_dx, vec2 uv_dy) 
 		}
 		currUV += deltaUV;
 		currLayerDepth += layerDepth;
-		currHeight = textureGrad(u_heightMap, currUV, uv_dx, uv_dy).r;
+		currHeight = textureGrad(heightMap, currUV, uv_dx, uv_dy).r;
 	}
-
-	// Refine: linearly interpolate between the last two steps to hide layer bands.
 	vec2 prevUV = currUV - deltaUV;
 	float prevLayerDepth = currLayerDepth - layerDepth;
-	float prevHeight = textureGrad(u_heightMap, prevUV, uv_dx, uv_dy).r;
-
+	float prevHeight = textureGrad(heightMap, prevUV, uv_dx, uv_dy).r;
 	float after = currHeight - currLayerDepth;
 	float before = prevHeight - prevLayerDepth;
 	float denom = (before - after);
 	float t = (abs(denom) < 1e-5) ? 0.0 : clamp(before / denom, 0.0, 1.0);
 	return mix(prevUV, currUV, t);
 }
+"#;
+
+const PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+uniform sampler2D u_diffuse;
+uniform sampler2D u_normalMap;
+uniform sampler2D u_heightMap;
+uniform vec3 u_cameraPosition;
+uniform vec3 u_lightPos;
+uniform sampler2DShadow u_shadowMap;
+uniform float u_heightScale;
+
+#include "pom.glsl"
 
 void main() {
 	vec2 uv_dx = dFdx(v_uv);
 	vec2 uv_dy = dFdy(v_uv);
-
-	// Compute TBN matrix
 	mat3 TBN = computeTBN(normalize(v_normal), v_fragPos, v_uv);
 	vec3 viewDir = normalize(u_cameraPosition - v_fragPos);
 	vec3 viewDirTangent = TBN * viewDir;
-
-	// Perform Parallax Occlusion Mapping
-	vec2 displacedUV = parallaxOcclusionMap(v_uv, viewDirTangent, uv_dx, uv_dy);
-
-	// Optional: Clamp UVs to avoid artifacts at the edges
-	// if (displacedUV.x < 0.0 || displacedUV.x > 1.0 || displacedUV.y < 0.0 || displacedUV.y > 1.0)
-	// 	discard;
-
-	// Sample diffuse texture
+	vec2 displacedUV = parallaxOcclusionMap(v_uv, viewDirTangent, uv_dx, uv_dy, u_heightMap, u_heightScale);
 	vec4 texColor = textureGrad(u_diffuse, displacedUV, uv_dx, uv_dy);
 	if (texColor.a < 0.1)
 		discard;
-
-	// Sample and decode the normal map (assumed in [0,1] range)
 	vec3 normalTangent = textureGrad(u_normalMap, displacedUV, uv_dx, uv_dy).rgb * 2.0 - 1.0;
-
-	// Transform to world space
 	vec3 perturbedNormal = normalize(TBN * normalTangent);
-
-	// Lighting
 	vec3 lightDir = normalize(u_lightPos - v_fragPos);
 	float diffLight = max(dot(perturbedNormal, lightDir), 0.0);
-
-	// Simple shadow mapping
 	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
 	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
 	float bias = 0.001;
 	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
-
-	// Final color
 	vec3 finalColor = texColor.rgb * (0.6 + visibility * (diffLight * 0.4));
 	o_fragColor = vec4(finalColor, texColor.a);
 }
+#endif
 "#;
 
-const SHADOW_FRAGMENT_SHADER: &str = r#"\
-#version 330 core
+const SHADOW_PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
 
-in vec2 v_uv;
+#ifdef FRAGMENT_SHADER
 uniform sampler2D u_diffuse;
 
 void main() {
 	float a = texture(u_diffuse, v_uv).a;
 	if (a < 0.1) discard;
 }
+#endif
 "#;
 
 pub struct Material {
@@ -232,8 +194,16 @@ impl Renderable {
 			g.image(&(&image, &props))
 		};
 
-		let shader = g.shader_compile(VERTEX_SHADER, PARALLAX_SHADER);
-		let shadow_shader = g.shader_compile(VERTEX_SHADER, SHADOW_FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"common.glsl" => COMMON,
+				"pom.glsl" => POM,
+				"main.glsl" => PROGRAM,
+				"shadow.glsl" => SHADOW_PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let material = Material {
 			shader,
 			shadow_shader,

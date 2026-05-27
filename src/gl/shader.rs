@@ -13,7 +13,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		gl_check!(gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
 		gl_check!(gl::GetShaderInfoLog(vertex_shader, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
-		println!("# Vertex shader compile log:\n{}", String::from_utf8_lossy(&log));
+		eprintln!("# Vertex shader compile log:\n{}", String::from_utf8_lossy(&log));
 		success = false;
 	}
 
@@ -26,7 +26,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		gl_check!(gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
 		gl_check!(gl::GetShaderInfoLog(fragment_shader, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
-		println!("# Fragment shader compile log:\n{}", String::from_utf8_lossy(&log));
+		eprintln!("# Fragment shader compile log:\n{}", String::from_utf8_lossy(&log));
 		success = false;
 	}
 
@@ -50,7 +50,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		gl_check!(gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len));
 		let mut log = vec![0; log_len as usize];
 		gl_check!(gl::GetProgramInfoLog(program, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
-		println!("# Program link log:\n{}", String::from_utf8_lossy(&log));
+		eprintln!("# Program link log:\n{}", String::from_utf8_lossy(&log));
 		gl_check!(gl::DeleteProgram(program));
 		return crate::ShaderProgram::INVALID;
 	}
@@ -66,7 +66,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 
 		let location = gl_check!(gl::GetAttribLocation(program, namebuf.as_ptr() as *const _));
 		if location < 0 {
-			// println!("Warning: Attribute not found (maybe optimized out): {}", name);
+			// eprintln!("Warning: Attribute not found (maybe optimized out): {}", name);
 			continue;
 		}
 
@@ -86,7 +86,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 
 		let location = gl_check!(gl::GetUniformLocation(program, namebuf.as_ptr() as *const _));
 		if location < 0 {
-			// println!("Warning: Uniform not found (maybe optimized out): {}", name);
+			// eprintln!("Warning: Uniform not found (maybe optimized out): {}", name);
 			continue;
 		}
 
@@ -101,10 +101,16 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		);
 		let texture_unit = if needs_texture_unit { texture_slot += 1; texture_slot } else { -1 };
 		uniforms.insert(name.into(), GlActiveUniform { location, array_size: size, ty, texture_unit });
-		// println!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
+		// eprintln!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 
 	this.objects.insert(GlShaderProgram { program, attribs, uniforms })
+}
+
+pub fn compile2(this: &mut GlGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, "330 core", "GLSL_CORE", defines, interface);
+	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, "330 core", "GLSL_CORE", defines, interface);
+	compile(this, &vertex_source, &fragment_source)
 }
 
 pub fn release(shader: &GlShaderProgram) {

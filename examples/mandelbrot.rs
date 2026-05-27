@@ -5,13 +5,20 @@ use std::num::NonZeroU32;
 use glutin::prelude::*;
 use shade::cvmath::*;
 
-const FRAGMENT_SHADER: &str = r#"
-#version 330
+const PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+#endif
+
+VARYING vec2 v_pos;
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
+#endif
 
-in vec2 v_pos;
-
+uniform mat3x2 u_transform;
 uniform sampler2D u_gradient;
 
 float mandelbrot(vec2 c)
@@ -43,25 +50,19 @@ float mandelbrot(vec2 c)
 	// return fract(normalized);
 }
 
-void main() {
-	float s = mandelbrot(v_pos);
-	o_fragColor = texture(u_gradient, vec2(s, 0.0));
-}
-"#;
-
-const VERTEX_SHADER: &str = r#"
-#version 330 core
-
-in vec2 a_pos;
-
-out vec2 v_pos;
-
-uniform mat3x2 u_transform;
-
+#ifdef VERTEX_SHADER
 void main() {
 	v_pos = u_transform * vec3(a_pos, 1.0);
 	gl_Position = vec4(a_pos, 0.0, 1.0);
 }
+#endif
+
+#ifdef FRAGMENT_SHADER
+void main() {
+	float s = mandelbrot(v_pos);
+	o_fragColor = texture(u_gradient, vec2(s, 0.0));
+}
+#endif
 "#;
 
 //----------------------------------------------------------------
@@ -265,7 +266,12 @@ struct MandelbrotDemo {
 impl MandelbrotDemo {
 	fn new(g: &mut shade::Graphics) -> MandelbrotDemo {
 		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let gradient = {
 			let gradient = shade::image::DecodedImage::load_file_png("examples/mandelbrot/gradient.png").unwrap();
 			g.image(&gradient)

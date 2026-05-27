@@ -15,6 +15,11 @@ impl Context {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
+		let mut shader_source = shade::shader_interface! {
+			files {
+				"mtsdf.glsl" => include_str!("../../../src/shaders/mtsdf.glsl"),
+			}
+		};
 
 		let font = {
 			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../font/font.json")).unwrap();
@@ -34,7 +39,7 @@ impl Context {
 				};
 				g.image(&(&image, &props))
 			};
-			let shader = g.shader_compile(shade::shaders::glsl300es::MTSDF_VS, shade::shaders::glsl300es::MTSDF_FS);
+			let shader = g.shader_compile(&mut shader_source, "mtsdf.glsl", &[]);
 			d2::FontResource { font, texture, shader }
 		};
 

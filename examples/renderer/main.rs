@@ -80,10 +80,15 @@ impl RendererDemo {
 
 		let shadow_map = shade::Texture2D::INVALID;
 		let draw_bounds = false;
+		let mut shader_source = shade::shader_interface! {
+			files {
+				"color3d.glsl" => include_str!("../../src/shaders/color3d.glsl"),
+			}
+		};
+		let color3d_shader = g.shader_compile(&mut shader_source, "color3d.glsl", &[]);
 
 		let axes = {
-			let shader = g.shader_compile(shade::shaders::glsl330core::COLOR3D_VS, shade::shaders::glsl330core::COLOR3D_FS);
-			shade::d3::axes::AxesModel::create(g, shader)
+			shade::d3::axes::AxesModel::create(g, color3d_shader)
 		};
 
 		let cube = cube::Renderable::create(g);
@@ -93,7 +98,6 @@ impl RendererDemo {
 		let parallax = parallax::Renderable::create(g);
 		let globe = globe::Renderable::create(g);
 		let particles = particles::Renderable::create(g);
-		let color3d_shader = g.shader_compile(shade::shaders::glsl330core::COLOR3D_VS, shade::shaders::glsl330core::COLOR3D_FS);
 
 		RendererDemo {
 			epoch,

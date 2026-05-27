@@ -163,14 +163,17 @@ struct PixelArtDemo {
 impl PixelArtDemo {
 	fn new(g: &mut shade::Graphics) -> PixelArtDemo {
 		let epoch = time::Instant::now();
-		let textured_shader = g.shader_compile(
-			shade::shaders::glsl330core::TEXTURED_VS,
-			shade::shaders::glsl330core::TEXTURED_FS,
-		);
-		let pixelart_shader = g.shader_compile(
-			shade::shaders::glsl330core::PIXELART_VS,
-			shade::shaders::glsl330core::PIXELART_FS,
-		);
+		let mut shader_source = shade::shader_interface! {
+			files {
+				"textured.glsl" => include_str!("../src/shaders/textured.glsl"),
+				"pixelart.glsl" => include_str!("../src/shaders/pixelart.glsl"),
+				"mtsdf.glsl" => include_str!("../src/shaders/mtsdf.glsl"),
+				"post_process.copy.glsl" => include_str!("../src/shaders/post_process.copy.glsl"),
+				"post_process.crt.glsl" => include_str!("../src/shaders/post_process.crt.glsl"),
+			}
+		};
+		let textured_shader = g.shader_compile(&mut shader_source, "textured.glsl", &[]);
+		let pixelart_shader = g.shader_compile(&mut shader_source, "pixelart.glsl", &[]);
 		let hud_font = {
 			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("font/font.json")).unwrap();
 			let font: shade::msdfgen::Font = font.into();
@@ -179,18 +182,12 @@ impl PixelArtDemo {
 					.map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
 				g.image(&image)
 			};
-			let shader = g.shader_compile(shade::shaders::glsl330core::MTSDF_VS, shade::shaders::glsl330core::MTSDF_FS);
+			let shader = g.shader_compile(&mut shader_source, "mtsdf.glsl", &[]);
 			d2::FontResource { font, texture, shader }
 		};
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let pp_copy_shader = g.shader_compile(
-			shade::shaders::glsl330core::POST_PROCESS_VS,
-			shade::shaders::glsl330core::POST_PROCESS_COPY_FS,
-		);
-		let pp_crt_shader = g.shader_compile(
-			shade::shaders::glsl330core::POST_PROCESS_VS,
-			shade::shaders::glsl330core::POST_PROCESS_CRT_FS,
-		);
+		let pp_copy_shader = g.shader_compile(&mut shader_source, "post_process.copy.glsl", &[]);
+		let pp_crt_shader = g.shader_compile(&mut shader_source, "post_process.crt.glsl", &[]);
 
 		let mut demo = PixelArtDemo {
 			epoch,

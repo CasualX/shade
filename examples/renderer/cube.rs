@@ -73,61 +73,19 @@ static INDICES: [u8; 36] = [
 ];
 
 
-const CUBE_FS: &str = r#"\
-#version 330 core
-
-out vec4 o_fragColor;
-
-in vec4 v_color;
-in vec2 v_uv;
-in vec3 v_fragPos;
-in vec3 v_normal;
-in vec4 v_lightClip;
-
-uniform vec3 u_lightPos;
-uniform sampler2DShadow u_shadowMap;
-
-uniform sampler2D u_texture;
-
-void main() {
-	// Simple shadow mapping
-	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
-	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
-	float bias = 0.001;
-	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
-
-	vec3 n = normalize(v_normal);
-	n = gl_FrontFacing ? n : -n;
-	vec3 lightDir = normalize(u_lightPos - v_fragPos);
-	float diffLight = max(dot(n, lightDir), 0.0);
-
-	float ambient = 0.2;
-	float direct_intensity = 0.6;
-	float lighting = ambient + visibility * (diffLight * direct_intensity);
-
-	vec4 albedo = texture(u_texture, v_uv) * v_color;
-	o_fragColor = albedo * lighting;
-}
-"#;
-
-const CUBE_SHADOW_FS: &str = r#"\
-#version 330 core
-void main() {}
-"#;
-
-const CUBE_VS: &str = r#"\
-#version 330 core
-
+const COMMON: &str = r#"
+#ifdef VERTEX_SHADER
 in vec3 a_pos;
 in vec3 a_normal;
 in vec2 a_uv;
 in vec4 a_color;
+#endif
 
-out vec4 v_color;
-out vec2 v_uv;
-out vec3 v_fragPos;
-out vec3 v_normal;
-out vec4 v_lightClip;
+VARYING vec4 v_color;
+VARYING vec2 v_uv;
+VARYING vec3 v_fragPos;
+VARYING vec3 v_normal;
+VARYING vec4 v_lightClip;
 
 uniform mat4x3 u_model;
 uniform mat4 u_transform;
@@ -141,6 +99,7 @@ vec4 srgbToLinear(vec4 c) {
 	return vec4(srgbToLinear(c.rgb), c.a);
 }
 
+#ifdef VERTEX_SHADER
 void main() {
 	v_color = srgbToLinear(a_color) + vec4(0.5, 0.5, 0.5, 0.0);
 	v_uv = a_uv;
@@ -149,6 +108,44 @@ void main() {
 	v_lightClip = u_lightTransform * vec4(a_pos, 1.0);
 	gl_Position = u_transform * vec4(a_pos, 1.0);
 }
+#endif
+"#;
+
+const PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+uniform vec3 u_lightPos;
+uniform sampler2DShadow u_shadowMap;
+uniform sampler2D u_texture;
+
+void main() {
+	vec3 lightNdc = v_lightClip.xyz / v_lightClip.w;
+	vec3 shadowUvZ = lightNdc * 0.5 + 0.5;
+	float bias = 0.001;
+	float visibility = texture(u_shadowMap, vec3(shadowUvZ.xy, shadowUvZ.z - bias));
+	vec3 n = normalize(v_normal);
+	n = gl_FrontFacing ? n : -n;
+	vec3 lightDir = normalize(u_lightPos - v_fragPos);
+	float diffLight = max(dot(n, lightDir), 0.0);
+	float ambient = 0.2;
+	float direct_intensity = 0.6;
+	float lighting = ambient + visibility * (diffLight * direct_intensity);
+	vec4 albedo = texture(u_texture, v_uv) * v_color;
+	o_fragColor = albedo * lighting;
+}
+#endif
+"#;
+
+const SHADOW_PROGRAM: &str = r#"
+#version unified 330 core
+#include "common.glsl"
+
+#ifdef FRAGMENT_SHADER
+void main() {}
+#endif
 "#;
 
 //----------------------------------------------------------------
@@ -213,8 +210,15 @@ impl Renderable {
 		};
 
 		// Create the shader
-		let shader = g.shader_compile(CUBE_VS, CUBE_FS);
-		let shadow_shader = g.shader_compile(CUBE_VS, CUBE_SHADOW_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"common.glsl" => COMMON,
+				"main.glsl" => PROGRAM,
+				"shadow.glsl" => SHADOW_PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 
 		let material = Material { shader, shadow_shader, texture };
 

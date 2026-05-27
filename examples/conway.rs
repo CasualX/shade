@@ -8,10 +8,19 @@ use shade::cvmath::*;
 const FIELD_WIDTH: i32 = 256;
 const FIELD_HEIGHT: i32 = 256;
 
-const CONWAY_FS: &str = r#"\
-#version 330 core
+const CONWAY_PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
+#endif
 
 uniform sampler2D u_state;
 
@@ -23,6 +32,14 @@ int alive_at(ivec2 p, ivec2 size) {
 	return (texelFetch(u_state, q, 0).r > 0.5) ? 1 : 0;
 }
 
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 void main() {
 	ivec2 size = textureSize(u_state, 0);
 	ivec2 p = ivec2(gl_FragCoord.xy);
@@ -49,20 +66,38 @@ void main() {
 	float v = float(next_alive);
 	o_fragColor = vec4(v, 0.0, 0.0, 1.0);
 }
+#endif
 "#;
 
-const DISPLAY_FS: &str = r#"\
-#version 330 core
+const DISPLAY_PROGRAM: &str = r#"
+#version unified 330 core
 
+#ifdef VERTEX_SHADER
+in vec2 a_pos;
+in vec2 a_uv;
+#endif
+
+VARYING vec2 v_uv;
+
+#ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
-in vec2 v_uv;
+#endif
 
 uniform sampler2D u_state;
 
+#ifdef VERTEX_SHADER
+void main() {
+	v_uv = a_uv;
+	gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+#endif
+
+#ifdef FRAGMENT_SHADER
 void main() {
 	float v = texture(u_state, v_uv).r;
 	o_fragColor = vec4(vec3(v), 1.0);
 }
+#endif
 "#;
 
 struct StateUniforms {
@@ -169,8 +204,14 @@ struct ConwayDemo {
 impl ConwayDemo {
 	fn new(g: &mut shade::Graphics) -> ConwayDemo {
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let conway_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, CONWAY_FS);
-		let display_shader = g.shader_compile(shade::shaders::glsl330core::POST_PROCESS_VS, DISPLAY_FS);
+		let mut source = shade::shader_interface! {
+			files {
+				"conway.glsl" => CONWAY_PROGRAM,
+				"display.glsl" => DISPLAY_PROGRAM,
+			}
+		};
+		let conway_shader = g.shader_compile(&mut source, "conway.glsl", &[]);
+		let display_shader = g.shader_compile(&mut source, "display.glsl", &[]);
 
 		let field_size = Vec2::new(FIELD_WIDTH.max(1), FIELD_HEIGHT.max(1));
 		let seed = seed_data(field_size.x, field_size.y);

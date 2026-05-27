@@ -244,8 +244,8 @@ impl crate::IGraphics for WebGLGraphics {
 		unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, 0) };
 	}
 
-	fn shader_compile(&mut self, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
-		shader::create(self, vertex_source, fragment_source)
+	fn shader_compile(&mut self, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+		shader::compile2(self, interface, name, defines)
 	}
 
 	fn texture2d_create(&mut self, info: &crate::Texture2DInfo) -> crate::Texture2D {

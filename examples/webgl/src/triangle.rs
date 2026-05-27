@@ -28,23 +28,19 @@ unsafe impl shade::TVertex for TriangleVertex {
 	};
 }
 
-const FRAGMENT_SHADER: &str = r#"#version 300 es
+const PROGRAM: &str = r#"#version unified 300 es
 precision highp float;
 
-in vec4 VertexColor;
-
-out vec4 o_fragColor;
-
-void main() {
-	o_fragColor = VertexColor;
-}
-"#;
-
-const VERTEX_SHADER: &str = r#"#version 300 es
+#ifdef VERTEX_SHADER
 in vec2 aPos;
 in vec4 aColor;
+#endif
 
-out vec4 VertexColor;
+VARYING vec4 VertexColor;
+
+#ifdef FRAGMENT_SHADER
+out vec4 o_fragColor;
+#endif
 
 vec3 srgbToLinear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
@@ -54,10 +50,18 @@ vec4 srgbToLinear(vec4 c) {
 	return vec4(srgbToLinear(c.rgb), c.a);
 }
 
+#ifdef VERTEX_SHADER
 void main() {
 	VertexColor = srgbToLinear(aColor);
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
+#endif
+
+#ifdef FRAGMENT_SHADER
+void main() {
+	o_fragColor = VertexColor;
+}
+#endif
 "#;
 
 pub struct Triangle {
@@ -74,7 +78,12 @@ impl Triangle {
 			srgb: false,
 		});
 		let g = webgl.as_graphics();
-		let shader = g.shader_compile(VERTEX_SHADER, FRAGMENT_SHADER);
+		let mut source = shade::shader_interface! {
+			files {
+				"main.glsl" => PROGRAM,
+			}
+		};
+		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 
 		Triangle {
 			webgl,

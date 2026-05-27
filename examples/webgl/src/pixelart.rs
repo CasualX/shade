@@ -53,8 +53,15 @@ impl Context {
 		});
 		let g = webgl.as_graphics();
 
-		let textured_shader = g.shader_compile(shade::shaders::glsl300es::TEXTURED_VS, shade::shaders::glsl300es::TEXTURED_FS);
-		let pixelart_shader = g.shader_compile(shade::shaders::glsl300es::PIXELART_VS, shade::shaders::glsl300es::PIXELART_FS);
+		let mut shader_source = shade::shader_interface! {
+			files {
+				"textured.glsl" => include_str!("../../../src/shaders/textured.glsl"),
+				"pixelart.glsl" => include_str!("../../../src/shaders/pixelart.glsl"),
+				"mtsdf.glsl" => include_str!("../../../src/shaders/mtsdf.glsl"),
+			}
+		};
+		let textured_shader = g.shader_compile(&mut shader_source, "textured.glsl", &[]);
+		let pixelart_shader = g.shader_compile(&mut shader_source, "pixelart.glsl", &[]);
 		let hud_font = {
 			let font: shade::msdfgen::FontDto = serde_json::from_str(include_str!("../../font/font.json")).unwrap();
 			let font: shade::msdfgen::Font = font.into();
@@ -73,7 +80,7 @@ impl Context {
 				};
 				g.image(&(&image, &props))
 			};
-			let shader = g.shader_compile(shade::shaders::glsl300es::MTSDF_VS, shade::shaders::glsl300es::MTSDF_FS);
+			let shader = g.shader_compile(&mut shader_source, "mtsdf.glsl", &[]);
 			d2::FontResource { font, texture, shader }
 		};
 
