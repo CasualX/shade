@@ -9,6 +9,7 @@ pub enum Orientation {
 }
 
 impl Orientation {
+	#[inline]
 	pub const fn flip(self) -> Self {
 		match self {
 			Self::Horizontal => Self::Vertical,
@@ -27,6 +28,23 @@ pub enum Unit {
 	Pct(f32),
 	/// A fraction of the remaining space.
 	Fr(f32),
+}
+
+/// Calculates the minimum size of a template.
+#[inline]
+pub const fn template_min_size(template: &[Unit]) -> f32 {
+	let mut abs = 0.0;
+	let mut pct = 0.0;
+	let mut i = 0;
+	while i < template.len() {
+		match template[i] {
+			Unit::Abs(value) => abs += value,
+			Unit::Pct(value) => pct += value,
+			Unit::Fr(_) => {},
+		}
+		i += 1;
+	}
+	abs + abs * pct * 0.01
 }
 
 /// Justification method.
