@@ -24,6 +24,7 @@ pub use self::uniform::*;
 pub use self::shader::*;
 
 pub mod shaders;
+pub mod atlas;
 
 pub mod d2;
 pub mod d3;
