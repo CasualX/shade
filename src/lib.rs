@@ -24,6 +24,7 @@ use self::resources::*;
 pub mod d2;
 pub mod d3;
 pub mod im;
+pub mod atlas;
 pub mod color;
 pub mod image;
 pub mod dither;

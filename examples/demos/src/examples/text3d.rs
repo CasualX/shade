@@ -5,7 +5,7 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct Text3d {
-	font: d2::FontResource<shade::msdfgen::Font>,
+	font: d2::FontResource<shade::atlas::Font>,
 	camera: d3::ArcballCamera,
 	axes: d3::axes::AxesModel,
 	color3d_shader: Box<dyn shade::ShaderProgram>,
@@ -22,7 +22,7 @@ impl Text3d {
 				"color3d.glsl" => shade::shaders::COLOR3D,
 			}
 		};
-		let font = load_font(g, assets, true);
+		let font = load_font(g, assets, "font/font.json", "font/font.png", true);
 		let color3d_shader = g.shader_compile(&mut shader_source, "color3d.glsl", &[]);
 		let axes = d3::axes::AxesModel::create(g);
 		let camera = d3::ArcballCamera::new(Vec3f(0.0, -8.0, 4.6), Vec3f(0.0, -0.4, 0.9), Vec3f::Z);

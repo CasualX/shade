@@ -137,13 +137,13 @@ impl AnimatedText {
 }
 
 struct TextIntro {
-	font: d2::FontResource<shade::msdfgen::Font>,
+	font: d2::FontResource<shade::atlas::Font>,
 	storyboard: Vec<AnimatedText>,
 }
 
 impl TextIntro {
 	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> TextIntro {
-		let font = load_font(g, assets, true);
+		let font = load_font(g, assets, "font/font.json", "font/font.png", true);
 		TextIntro { font, storyboard: Self::storyboard() }
 	}
 

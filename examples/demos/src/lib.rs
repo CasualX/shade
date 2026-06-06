@@ -130,16 +130,16 @@ impl fmt::Display for AssetError {
 
 impl std::error::Error for AssetError {}
 
-pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, text_3d: bool) -> shade::d2::FontResource<shade::msdfgen::Font> {
+pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, font_desc: &str, font_texture: &str, text_3d: bool) -> shade::d2::FontResource<shade::atlas::Font> {
 	// Load the font metadata
 	let font = {
-		let text = assets.read_to_string("font/font.json").expect("failed to load font metadata");
+		let text = assets.read_to_string(font_desc).expect("failed to load font metadata");
 		let font: shade::msdfgen::FontDto = serde_json::from_str(&text).expect("failed to parse font metadata");
 		font.into()
 	};
 	// Load the font texture
 	let texture = {
-		let data = assets.read("font/font.png").expect("failed to load font texture");
+		let data = assets.read(font_texture).expect("failed to load font texture");
 		let image = shade::image::ImageRGBA::load_memory_png(&data).expect("failed to decode font texture");
 		let image = image.map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
 		let props = shade::TextureProps! {

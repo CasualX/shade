@@ -5,12 +5,12 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct Text {
-	font: d2::FontResource<shade::msdfgen::Font>,
+	font: d2::FontResource<shade::atlas::Font>,
 }
 
 impl Text {
 	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Text {
-		let font = load_font(g, assets, false);
+		let font = load_font(g, assets, "font/font.json", "font/font.png", false);
 		Text { font }
 	}
 }
@@ -26,11 +26,11 @@ impl DemoInterface for Text {
 		cv.uniform.transform = Transform2::ortho(viewport.cast());
 		cv.uniform.outline_width_relative = 0.125;
 
-		let mut pos = Vec2(0.0, 0.0);
+		let mut cursor = d2::Cursor(Vec2(0.0, 0.0));
 		let mut scribe = d2::Scribe {
 			font_size: 64.0,
 			line_height: 64.0 * 1.5,
-			x_pos: pos.x,
+			x_pos: cursor.pos.x,
 			top_skew: 8.0,
 			..Default::default()
 		};
@@ -39,7 +39,7 @@ impl DemoInterface for Text {
 		cv.text_write(
 			&self.font,
 			&mut scribe,
-			&mut pos,
+			&mut cursor,
 			"Hello, \x1b[font_size=96.0]\x1b[font_width_scale=1.5]\x1b[top_skew=0.0]world!",
 		);
 
@@ -55,9 +55,9 @@ impl DemoInterface for Text {
 
 		scribe.top_skew = 8.0;
 		let rainbow = "\x1b[color=#E81416]R\x1b[color=#FFA500]A\x1b[color=#FAEB36]I\x1b[color=#79C314]N\x1b[color=#487DE7]B\x1b[color=#4B369D]O\x1b[color=#70369D]W";
-		let rainbow_width = scribe.text_width(&mut { Vec2::ZERO }, &self.font.font, rainbow);
-		let mut pos = Vec2f((viewport.width() as f32 - rainbow_width) * 0.5, viewport.height() as f32 - scribe.font_size);
-		cv.text_write(&self.font, &mut scribe, &mut pos, rainbow);
+		let rainbow_width = scribe.text_width(&mut { d2::Cursor(Vec2::ZERO) }, &self.font.font, rainbow);
+		let mut cursor = d2::Cursor(Vec2f((viewport.width() as f32 - rainbow_width) * 0.5, viewport.height() as f32 - scribe.font_size));
+		cv.text_write(&self.font, &mut scribe, &mut cursor, rainbow);
 
 		cv.draw(g);
 		g.end();

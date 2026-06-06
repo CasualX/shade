@@ -5,7 +5,7 @@ mod font;
 mod resource;
 mod v;
 
-pub use self::font::{IFont, ITextTarget};
+pub use self::font::*;
 pub use self::resource::FontResource;
 pub use self::v::*;
 
@@ -98,18 +98,9 @@ impl Scribe {
 
 	/// Measures the width of a text string.
 	#[inline]
-	pub fn text_width(&self, cursor: &mut Vec2f, font: &dyn IFont, text: &str) -> f32 {
+	pub fn text_width(&self, cursor: &mut Cursor, font: &dyn IFont, text: &str) -> f32 {
 		let mut scribe_st = self.clone();
-		let mut width = 0.0;
-		let mut x_pos = cursor.x;
-		for line in text.lines() {
-			font.write_span(None, &mut scribe_st, cursor, line);
-			width = f32::max(width, cursor.x - x_pos);
-			x_pos = scribe_st.x_pos;
-			cursor.x = scribe_st.x_pos;
-			cursor.y += scribe_st.line_height;
-		}
-		return width;
+		return write_text_span(None, font, &mut scribe_st, cursor, text);
 	}
 
 	/// Measures the height of a text string.
@@ -120,10 +111,10 @@ impl Scribe {
 }
 
 impl<'a> ITextTarget for TextBuffer<'a> {
-	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+	fn text_quad(&mut self, vertices: &Sprite<TextVertex>) {
 		let mut p = self.begin(PrimType::Triangles, 4, 2);
 		p.add_indices_quad();
-		p.add_vertices(vertices);
+		p.add_vertices(vertices.as_ref());
 	}
 }
 
@@ -132,14 +123,14 @@ impl<'a> TextBuffer<'a> {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Cursor, text: T) {
 		self.uniform.texture = &*font.texture;
 		self.shader = Some(&*font.shader);
 		text_write(self, &font.font, scribe, cursor, &text);
 	}
 
 	/// Writes a text string using a borrowed font resource.
-	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Cursor, text: T) {
 		self.uniform.texture = font.texture;
 		self.shader = Some(font.shader);
 		text_write(self, font.font, scribe, cursor, &text);
@@ -178,10 +169,10 @@ impl<'a> TextBuffer<'a> {
 }
 
 impl<'a> ITextTarget for TextBuffer3<'a> {
-	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+	fn text_quad(&mut self, vertices: &Sprite<TextVertex>) {
 		let mut p = self.begin(PrimType::Triangles, 4, 2);
 		p.add_indices_quad();
-		p.add_vertices(vertices);
+		p.add_vertices(vertices.as_ref());
 	}
 }
 
@@ -190,14 +181,14 @@ impl<'a> TextBuffer3<'a> {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Cursor, text: T) {
 		self.uniform.text.texture = &*font.texture;
 		self.shader = Some(&*font.shader);
 		text_write(self, &font.font, scribe, cursor, &text);
 	}
 
 	/// Writes a text string using a borrowed font resource.
-	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Cursor, text: T) {
 		self.uniform.text.texture = font.texture;
 		self.shader = Some(font.shader);
 		text_write(self, font.font, scribe, cursor, &text);
@@ -244,12 +235,82 @@ impl<F: FnMut(&str) -> fmt::Result> fmt::Write for FormatFn<F> {
 	}
 }
 
-fn text_write(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Vec2f, text: &dyn fmt::Display) {
+fn text_write(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Cursor, text: &dyn fmt::Display) {
 	let mut writer = FormatFn(move |text: &str| {
-		font.write_span(Some(buf), scribe, cursor, text);
+		write_text_span(Some(buf), font, scribe, cursor, text);
 		Ok(())
 	});
 	let _ = fmt::write(&mut writer, format_args!("{}", text));
+}
+
+fn write_text_span(mut buf: Option<&mut (dyn ITextTarget + '_)>, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Cursor, text: &str) -> f32 {
+	let mut line_start = cursor.pos.x;
+	let mut width = 0.0;
+	let mut span_start = 0;
+	let mut chars = text.char_indices().peekable();
+
+	while let Some((index, chr)) = chars.next() {
+		match chr {
+			'\n' => {
+				shape_span(buf.as_deref_mut(), font, scribe, cursor, &text[span_start..index]);
+				width = f32::max(width, cursor.pos.x - line_start);
+				newline(scribe, cursor);
+				line_start = cursor.pos.x;
+				span_start = index + chr.len_utf8();
+			}
+			'\x1b' => {
+				shape_span(buf.as_deref_mut(), font, scribe, cursor, &text[span_start..index]);
+				width = f32::max(width, cursor.pos.x - line_start);
+
+				let esc_end = index + chr.len_utf8();
+				if !text[esc_end..].starts_with('[') {
+					if let Some((next_index, next_chr)) = chars.next() {
+						span_start = next_index + next_chr.len_utf8();
+					}
+					else {
+						span_start = esc_end;
+					}
+					continue;
+				}
+
+				let sequence_start = esc_end + '['.len_utf8();
+				let Some(sequence_len) = text[sequence_start..].find(']') else {
+					span_start = text.len();
+					break;
+				};
+				let sequence_end = sequence_start + sequence_len;
+				escape::process(&text[sequence_start..sequence_end], scribe);
+
+				span_start = sequence_end + ']'.len_utf8();
+				while let Some(&(next_index, _)) = chars.peek() {
+					if next_index >= span_start {
+						break;
+					}
+					chars.next();
+				}
+			}
+			_ => {}
+		}
+	}
+
+	shape_span(buf.as_deref_mut(), font, scribe, cursor, &text[span_start..]);
+	f32::max(width, cursor.pos.x - line_start)
+}
+
+fn shape_span(mut buf: Option<&mut (dyn ITextTarget + '_)>, font: &dyn IFont, scribe: &Scribe, cursor: &mut Cursor, text: &str) {
+	if text.is_empty() {
+		return;
+	}
+	if !scribe.draw_mask {
+		buf = None;
+	}
+	font.write_span(buf, scribe, cursor, text);
+}
+
+fn newline(scribe: &Scribe, cursor: &mut Cursor) {
+	cursor.pos.x = scribe.x_pos;
+	cursor.pos.y += scribe.line_height;
+	cursor.previous_glyph = u32::MAX;
 }
 
 fn text_lines(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
@@ -265,8 +326,9 @@ fn text_lines(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect
 	for &args in lines {
 		let text_width = |args| {
 			let mut width = 0.0;
+			let mut cursor = Cursor(Vec2::ZERO);
 			let mut width_calc = FormatFn(|text: &str| {
-				width += scribe.text_width(&mut {Vec2::ZERO}, font, text);
+				width += scribe.text_width(&mut cursor, font, text);
 				Ok(())
 			});
 			let _ = fmt::write(&mut width_calc, format_args!("{}", args));
@@ -279,9 +341,9 @@ fn text_lines(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect
 			TextAlign::TopRight | TextAlign::MiddleRight | TextAlign::BottomRight => rect.maxs.x - text_width(args),
 		};
 
-		let mut cursor = Vec2(x, y);
+		let mut cursor = Cursor(Vec2(x, y));
 		let mut writer = FormatFn(|text: &str| {
-			font.write_span(Some(buf), &mut scribe, &mut cursor, text);
+			write_text_span(Some(buf), font, &mut scribe, &mut cursor, text);
 			Ok(())
 		});
 		let _ = fmt::write(&mut writer, format_args!("{}", args));
@@ -301,10 +363,10 @@ fn text_box(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect: 
 	for line in text.lines() {
 		let x = match align {
 			TextAlign::TopLeft | TextAlign::MiddleLeft | TextAlign::BottomLeft => rect.mins.x,
-			TextAlign::TopCenter | TextAlign::MiddleCenter | TextAlign::BottomCenter => rect.mins.x + (rect.width() - scribe.text_width(&mut {Vec2::ZERO}, font, line)) * 0.5,
-			TextAlign::TopRight | TextAlign::MiddleRight | TextAlign::BottomRight => rect.maxs.x - scribe.text_width(&mut {Vec2::ZERO}, font, line),
+			TextAlign::TopCenter | TextAlign::MiddleCenter | TextAlign::BottomCenter => rect.mins.x + (rect.width() - scribe.text_width(&mut {Cursor(Vec2::ZERO)}, font, line)) * 0.5,
+			TextAlign::TopRight | TextAlign::MiddleRight | TextAlign::BottomRight => rect.maxs.x - scribe.text_width(&mut {Cursor(Vec2::ZERO)}, font, line),
 		};
-		font.write_span(Some(buf), &mut scribe, &mut Vec2(x, y), line);
+		write_text_span(Some(buf), font, &mut scribe, &mut Cursor(Vec2(x, y)), line);
 		y += scribe.line_height;
 	}
 }

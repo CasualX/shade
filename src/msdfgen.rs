@@ -7,26 +7,18 @@
  */
 
 use std::collections::HashMap;
+use crate::atlas;
 
-pub struct Font {
-	pub atlas: Atlas,
-	pub metrics: Vec<Metrics>,
-	pub glyphs: HashMap<u32, Glyph>,
-}
-
-pub struct Glyph {
-	pub metrics_index: usize,
-	pub unicode: u32,
-	pub advance: f32,
-	pub plane_bounds: Option<Bounds>,
-	pub atlas_bounds: Option<Bounds>,
-}
-
-impl From<FontDto> for Font {
+impl From<FontDto> for atlas::Font {
 	fn from(dto: FontDto) -> Self {
 		// Collect metrics and glyphs from either a single or multiple variants
-		let mut metrics: Vec<Metrics> = Vec::new();
-		let mut glyphs: HashMap<u32, Glyph> = HashMap::new();
+		let mut metrics: Vec<atlas::Metrics> = Vec::new();
+		let mut glyphs: Vec<atlas::Glyph> = Vec::new();
+		let mut codepoints: HashMap<char, u32> = HashMap::new();
+		let mut kerning: HashMap<(u32, u32), atlas::Kerning> = HashMap::new();
+		let atlas = dto.atlas;
+		let atlas_height = atlas.height as f32;
+		let y_origin = atlas.y_origin;
 
 		let variants = match dto.variants {
 			FontVariants::Single(variant) => vec![variant],
@@ -34,26 +26,52 @@ impl From<FontDto> for Font {
 		};
 
 		for (metrics_index, variant) in variants.into_iter().enumerate() {
+			let metrics_index = metrics_index as u32;
 			metrics.push(variant.metrics);
+			let mut variant_codepoints: HashMap<char, u32> = HashMap::new();
 			for g in variant.glyphs.into_iter() {
-				// If multiple variants contain the same unicode, last one wins
-				glyphs.insert(
-					g.unicode,
-					Glyph {
-						metrics_index,
-						unicode: g.unicode,
-						advance: g.advance,
-						plane_bounds: g.plane_bounds,
-						atlas_bounds: g.atlas_bounds,
-					},
-				);
+				let glyph_index = glyphs.len() as u32;
+				let bounds = match (g.plane_bounds, g.atlas_bounds) {
+					(Some(plane_bounds), Some(atlas_bounds)) => Some(atlas::GlyphBounds {
+						plane_bounds: plane_bounds.into(),
+						atlas_bounds: y_origin.normalize_atlas_bounds(atlas_bounds, atlas_height),
+					}),
+					_ => None,
+				};
+				glyphs.push(atlas::Glyph {
+					metrics_index,
+					advance: g.advance,
+					bounds,
+				});
+				if let Some(chr) = char::from_u32(g.unicode) {
+					// If multiple variants contain the same codepoint, last one wins.
+					codepoints.insert(chr, glyph_index);
+					variant_codepoints.insert(chr, glyph_index);
+				}
+			}
+			for KerningDto { first, second, advance } in variant.kerning.into_iter() {
+				let Some(first) = char::from_u32(first) else { continue };
+				let Some(second) = char::from_u32(second) else { continue };
+				let Some(&first_glyph) = variant_codepoints.get(&first) else { continue };
+				let Some(&second_glyph) = variant_codepoints.get(&second) else { continue };
+				kerning.insert((first_glyph, second_glyph), atlas::Kerning { metrics_index, advance });
 			}
 		}
 
-		Font {
-			atlas: dto.atlas,
+		let meta = atlas::Metadata {
+			width: atlas.width,
+			height: atlas.height,
+			kind: atlas.r#type.into(),
+			distance_range: atlas.distance_range,
+			distance_range_middle: atlas.distance_range_middle,
+		};
+
+		atlas::Font {
+			meta,
 			metrics,
 			glyphs,
+			codepoints,
+			kerning,
 		}
 	}
 }
@@ -77,17 +95,18 @@ pub enum FontVariants {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FontVariant {
-	pub metrics: Metrics,
+	pub metrics: atlas::Metrics,
 	pub glyphs: Vec<GlyphDto>,
-	// pub kerning: Vec<Kerning>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub kerning: Vec<KerningDto>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Atlas {
 	pub r#type: Type,
-	pub distance_range: i32,
-	pub distance_range_middle: i32,
+	pub distance_range: f32,
+	pub distance_range_middle: f32,
 	pub size: f32,
 	pub width: i32,
 	pub height: i32,
@@ -107,21 +126,68 @@ pub enum Type {
 	Mtsdf,
 }
 
+impl From<Type> for atlas::Kind {
+	fn from(value: Type) -> Self {
+		match value {
+			Type::Sdf => atlas::Kind::Sdf,
+			Type::Psdf => atlas::Kind::Psdf,
+			Type::Msdf => atlas::Kind::Msdf,
+			Type::Mtsdf => atlas::Kind::Mtsdf,
+		}
+	}
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum YOrigin {
 	Bottom,
+	Top,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Metrics {
-	pub em_size: f32,
-	pub line_height: f32,
-	pub ascender: f32,
-	pub descender: f32,
-	pub underline_y: f32,
-	pub underline_thickness: f32,
+impl Default for YOrigin {
+	fn default() -> Self {
+		YOrigin::Bottom
+	}
+}
+
+impl YOrigin {
+	fn normalize_atlas_bounds(&self, bounds: Bounds, atlas_height: f32) -> atlas::Rect {
+		let (left, top, right, bottom) = match self {
+			YOrigin::Bottom => (bounds.left, atlas_height - bounds.top, bounds.right, atlas_height - bounds.bottom),
+			YOrigin::Top => (bounds.left, bounds.top, bounds.right, bounds.bottom),
+		};
+		atlas::Rect {
+			x: left.floor() as i32,
+			y: top.floor() as i32,
+			width: (right.ceil() - left.floor()) as i32,
+			height: (bottom.ceil() - top.floor()) as i32,
+		}
+	}
+}
+
+/// Axis-aligned bounds as emitted by `msdf-atlas-gen`.
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Bounds {
+	/// Minimum x coordinate.
+	pub left: f32,
+	/// Minimum y coordinate.
+	pub bottom: f32,
+	/// Maximum x coordinate.
+	pub right: f32,
+	/// Maximum y coordinate.
+	pub top: f32,
+}
+
+impl From<Bounds> for atlas::PlaneBounds {
+	fn from(bounds: Bounds) -> Self {
+		atlas::PlaneBounds {
+			left: bounds.left,
+			top: 1.0 - bounds.top,
+			right: bounds.right,
+			bottom: 1.0 - bounds.bottom,
+		}
+	}
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -139,108 +205,10 @@ pub struct GlyphDto {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Bounds {
-	pub left: f32,
-	pub bottom: f32,
-	pub right: f32,
-	pub top: f32,
-}
-
-// #[derive(serde::Serialize, serde::Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct Kerning {
-// }
-
-use super::*;
-use cvmath::Vec2;
-
-impl d2::IFont for Font {
-	fn write_span(&self, mut cv: Option<&mut dyn d2::ITextTarget>, scribe: &mut d2::Scribe, cursor: &mut Vec2<f32>, text: &str) {
-		let font = self;
-		let mut chars = text.chars();
-		while let Some(chr) = chars.next() {
-			if chr == '\n' {
-				cursor.x = scribe.x_pos;
-				cursor.y += scribe.line_height;
-				continue;
-			}
-
-			// Process escape sequences
-			if chr == '\x1b' {
-				if chars.next() == Some('[') {
-					if let Some((sequence, tail)) = chars.as_str().split_once("]") {
-						d2::escape::process(sequence, scribe);
-						chars = tail.chars();
-					}
-					else {
-						// No terminal bracket found
-						break;
-					}
-				}
-				continue;
-			}
-
-			let Some(glyph) = font.glyphs.get(&(chr as u32)) else { continue };
-			let metrics = &font.metrics[glyph.metrics_index];
-			let pos = *cursor + Vec2(0.0, scribe.line_height - scribe.font_size - scribe.baseline);
-
-			// Scale by per-glyph metrics em_size to support mixed variants
-			let scale_x = scribe.font_size * scribe.font_width_scale / metrics.em_size;
-			let scale_y = scribe.font_size / metrics.em_size;
-			let advance = glyph.advance * scale_x + scribe.letter_spacing;
-			cursor.x += advance;
-
-			if !scribe.draw_mask {
-				continue;
-			}
-
-			if let Some(cv) = &mut cv {
-				let Some(plane_bounds) = &glyph.plane_bounds else { continue };
-				let Some(atlas_bounds) = &glyph.atlas_bounds else { continue };
-
-				let aleft = atlas_bounds.left;
-				let aright = atlas_bounds.right;
-				let atop = font.atlas.height as f32 - atlas_bounds.top;
-				let abottom = font.atlas.height as f32 - atlas_bounds.bottom;
-
-				let pleft = plane_bounds.left * scale_x;
-				let pright = plane_bounds.right * scale_x;
-				let ptop = (1.0 - plane_bounds.top) * scale_y;
-				let pbottom = (1.0 - plane_bounds.bottom) * scale_y;
-
-				let vertices = [
-					d2::TextVertex {
-						pos: pos + Vec2(pleft, pbottom),
-						uv: Vec2(aleft, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-						color: scribe.color,
-						outline: scribe.outline,
-						data: d2::TextVertexData::BOTTOM_LEFT,
-					},
-					d2::TextVertex {
-						pos: pos + Vec2(pleft + scribe.top_skew, ptop),
-						uv: Vec2(aleft, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-						color: scribe.color,
-						outline: scribe.outline,
-						data: d2::TextVertexData::TOP_LEFT,
-					},
-					d2::TextVertex {
-						pos: pos + Vec2(pright + scribe.top_skew, ptop),
-						uv: Vec2(aright, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-						color: scribe.color,
-						outline: scribe.outline,
-						data: d2::TextVertexData::TOP_RIGHT,
-					},
-					d2::TextVertex {
-						pos: pos + Vec2(pright, pbottom),
-						uv: Vec2(aright, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
-						color: scribe.color,
-						outline: scribe.outline,
-						data: d2::TextVertexData::BOTTOM_RIGHT,
-					},
-				];
-
-				cv.text_quad(&vertices);
-			}
-		}
-	}
+pub struct KerningDto {
+	#[serde(alias = "unicode1")]
+	pub first: u32,
+	#[serde(alias = "unicode2")]
+	pub second: u32,
+	pub advance: f32,
 }

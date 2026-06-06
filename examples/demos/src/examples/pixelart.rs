@@ -62,7 +62,7 @@ struct PixelArt {
 	pp_copy_shader: Box<dyn shade::ShaderProgram>,
 	pp_crt_shader: Box<dyn shade::ShaderProgram>,
 	line_shader: Box<dyn shade::ShaderProgram>,
-	hud_font: d2::FontResource<shade::msdfgen::Font>,
+	hud_font: d2::FontResource<shade::atlas::Font>,
 	nearest_texture: Option<Box<dyn shade::Texture2D>>,
 	linear_texture: Option<Box<dyn shade::Texture2D>>,
 	render_texture: Option<Box<dyn shade::Texture2D>>,
@@ -93,7 +93,7 @@ impl PixelArt {
 		let textured_shader = g.shader_compile(&mut shader_source, "textured.glsl", &[]);
 		let pixelart_shader = g.shader_compile(&mut shader_source, "pixelart.glsl", &[]);
 		let line_shader = g.shader_compile(&mut shader_source, "color.glsl", &[]);
-		let hud_font = load_font(g, assets, false);
+		let hud_font = load_font(g, assets, "font/font.json", "font/font.png", false);
 		let pp = shade::d2::PostProcessQuad::create(g);
 		let pp_copy_shader = g.shader_compile(&mut shader_source, "post_process.copy.glsl", &[]);
 		let pp_crt_shader = g.shader_compile(&mut shader_source, "post_process.crt.glsl", &[]);
@@ -298,11 +298,11 @@ impl PixelArt {
 		hud.blend_mode = shade::BlendMode::Alpha;
 		hud.uniform.transform = Transform2::ortho(viewport.cast());
 		hud.uniform.outline_width_relative = 0.2;
-		let mut pos = Vec2(16.0, 18.0);
+		let mut cursor = d2::Cursor(Vec2(16.0, 18.0));
 		let mut scribe = d2::Scribe {
 			font_size: 22.0,
 			line_height: 28.0,
-			x_pos: pos.x,
+			x_pos: cursor.pos.x,
 			color: Vec4(245, 245, 245, 255),
 			..Default::default()
 		};
@@ -330,7 +330,7 @@ impl PixelArt {
 			self.zoom,
 			self.rotation.to_deg(),
 		);
-		hud.text_write(&self.hud_font, &mut scribe, &mut pos, &hud_text);
+		hud.text_write(&self.hud_font, &mut scribe, &mut cursor, &hud_text);
 		hud.draw(g);
 	}
 }
