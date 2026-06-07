@@ -20,7 +20,34 @@ unsafe impl TVertex for ColorVertex3 {
 
 impl TVertex3 for ColorVertex3 {
 	#[inline]
-	fn position(&self) -> cvmath::Vec3<f32> {
+	fn position(&self) -> cvmath::Vec3f {
+		self.pos
+	}
+}
+
+#[derive(Copy, Clone, Debug, Default, dataview::Pod)]
+#[repr(C)]
+pub struct ColorVertexN {
+	pub pos: Vec3f,
+	pub normal: Vec3f,
+	pub color: [u8; 4],
+}
+
+unsafe impl TVertex for ColorVertexN {
+	const LAYOUT: &'static VertexLayout = &VertexLayout {
+		size: mem::size_of::<ColorVertexN>() as u16,
+		alignment: mem::align_of::<ColorVertexN>() as u16,
+		attributes: &[
+			VertexAttribute { name: "a_pos", format: VertexAttributeFormat::F32v3, offset: dataview::offset_of!(ColorVertexN.pos) as u16 },
+			VertexAttribute { name: "a_normal", format: VertexAttributeFormat::F32v3, offset: dataview::offset_of!(ColorVertexN.normal) as u16 },
+			VertexAttribute { name: "a_color", format: VertexAttributeFormat::U8Normv4, offset: dataview::offset_of!(ColorVertexN.color) as u16 },
+		],
+	};
+}
+
+impl TVertex3 for ColorVertexN {
+	#[inline]
+	fn position(&self) -> cvmath::Vec3f {
 		self.pos
 	}
 }

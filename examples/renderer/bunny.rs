@@ -1,31 +1,4 @@
-use std::collections::HashMap;
-use std::{fs, mem};
 use cvmath::*;
-
-#[derive(Copy, Clone, Default, dataview::Pod)]
-#[repr(C)]
-struct BunnyVertex {
-	position: Vec3f,
-	normal: Vec3f,
-}
-
-unsafe impl shade::TVertex for BunnyVertex {
-	const LAYOUT: &'static shade::VertexLayout = &shade::VertexLayout {
-		size: mem::size_of::<BunnyVertex>() as u16,
-		alignment: mem::align_of::<BunnyVertex>() as u16,
-		attributes: &[
-			shade::VertexAttribute::with::<Vec3f>("a_pos", dataview::offset_of!(BunnyVertex.position)),
-			shade::VertexAttribute::with::<Vec3f>("a_normal", dataview::offset_of!(BunnyVertex.normal)),
-		],
-	};
-}
-
-impl shade::TVertex3 for BunnyVertex {
-	#[inline]
-	fn position(&self) -> cvmath::Vec3<f32> {
-		self.position
-	}
-}
 
 const COMMON: &str = r#"
 #ifdef VERTEX_SHADER
@@ -93,52 +66,28 @@ pub struct Instance {
 	model: Transform3f,
 }
 
+#[allow(dead_code)]
 pub struct Renderable {
-	mesh: shade::d3::VertexMesh,
+	bounds: Bounds3f,
+	vertices: shade::VertexBuffer,
+	vertices_len: u32,
+	indices_buffer: shade::IndexBuffer,
+	indices_len: u32,
 	material: Material,
 	instance: Instance,
 }
 
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		let mut bunny_file = fs::File::open("examples/models/Bunny-LowPoly.stl").unwrap();
-		let bunny_stl = stl::read_stl(&mut bunny_file).unwrap();
-
-		let mut vertices = Vec::new();
-		for triangle in bunny_stl.triangles.iter() {
-			vertices.push(BunnyVertex {
-				position: triangle.v1.into(),
-				normal: triangle.normal.into(),
-			});
-			vertices.push(BunnyVertex {
-				position: triangle.v2.into(),
-				normal: triangle.normal.into(),
-			});
-			vertices.push(BunnyVertex {
-				position: triangle.v3.into(),
-				normal: triangle.normal.into(),
-			});
-		}
-
-		// Smooth the normals
-		let mut map = HashMap::new();
-		for v in vertices.iter() {
-			map.entry(v.position.map(f32::to_bits)).or_insert(Vec::new()).push(v.normal);
-		}
-		for v in &mut vertices {
-			let normals = map.get(&v.position.map(f32::to_bits)).unwrap();
-			let mut normal = Vec3::ZERO;
-			for n in normals.iter() {
-				normal += *n;
-			}
-			v.normal = normal.norm();
-		};
+		let bunny = shade::model::stl::StlFile::load_file("examples/models/Bunny-LowPoly.stl").unwrap();
+		let bunny = bunny.smooth_vertices(None);
 
 		// Create the vertex and index buffers
-		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
-
-		// println!("Bunny # vertices: {}", mesh.vertices_len);
-		// println!("Bunny bounds: {:#?}", mesh.bounds);
+		let bounds = bunny.bounds;
+		let vertices = g.vertex_buffer(&bunny.vertices, shade::BufferUsage::Static);
+		let vertices_len = bunny.vertices.len() as u32;
+		let indices_buffer = g.index_buffer(&bunny.indices, vertices_len, shade::BufferUsage::Static);
+		let indices_len = bunny.indices.len() as u32 * 3;
 
 		// Create the shader
 		let mut source = shade::shader_interface! {
@@ -155,13 +104,13 @@ impl Renderable {
 			model: Transform3f::translation(Vec3f(-10.0, 30.0, 0.0)) * Transform3f::scaling(Vec3::dup(0.25)),
 		};
 
-		Renderable { mesh, material, instance }
+		Renderable { bounds, vertices, vertices_len, indices_buffer, indices_len, material, instance }
 	}
 	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
 
-		g.draw(&shade::DrawArgs {
+		g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::Compare::Less),
@@ -169,10 +118,12 @@ impl Renderable {
 			mask: if shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::COLOR | shade::DrawMask::DEPTH },
 			prim_type: shade::PrimType::Triangles,
 			shader: if shadow { self.material.shadow_shader } else { self.material.shader },
-			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
-				divisor: shade::VertexDivisor::PerVertex,
-			}],
+			vertices: &[
+				shade::DrawVertexBuffer {
+					buffer: self.vertices,
+					divisor: shade::VertexDivisor::PerVertex,
+				},
+			],
 			uniforms: &[
 				camera,
 				light,
@@ -182,8 +133,9 @@ impl Renderable {
 					set.value("u_lightTransform", &light_transform);
 				}),
 			],
-			vertex_start: 0,
-			vertex_end: self.mesh.vertices_len,
+			indices: self.indices_buffer,
+			index_start: 0,
+			index_end: self.indices_len,
 			instances: -1,
 		});
 	}
@@ -196,6 +148,6 @@ impl super::IRenderable for Renderable {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {
-		(self.mesh.bounds, self.instance.model)
+		(self.bounds, self.instance.model)
 	}
 }
