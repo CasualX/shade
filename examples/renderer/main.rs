@@ -427,7 +427,7 @@ fn main() {
 						}
 						if right_click {
 							auto_rotate = false;
-							app.demo.camera.pan(-dx, dy);
+							app.demo.camera.pan_ref(-dx, dy, Vec3f::Z);
 						}
 						if middle_click {
 							app.demo.camera.zoom(dy * 0.01);

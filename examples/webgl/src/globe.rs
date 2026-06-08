@@ -178,7 +178,7 @@ impl crate::DemoContext for Context {
 		}
 		if self.right_click {
 			self.auto_rotate = false;
-			self.camera.pan(-dx, dy);
+			self.camera.pan_ref(-dx, dy, Vec3f::Z);
 		}
 		if self.middle_click {
 			self.auto_rotate = false;
