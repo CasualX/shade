@@ -111,6 +111,19 @@ fn gl_viewport(viewport: &cvmath::Bounds2<i32>) {
 	unsafe { api::viewport(viewport.mins.x, viewport.mins.y, viewport.width(), viewport.height()) };
 }
 
+fn gl_attribute_uses_integer_input(ty: GLenum) -> bool {
+	matches!(ty,
+		| api::INT
+		| api::INT_VEC2
+		| api::INT_VEC3
+		| api::INT_VEC4
+		| api::UNSIGNED_INT
+		| api::UNSIGNED_INT_VEC2
+		| api::UNSIGNED_INT_VEC3
+		| api::UNSIGNED_INT_VEC4
+	)
+}
+
 fn gl_attributes(shader: &WebGLShaderProgram, data: &[crate::DrawVertexBuffer], objects: &ObjectMap) -> u32 {
 	let mut enabled_attribs = 0u32;
 	for vb in data {
@@ -127,15 +140,21 @@ fn gl_attributes(shader: &WebGLShaderProgram, data: &[crate::DrawVertexBuffer], 
 			let type_ = match attr.format.ty() {
 				crate::VertexAttributeType::F32 => api::FLOAT,
 				crate::VertexAttributeType::F64 => unimplemented!("F64 attributes are not supported in WebGL"),
-				crate::VertexAttributeType::I32 => unimplemented!("I32 attributes are not supported in WebGL"),
-				crate::VertexAttributeType::U32 => unimplemented!("U32 attributes are not supported in WebGL"),
+				crate::VertexAttributeType::I32 => api::INT,
+				crate::VertexAttributeType::U32 => api::UNSIGNED_INT,
 				crate::VertexAttributeType::I16 => api::SHORT,
 				crate::VertexAttributeType::U16 => api::UNSIGNED_SHORT,
 				crate::VertexAttributeType::I8 => api::BYTE,
 				crate::VertexAttributeType::U8 => api::UNSIGNED_BYTE,
 			};
 			let normalized = if attr.format.normalized() { api::TRUE } else { api::FALSE };
-			unsafe { api::vertexAttribPointer(attrib.location, size, type_, normalized, layout.size as GLsizei, attr.offset as GLintptr) };
+			if gl_attribute_uses_integer_input(attrib.ty) {
+				debug_assert!(!attr.format.normalized(), "Integer shader attribute {} cannot use normalized vertex format {:?}", attr.name, attr.format);
+				unsafe { api::vertexAttribIPointer(attrib.location, size, type_, layout.size as GLsizei, attr.offset as GLintptr) };
+			}
+			else {
+				unsafe { api::vertexAttribPointer(attrib.location, size, type_, normalized, layout.size as GLsizei, attr.offset as GLintptr) };
+			}
 
 			let divisor = match vb.divisor {
 				crate::VertexDivisor::PerVertex => 0,

@@ -110,6 +110,9 @@ export function createWasmAPI(canvas, options) {
 		vertexAttribPointer(index, size, type, normalized, stride, offset) {
 			gl.vertexAttribPointer(index, size, type, normalized, stride, offset);
 		},
+		vertexAttribIPointer(index, size, type, stride, offset) {
+			gl.vertexAttribIPointer(index, size, type, stride, offset);
+		},
 		vertexAttribDivisor(index, divisor) { gl.vertexAttribDivisor(index, divisor); },
 		createProgram() { return handles.add(gl.createProgram()); },
 		deleteProgram(program) { let value = handles.remove(program); gl.deleteProgram(value); },

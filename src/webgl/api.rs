@@ -49,6 +49,13 @@ unsafe extern "C" {
 		stride: types::GLsizei,
 		offset: types::GLintptr,
 	);
+	pub fn vertexAttribIPointer(
+		index: types::GLuint,
+		size: types::GLint,
+		type_: types::GLenum,
+		stride: types::GLsizei,
+		offset: types::GLintptr,
+	);
 	pub fn createProgram() -> types::GLuint;
 	pub fn deleteProgram(program: types::GLuint);
 	pub fn createShader(shader_type: types::GLenum) -> types::GLuint;
@@ -159,6 +166,7 @@ mod stubs {
 	pub unsafe fn enableVertexAttribArray(_index: GLuint) {}
 	pub unsafe fn disableVertexAttribArray(_index: GLuint) {}
 	pub unsafe fn vertexAttribPointer(_index: GLuint, _size: GLint, _type_: GLenum, _normalized: GLboolean, _stride: GLsizei, _offset: GLintptr) {}
+	pub unsafe fn vertexAttribIPointer(_index: GLuint, _size: GLint, _type_: GLenum, _stride: GLsizei, _offset: GLintptr) {}
 
 	pub unsafe fn createProgram() -> GLuint { 0 }
 	pub unsafe fn deleteProgram(_program: GLuint) {}

@@ -119,11 +119,11 @@ pub enum VertexAttributeFormat {
 	///
 	/// The value is mapped from the range `[-32768, 32767]` to `[-1.0, 1.0]`.
 	I16Norm,
-	/// Normalized `u16`, 2 components.
+	/// Normalized `i16`, 2 components.
 	I16Normv2,
-	/// Normalized `u16`, 3 components.
+	/// Normalized `i16`, 3 components.
 	I16Normv3,
-	/// Normalized `u16`, 4 components.
+	/// Normalized `i16`, 4 components.
 	I16Normv4,
 
 	/// Normalized `u16`.

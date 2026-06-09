@@ -102,6 +102,19 @@ fn gl_viewport(viewport: &cvmath::Bounds2<i32>) {
 	gl_check!(gl::Viewport(viewport.mins.x, viewport.mins.y, viewport.width(), viewport.height()));
 }
 
+fn gl_attribute_uses_integer_input(ty: GLenum) -> bool {
+	matches!(ty,
+		| gl::INT
+		| gl::INT_VEC2
+		| gl::INT_VEC3
+		| gl::INT_VEC4
+		| gl::UNSIGNED_INT
+		| gl::UNSIGNED_INT_VEC2
+		| gl::UNSIGNED_INT_VEC3
+		| gl::UNSIGNED_INT_VEC4
+	)
+}
+
 fn gl_attributes(shader: &GlShaderProgram, data: &[crate::DrawVertexBuffer], objects: &ObjectMap) -> u32 {
 	let mut enabled_attribs = 0u32;
 	for vb in data {
@@ -126,7 +139,14 @@ fn gl_attributes(shader: &GlShaderProgram, data: &[crate::DrawVertexBuffer], obj
 				crate::VertexAttributeType::I8 => gl::BYTE,
 				crate::VertexAttributeType::U8 => gl::UNSIGNED_BYTE,
 			};
-			gl_check!(gl::VertexAttribPointer(attrib.location, size, type_, normalized, layout.size as i32, attr.offset as usize as *const GLvoid));
+			let ptr = attr.offset as usize as *const GLvoid;
+			if gl_attribute_uses_integer_input(attrib.ty) {
+				debug_assert!(!attr.format.normalized(), "Integer shader attribute {} cannot use normalized vertex format {:?}", attr.name, attr.format);
+				gl_check!(gl::VertexAttribIPointer(attrib.location, size, type_, layout.size as i32, ptr));
+			}
+			else {
+				gl_check!(gl::VertexAttribPointer(attrib.location, size, type_, normalized, layout.size as i32, ptr));
+			}
 
 			let divisor = match vb.divisor {
 				crate::VertexDivisor::PerVertex => 0,
