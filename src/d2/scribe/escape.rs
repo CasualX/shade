@@ -172,7 +172,7 @@ fn process2_bool(seq: &str, key: &str, boolean: &mut bool) -> bool {
 ///
 /// Panics if the key is unknown, or if the value is invalid.
 #[inline(never)]
-pub(crate) fn process(sequence: &str, scribe: &mut Scribe, _cv: Option<&mut TextBuffer>) {
+pub(crate) fn process(sequence: &str, scribe: &mut Scribe) {
 	macro_rules! def_handler {
 		($handler:ident, $key:ident) => {
 			&mut |seq| $handler(seq, stringify!($key), &mut scribe.$key)

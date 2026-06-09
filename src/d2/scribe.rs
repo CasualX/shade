@@ -12,6 +12,24 @@ pub use self::v::*;
 /// DrawBuilder for writing text.
 pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
 
+/// Target that can receive laid-out text glyph quads.
+pub trait ITextTarget {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]);
+	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D);
+}
+
+impl ITextTarget for TextBuffer {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+		let mut p = self.begin(PrimType::Triangles, 4, 2);
+		p.add_indices_quad();
+		p.add_vertices(vertices);
+	}
+	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D) {
+		self.uniform.texture = texture;
+		self.shader = shader;
+	}
+}
+
 /// Text alignment within a rectangular box.
 ///
 /// Specifies both vertical and horizontal alignment, determining where text is anchored inside a layout box.
@@ -117,14 +135,13 @@ impl Scribe {
 	}
 }
 
-impl TextBuffer {
+impl<V, U> DrawBuilder<V, U> where Self: ITextTarget {
 	/// Writes a text string.
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_write<T: fmt::Display>(&mut self, font: &FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
-		self.uniform.texture = font.texture;
-		self.shader = font.shader;
+		self.set_shader_texture(font.shader, font.texture);
 		text_write(self, font.as_dyn().font, scribe, cursor, &text);
 	}
 
@@ -135,8 +152,7 @@ impl TextBuffer {
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
-		self.uniform.texture = font.texture;
-		self.shader = font.shader;
+		self.set_shader_texture(font.shader, font.texture);
 		text_lines(self, font.as_dyn().font, scribe, rect, align, lines);
 	}
 
@@ -147,8 +163,7 @@ impl TextBuffer {
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
 	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
-		self.uniform.texture = font.texture;
-		self.shader = font.shader;
+		self.set_shader_texture(font.shader, font.texture);
 		text_box(self, font.as_dyn().font, scribe, rect, align, text);
 	}
 }
@@ -162,7 +177,7 @@ impl<F: FnMut(&str) -> fmt::Result> fmt::Write for FormatFn<F> {
 	}
 }
 
-fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Vec2f, text: &dyn fmt::Display) {
+fn text_write(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &mut Scribe, cursor: &mut Vec2f, text: &dyn fmt::Display) {
 	let mut writer = FormatFn(move |text: &str| {
 		font.write_span(Some(buf), scribe, cursor, text);
 		Ok(())
@@ -170,7 +185,7 @@ fn text_write(buf: &mut TextBuffer, font: &dyn IFont, scribe: &mut Scribe, curso
 	let _ = fmt::write(&mut writer, format_args!("{}", text));
 }
 
-fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
+fn text_lines(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
 	let height = lines.len() as isize as i32 as f32 * scribe.line_height;
 
 	let mut y = match align {
@@ -208,7 +223,7 @@ fn text_lines(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bo
 	}
 }
 
-fn text_box(buf: &mut TextBuffer, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+fn text_box(buf: &mut dyn ITextTarget, font: &dyn IFont, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
 	let mut y = match align {
 		TextAlign::TopLeft | TextAlign::TopCenter | TextAlign::TopRight => rect.mins.y,
 		TextAlign::MiddleLeft | TextAlign::MiddleCenter | TextAlign::MiddleRight => rect.mins.y + (rect.height() - scribe.text_height(text)) * 0.5,

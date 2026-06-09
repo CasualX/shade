@@ -155,7 +155,7 @@ use super::*;
 use cvmath::Vec2;
 
 impl d2::IFont for Font {
-	fn write_span(&self, mut cv: Option<&mut d2::TextBuffer>, scribe: &mut d2::Scribe, cursor: &mut Vec2<f32>, text: &str) {
+	fn write_span(&self, mut cv: Option<&mut dyn d2::ITextTarget>, scribe: &mut d2::Scribe, cursor: &mut Vec2<f32>, text: &str) {
 		let font = self;
 		let mut chars = text.chars();
 		while let Some(chr) = chars.next() {
@@ -169,7 +169,7 @@ impl d2::IFont for Font {
 			if chr == '\x1b' {
 				if chars.next() == Some('[') {
 					if let Some((sequence, tail)) = chars.as_str().split_once("]") {
-						d2::escape::process(sequence, scribe, match cv.as_mut() { Some(cv) => Some(*cv), None => None });
+						d2::escape::process(sequence, scribe);
 						chars = tail.chars();
 					}
 					else {
@@ -235,9 +235,7 @@ impl d2::IFont for Font {
 					},
 				];
 
-				let mut p = cv.begin(PrimType::Triangles, 4, 2);
-				p.add_indices_quad();
-				p.add_vertices(&vertices);
+				cv.text_quad(&vertices);
 			}
 		}
 	}
