@@ -25,16 +25,32 @@ in vec2 a_pos;
 in vec2 a_uv;
 in vec4 a_color;
 in vec4 a_outline;
+in int a_data;
 
 uniform mat3x2 u_transform;
+#ifdef MTSDF_3D
+uniform mat4 u_cameraTransform;
+uniform mat4x3 u_planeTransform;
+
+const float Z_FIGHT_BIAS = 0.00005;
+#endif
 
 void main() {
 	v_uv = a_uv;
 	v_color = srgbToLinear(a_color);
 	v_outline = a_outline;
 
+#ifdef MTSDF_3D
+	vec2 plane_pos = u_transform * vec3(a_pos, 1.0);
+	vec3 world_pos = u_planeTransform * vec4(plane_pos, 0.0, 1.0);
+	gl_Position = u_cameraTransform * vec4(world_pos, 1.0);
+
+	// Offset the depth slightly to prevent z-fighting with the plane
+	gl_Position.z += float(a_data & 0x1) * Z_FIGHT_BIAS * gl_Position.w;
+#else
 	vec2 pos = u_transform * vec3(a_pos, 1.0);
 	gl_Position = vec4(pos, 0.0, 1.0);
+#endif
 }
 #endif
 
@@ -73,6 +89,9 @@ void main() {
 	outer = clamp(outer, 0.0, 1.0);
 
 	vec4 color = v_color * inner + v_outline * (outer - inner);
+	if (color.a <= 2.0 / 255.0)
+		discard;
+
 	o_fragColor = color;
 }
 #endif

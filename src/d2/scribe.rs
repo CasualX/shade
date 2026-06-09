@@ -11,6 +11,8 @@ pub use self::v::*;
 
 /// DrawBuilder for writing text.
 pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
+/// DrawBuilder for writing text on a 3D plane.
+pub type TextBuffer3 = DrawBuilder<TextVertex, TextUniform3>;
 
 /// Target that can receive laid-out text glyph quads.
 pub trait ITextTarget {
@@ -26,6 +28,18 @@ impl ITextTarget for TextBuffer {
 	}
 	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D) {
 		self.uniform.texture = texture;
+		self.shader = shader;
+	}
+}
+
+impl ITextTarget for TextBuffer3 {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+		let mut p = self.begin(PrimType::Triangles, 4, 2);
+		p.add_indices_quad();
+		p.add_vertices(vertices);
+	}
+	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D) {
+		self.uniform.text.texture = texture;
 		self.shader = shader;
 	}
 }

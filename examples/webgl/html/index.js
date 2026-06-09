@@ -183,6 +183,22 @@ const demos = [
 		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/text.rs',
 	},
 	{
+		id: 'text3d',
+		title: 'Text 3D',
+		hint: '3D text planes with orbit controls',
+		module: 'webgl.wasm',
+		constructor: 'new_text3d',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/text3d.rs',
+	},
+	{
+		id: 'textintro',
+		title: 'Text Intro',
+		hint: 'Animated 3D opening crawl',
+		module: 'webgl.wasm',
+		constructor: 'new_textintro',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/textintro.rs',
+	},
+	{
 		id: 'pixelart',
 		title: 'Pixel Art',
 		hint: 'Interactive texture filtering demo',

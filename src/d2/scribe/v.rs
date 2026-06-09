@@ -8,6 +8,7 @@ pub struct TextVertex {
 	pub uv: Vec2f,
 	pub color: Vec4<u8>,
 	pub outline: Vec4<u8>,
+	pub data: TextVertexData,
 }
 
 unsafe impl TVertex for TextVertex {
@@ -35,8 +36,33 @@ unsafe impl TVertex for TextVertex {
 				format: VertexAttributeFormat::U8Normv4,
 				offset: dataview::offset_of!(TextVertex.outline) as u16,
 			},
+			VertexAttribute {
+				name: "a_data",
+				format: VertexAttributeFormat::I32,
+				offset: dataview::offset_of!(TextVertex.data) as u16,
+			},
 		],
 	};
+}
+
+/// Metadata for a [`TextVertex`].
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct TextVertexData(pub i32);
+
+unsafe impl dataview::Pod for TextVertexData {}
+
+impl TextVertexData {
+	pub const NONE: TextVertexData = TextVertexData(0);
+
+	/// Top left corner of a glyph quad.
+	pub const TOP_LEFT: TextVertexData = TextVertexData(0b00);
+	/// Top right corner of a glyph quad.
+	pub const TOP_RIGHT: TextVertexData = TextVertexData(0b01);
+	/// Bottom left corner of a glyph quad.
+	pub const BOTTOM_LEFT: TextVertexData = TextVertexData(0b10);
+	/// Bottom right corner of a glyph quad.
+	pub const BOTTOM_RIGHT: TextVertexData = TextVertexData(0b11);
 }
 
 /// Text template.
@@ -50,7 +76,7 @@ pub struct TextTemplate {
 impl ToVertex<TextVertex> for TextTemplate {
 	#[inline]
 	fn to_vertex(&self, pos: Vec2f, _index: usize) -> TextVertex {
-		TextVertex { pos, uv: self.uv, color: self.color, outline: self.outline }
+		TextVertex { pos, uv: self.uv, color: self.color, outline: self.outline, data: TextVertexData::NONE }
 	}
 }
 
@@ -90,5 +116,21 @@ impl UniformVisitor for TextUniform {
 		set.value("u_outBias", &self.out_bias);
 		set.value("u_outlineWidthAbsolute", &self.outline_width_absolute);
 		set.value("u_outlineWidthRelative", &self.outline_width_relative);
+	}
+}
+
+/// Text uniform for drawing 2D text vertices on a 3D plane.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TextUniform3 {
+	pub text: TextUniform,
+	pub camera_transform: Mat4f,
+	pub plane_transform: Transform3f,
+}
+
+impl UniformVisitor for TextUniform3 {
+	fn visit(&self, set: &mut dyn UniformSetter) {
+		self.text.visit(set);
+		set.value("u_cameraTransform", &self.camera_transform);
+		set.value("u_planeTransform", &self.plane_transform);
 	}
 }

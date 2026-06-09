@@ -22,6 +22,16 @@ pub extern "C" fn new_text() -> *mut DemoHandle {
 }
 
 #[no_mangle]
+pub extern "C" fn new_text3d() -> *mut DemoHandle {
+	into_handle(text3d::Context::new())
+}
+
+#[no_mangle]
+pub extern "C" fn new_textintro() -> *mut DemoHandle {
+	into_handle(textintro::Context::new())
+}
+
+#[no_mangle]
 pub extern "C" fn new_pixelart() -> *mut DemoHandle {
 	into_handle(pixelart::Context::new())
 }

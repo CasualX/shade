@@ -214,24 +214,28 @@ impl d2::IFont for Font {
 						uv: Vec2(aleft, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
 						color: scribe.color,
 						outline: scribe.outline,
+						data: d2::TextVertexData::BOTTOM_LEFT,
 					},
 					d2::TextVertex {
 						pos: pos + Vec2(pleft + scribe.top_skew, ptop),
 						uv: Vec2(aleft, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
 						color: scribe.color,
 						outline: scribe.outline,
+						data: d2::TextVertexData::TOP_LEFT,
 					},
 					d2::TextVertex {
 						pos: pos + Vec2(pright + scribe.top_skew, ptop),
 						uv: Vec2(aright, atop) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
 						color: scribe.color,
 						outline: scribe.outline,
+						data: d2::TextVertexData::TOP_RIGHT,
 					},
 					d2::TextVertex {
 						pos: pos + Vec2(pright, pbottom),
 						uv: Vec2(aright, abottom) / Vec2(font.atlas.width as f32, font.atlas.height as f32),
 						color: scribe.color,
 						outline: scribe.outline,
+						data: d2::TextVertexData::BOTTOM_RIGHT,
 					},
 				];
 

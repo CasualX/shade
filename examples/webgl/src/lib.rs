@@ -3,6 +3,8 @@ pub mod globe;
 pub mod oldtree;
 pub mod pixelart;
 pub mod text;
+pub mod text3d;
+pub mod textintro;
 pub mod triangle;
 pub mod zeldawater;
 
