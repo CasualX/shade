@@ -9,6 +9,7 @@ mod bunny;
 mod colortree;
 mod cube;
 mod globe;
+mod heightmap;
 mod oldtree;
 mod parallax;
 mod particles;
@@ -62,6 +63,7 @@ struct RendererDemo {
 	cube: cube::Renderable,
 	bunny: bunny::Renderable,
 	color_tree: colortree::Renderable,
+	heightmap: heightmap::Renderable,
 	oldtree: oldtree::Renderable,
 	parallax: parallax::Renderable,
 	globe: globe::Renderable,
@@ -103,6 +105,7 @@ impl RendererDemo {
 		let cube = cube::Renderable::create(g);
 		let bunny = bunny::Renderable::create(g);
 		let color_tree = colortree::Renderable::create(g);
+		let heightmap = heightmap::Renderable::create(g);
 		let oldtree = oldtree::Renderable::create(g);
 		let parallax = parallax::Renderable::create(g);
 		let globe = globe::Renderable::create(g);
@@ -117,11 +120,12 @@ impl RendererDemo {
 			cube,
 			bunny,
 			color_tree,
+			color3d_shader,
+			heightmap,
 			oldtree,
 			parallax,
 			globe,
 			particles,
-			color3d_shader,
 		}
 	}
 	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
@@ -135,6 +139,7 @@ impl RendererDemo {
 			&self.cube as &dyn IRenderable,
 			&self.bunny as &dyn IRenderable,
 			&self.color_tree as &dyn IRenderable,
+			&self.heightmap as &dyn IRenderable,
 			&self.oldtree as &dyn IRenderable,
 			&self.parallax as &dyn IRenderable,
 			&self.globe as &dyn IRenderable,
