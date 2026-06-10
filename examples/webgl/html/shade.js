@@ -66,6 +66,9 @@ export function createWasmAPI(canvas, options) {
 		bindInstance(instance) {
 			memory = instance.exports.memory;
 		},
+		decodeUtf8(ptr, len) {
+			return getString(ptr, len);
+		},
 		consoleLog(ptr, len) {
 			console.log(getString(ptr, len));
 		},

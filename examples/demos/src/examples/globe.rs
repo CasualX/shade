@@ -1,6 +1,7 @@
-use shade::cvmath::*;
+use crate::*;
 
-const PROGRAM: &str = r#"#version unified 300 es
+const PROGRAM: &str = r#"
+#version unified 330 core, 300 es
 precision highp float;
 
 #ifdef VERTEX_SHADER
@@ -69,7 +70,7 @@ struct GlobeMaterial {
 
 impl shade::UniformVisitor for GlobeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_texture", &self.texture);
+		set.sampler2d("u_texture", &[self.texture]);
 	}
 }
 
@@ -92,7 +93,7 @@ struct GlobeRenderable {
 }
 
 impl GlobeRenderable {
-	fn create(g: &mut shade::Graphics) -> GlobeRenderable {
+	fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> GlobeRenderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 		let mut source = shade::shader_interface! {
 			files {
@@ -101,9 +102,18 @@ impl GlobeRenderable {
 		};
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let texture = {
-			let file_jpg = include_bytes!("../../textures/2k_earth_daymap.jpg");
-			let image = shade::image::DecodedImage::load_memory_jpeg(file_jpg).unwrap();
-			g.image(&image)
+			let bytes = assets.read("textures/2k_earth_daymap.jpg").unwrap();
+			let image = shade::image::DecodedImage::load_memory(&bytes).unwrap();
+			let props = shade::TextureProps {
+				mip_levels: 1,
+				usage: shade::TextureUsage::TEXTURE,
+				filter_min: shade::TextureFilter::Linear,
+				filter_mag: shade::TextureFilter::Linear,
+				wrap_u: shade::TextureWrap::Repeat,
+				wrap_v: shade::TextureWrap::Repeat,
+				..Default::default()
+			};
+			g.image(&props.bind(&image))
 		};
 		let material = GlobeMaterial { shader, texture };
 		let instance = GlobeInstance { position: Vec3f::ZERO, radius: 0.8 };
@@ -131,103 +141,92 @@ impl GlobeRenderable {
 	}
 }
 
-pub struct Context {
-	webgl: shade::webgl::WebGLGraphics,
+pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+	Box::new(Globe::new(g, assets))
+}
+
+struct Globe {
 	screen_size: Vec2i,
 	camera: shade::d3::ArcballCamera,
 	globe: GlobeRenderable,
 	auto_rotate: bool,
+	cursor: Vec2f,
 	left_click: bool,
 	right_click: bool,
 	middle_click: bool,
 }
 
-impl Context {
-	pub fn new() -> Context {
-		shade::webgl::setup_panic_hook();
-
-		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
-			srgb: false,
-		});
-		let g = webgl.as_graphics();
-		let globe = GlobeRenderable::create(g);
+impl Globe {
+	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Globe {
+		let globe = GlobeRenderable::create(g, assets);
 		let camera = shade::d3::ArcballCamera::new(Vec3(0.0, 3.2, 1.8), Vec3::ZERO, Vec3f::Z);
-
-		Context {
-			webgl,
-			screen_size: Vec2::ZERO,
+		Globe {
+			screen_size: Vec2(1, 1),
 			camera,
 			globe,
 			auto_rotate: true,
+			cursor: Vec2f::ZERO,
 			left_click: false,
 			right_click: false,
 			middle_click: false,
 		}
 	}
+
+	fn camera(&self, viewport: Bounds2i) -> shade::d3::Camera {
+		let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
+		let position = self.camera.position();
+		let hand = Hand::RH;
+		let view = self.camera.view_matrix(hand);
+		let clip = Clip::NO;
+		let (near, far) = (0.1, 100.0);
+		let projection = Mat4::perspective(Angle::deg(45.0), aspect_ratio, near, far, (hand, clip));
+		let view_proj = projection * view;
+		let inv_view_proj = view_proj.inverse();
+		shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
+	}
 }
 
-impl crate::DemoContext for Context {
-	fn resize(&mut self, width: i32, height: i32) {
-		self.screen_size = Vec2(width, height);
+impl DemoInterface for Globe {
+	fn resize(&mut self, size: Vec2i) {
+		self.screen_size = Vec2(size.x, size.y);
 	}
 
-	fn mousemove(&mut self, dx: f32, dy: f32) {
-		if self.left_click {
-			self.auto_rotate = false;
-			self.camera.rotate(-dx, -dy);
-		}
-		if self.right_click {
-			self.auto_rotate = false;
-			self.camera.pan_ref(-dx, dy, Vec3f::Z);
-		}
-		if self.middle_click {
-			self.auto_rotate = false;
-			self.camera.zoom(dy * 0.01);
-		}
-	}
-
-	fn mousedown(&mut self, button: u32) {
-		match button {
-			0 => self.left_click = true,
-			1 => self.middle_click = true,
-			2 => self.right_click = true,
+	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+		match input {
+			Input::MouseButton { button: MouseButton::Left, pressed, .. } => self.left_click = pressed,
+			Input::MouseButton { button: MouseButton::Middle, pressed, .. } => self.middle_click = pressed,
+			Input::MouseButton { button: MouseButton::Right, pressed, .. } => self.right_click = pressed,
+			Input::MouseMove { position } => {
+				let delta = position - self.cursor;
+				self.cursor = position;
+				if self.left_click {
+					self.auto_rotate = false;
+					self.camera.rotate(-delta.x, -delta.y);
+					shell.request_redraw();
+				}
+				if self.right_click {
+					self.auto_rotate = false;
+					self.camera.pan_ref(-delta.x, delta.y, Vec3f::Z);
+					shell.request_redraw();
+				}
+				if self.middle_click {
+					self.auto_rotate = false;
+					self.camera.zoom(delta.y * 0.01);
+					shell.request_redraw();
+				}
+			}
 			_ => {}
 		}
 	}
 
-	fn mouseup(&mut self, button: u32) {
-		match button {
-			0 => self.left_click = false,
-			1 => self.middle_click = false,
-			2 => self.right_click = false,
-			_ => {}
-		}
-	}
-
-	fn draw(&mut self, _time: f64) {
-		let g = self.webgl.as_graphics();
-		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::BeginArgs::BackBuffer { viewport });
-
+	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.05, 0.05, 0.1, 1.0), depth: 1.0);
-
 		if self.auto_rotate {
-			self.camera.rotate(-1.0, 0.0);
+			let speed = frame.dt * 100.0;
+			self.camera.rotate(-speed, 0.0);
 		}
-
-		let camera = {
-			let aspect_ratio = self.screen_size.x as f32 / self.screen_size.y as f32;
-			let position = self.camera.position();
-			let hand = Hand::RH;
-			let view = self.camera.view_matrix(hand);
-			let clip = Clip::NO;
-			let (near, far) = (0.1, 100.0);
-			let projection = Mat4::perspective(Angle::deg(45.0), aspect_ratio, near, far, (hand, clip));
-			let view_proj = projection * view;
-			let inv_view_proj = view_proj.inverse();
-			shade::d3::Camera { viewport, aspect_ratio, position, view, near, far, projection, view_proj, inv_view_proj, clip }
-		};
-
+		let camera = self.camera(frame.viewport);
 		self.globe.draw(g, &camera);
 		g.end();
 	}

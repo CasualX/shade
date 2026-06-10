@@ -70,7 +70,8 @@ fn blit_border<T: Copy>(dest: &mut Image<T>, src: &Image<T>, offset: Point2i, gu
 			let in_src = x >= src_x0 && x < src_x1 && y >= src_y0 && y < src_y1;
 			dst_row[i] = if in_src {
 				src.read(x - offset.x, y - offset.y).unwrap()
-			} else {
+			}
+			else {
 				color
 			};
 		}

@@ -7,8 +7,8 @@ use shade::cvmath::*;
 
 mod bunny;
 mod colortree;
-mod globe;
 mod cube;
+mod globe;
 mod oldtree;
 mod parallax;
 mod particles;
@@ -87,9 +87,7 @@ impl RendererDemo {
 		};
 		let color3d_shader = g.shader_compile(&mut shader_source, "color3d.glsl", &[]);
 
-		let axes = {
-			shade::d3::axes::AxesModel::create(g, color3d_shader)
-		};
+		let axes = shade::d3::axes::AxesModel::create(g, color3d_shader);
 
 		let cube = cube::Renderable::create(g);
 		let bunny = bunny::Renderable::create(g);
@@ -295,10 +293,7 @@ struct GlWindow {
 }
 
 impl GlWindow {
-	fn new(
-		event_loop: &winit::event_loop::ActiveEventLoop,
-		size: winit::dpi::PhysicalSize<u32>,
-	) -> GlWindow {
+	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> GlWindow {
 		use glutin::config::ConfigTemplateBuilder;
 		use glutin::context::{ContextApi, ContextAttributesBuilder, Version};
 		use glutin::display::GetGlDisplay;

@@ -121,7 +121,7 @@ pub struct Renderable {
 }
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		dataview::embed!(VERTICES: [Vertex] = "../colortree/vertices.bin");
+		dataview::embed!(VERTICES: [Vertex] = "../../assets/colortree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		// Create the material

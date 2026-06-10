@@ -5,19 +5,19 @@ Shade
 [![crates.io](https://img.shields.io/crates/v/shade.svg)](https://crates.io/crates/shade)
 [![docs.rs](https://docs.rs/shade/badge.svg)](https://docs.rs/shade)
 
-Shade is a Rust graphics library with a unified rendering API.
+Shade is a small Rust graphics library with a unified rendering API.
 
-It currently provides OpenGL and WebGL backends, plus shared types for buffers,
-textures, shaders, uniforms, images, and small rendering utilities.
+It currently targets desktop OpenGL and WebGL, with shared types for buffers,
+textures, shaders, uniforms, images, and a handful of higher level rendering helpers.
 
-Features
---------
+What It Includes
+----------------
 
-- One graphics API across desktop OpenGL, WebGL2 and mobile
-- Explicit control over buffers, textures, shaders, uniforms, and draw calls
-- Helper modules for 2D, 3D, immediate-mode style rendering, images, and dithering
-- Optional image loading support for PNG, GIF, and JPEG
-- Optional MSDF generation support
+- One API across desktop OpenGL and WebGL
+- Low level rendering building blocks: buffers, textures, shaders, uniforms and draw calls
+- Utility modules for 2D, 3D, immediate mode drawing, images and dithering
+- Optional image decoding for PNG, GIF and JPEG
+- Optional MSDF helpers for text workflows
 
 Shade is a rendering library, not a windowing framework. You bring the GL/WebGL context and event loop, then render through Shade.
 
@@ -37,16 +37,14 @@ Available cargo features:
 - `msdfgen` enables MSDF helpers
 - `serde` enables serde support where available
 
-Examples
---------
+Project Layout
+--------------
 
-See the `examples/` directory for complete programs.
+- [`src/`](src/) contains the library itself
+- [`examples/`](examples/) contains runnable sample projects and demo code
+- [`docs.rs/shade`](https://docs.rs/shade) has the API docs
 
-- [examples/triangle.rs](examples/triangle.rs) is the smallest desktop rendering example
-- [examples/text.rs](examples/text.rs) covers text rendering work
-- [examples/polygon.rs](examples/polygon.rs) draws a user editable polygon
-- [examples/renderer/main.rs](examples/renderer/main.rs) contains a simple 3D renderer built on Shade
-- [examples/webgl/](examples/webgl/) for WebGL examples, including live demos
+If you want to see Shade in use, start with [`examples/readme.md`](examples/readme.md). The smallest code sample is [`examples/demos/src/examples/triangle.rs`](examples/demos/src/examples/triangle.rs).
 
 License
 -------

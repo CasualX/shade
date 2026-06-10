@@ -45,6 +45,23 @@ function getDemoKey(code) {
 		case 'Digit3':
 		case 'Numpad3':
 			return 3;
+		case 'ArrowLeft':
+			return 10;
+		case 'ArrowRight':
+			return 11;
+		case 'ArrowUp':
+			return 12;
+		case 'ArrowDown':
+			return 13;
+		case 'ShiftLeft':
+		case 'ShiftRight':
+			return 20;
+		case 'KeyP':
+			return 21;
+		case 'F2':
+			return 22;
+		case 'Escape':
+			return 23;
 		default:
 			return 0;
 	}
@@ -60,6 +77,41 @@ function getWheelDelta(event, canvas) {
 	return event.deltaY;
 }
 
+function getCanvasPointerPosition(event, canvas) {
+	const rect = canvas.getBoundingClientRect();
+	const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+	const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+	return {
+		x: (event.clientX - rect.left) * scaleX,
+		y: (event.clientY - rect.top) * scaleY,
+	};
+}
+
+function getCssCursor(cursor) {
+	switch (cursor) {
+		case 1:
+			return 'pointer';
+		case 2:
+			return 'grab';
+		case 3:
+			return 'grabbing';
+		case 4:
+			return 'crosshair';
+		case 5:
+			return 'move';
+		case 6:
+			return 'ew-resize';
+		case 7:
+			return 'ns-resize';
+		case 8:
+			return 'nwse-resize';
+		case 9:
+			return 'nesw-resize';
+		default:
+			return 'default';
+	}
+}
+
 async function startShadeDemo({ canvas, stageElement, moduleName, constructorName }) {
 	const gl = canvas.getContext('webgl2');
 	if (!gl) {
@@ -68,10 +120,37 @@ async function startShadeDemo({ canvas, stageElement, moduleName, constructorNam
 	gl.getExtension('OES_standard_derivatives');
 
 	const webgl = createWasmAPI(canvas, { colorSpace: 'srgb' });
+	let instance = null;
+	let openFileDialog = null;
 	const imports = {
 		webgl,
 		env: {
 			consoleLog: webgl.consoleLog,
+			setCursor(cursor) {
+				canvas.style.cursor = getCssCursor(cursor);
+			},
+			openFile(requestId, titlePtr, titleLen, extensionsPtr, extensionsLen) {
+				const title = webgl.decodeUtf8(titlePtr, titleLen) || 'Open file';
+				const extensions = webgl.decodeUtf8(extensionsPtr, extensionsLen) || '';
+				openFileDialog?.(requestId, title, extensions);
+			},
+			setStatus(textPtr, textLen) {
+				const text = webgl.decodeUtf8(textPtr, textLen);
+				if (text) {
+					console.warn(text);
+				}
+			},
+			randomFill(destPtr, destLen) {
+				if (!instance || !instance.exports.memory) {
+					return false;
+				}
+				const memory = new Uint8Array(instance.exports.memory.buffer);
+				for (let offset = 0; offset < destLen; offset += 65536) {
+					const chunkLen = Math.min(65536, destLen - offset);
+					crypto.getRandomValues(memory.subarray(destPtr + offset, destPtr + offset + chunkLen));
+				}
+				return true;
+			},
 		},
 	};
 
@@ -81,9 +160,14 @@ async function startShadeDemo({ canvas, stageElement, moduleName, constructorNam
 	}
 
 	const bytes = await response.arrayBuffer();
-	const { instance } = await WebAssembly.instantiate(bytes, imports);
+	({ instance } = await WebAssembly.instantiate(bytes, imports));
 	webgl.bindInstance(instance);
 
+	let animationFrameId = null;
+	let stopped = false;
+	let startTimeMs = null;
+	let pendingRedraw = false;
+	let isContinuous = true;
 	const contextHandle = instance.exports[constructorName]();
 	const resize = (width, height) => {
 		canvas.width = width;
@@ -91,19 +175,123 @@ async function startShadeDemo({ canvas, stageElement, moduleName, constructorNam
 		if (instance.exports.resize) {
 			instance.exports.resize(contextHandle, width, height);
 		}
+		pendingRedraw = true;
+		requestFrame();
 	};
 
 	const disconnectResize = createElementResizer(stageElement, resize);
-	let animationFrameId = 0;
-	let stopped = false;
 
-	function drawFrame() {
+	function syncRedrawState() {
+		if (instance.exports.redraw_mode) {
+			isContinuous = instance.exports.redraw_mode(contextHandle) !== 0;
+		}
+		if (instance.exports.take_redraw_request) {
+			pendingRedraw = instance.exports.take_redraw_request(contextHandle) || pendingRedraw;
+		}
+	}
+
+	function requestFrame() {
+		if (stopped || animationFrameId !== null) {
+			return;
+		}
+		animationFrameId = requestAnimationFrame(drawFrame);
+	}
+
+	function sendFileOpened(requestId, path, bytes) {
+		if (!instance.exports.file_opened) {
+			return;
+		}
+
+		const pathBytes = path ? new TextEncoder().encode(path) : null;
+		const dataBytes = bytes ? new Uint8Array(bytes) : null;
+		let pathPtr = 0;
+		let dataPtr = 0;
+
+		try {
+			if (pathBytes && pathBytes.length > 0) {
+				pathPtr = instance.exports.allocate(pathBytes.length);
+				new Uint8Array(instance.exports.memory.buffer, pathPtr, pathBytes.length).set(pathBytes);
+			}
+			if (dataBytes && dataBytes.length > 0) {
+				dataPtr = instance.exports.allocate(dataBytes.length);
+				new Uint8Array(instance.exports.memory.buffer, dataPtr, dataBytes.length).set(dataBytes);
+			}
+			instance.exports.file_opened(
+				contextHandle,
+				requestId,
+				pathPtr,
+				pathBytes?.length || 0,
+				dataPtr,
+				dataBytes?.length || 0,
+			);
+		}
+		finally {
+			if (pathPtr) {
+				instance.exports.free(pathPtr, pathBytes.length);
+			}
+			if (dataPtr) {
+				instance.exports.free(dataPtr, dataBytes.length);
+			}
+		}
+
+		syncRedrawState();
+		if (isContinuous || pendingRedraw) {
+			requestFrame();
+		}
+	}
+
+	openFileDialog = (requestId, title, extensions) => {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = extensions
+			.split(',')
+			.map((ext) => ext.trim())
+			.filter(Boolean)
+			.map((ext) => `.${ext}`)
+			.join(',');
+		input.style.display = 'none';
+		input.title = title;
+		const cleanup = () => input.remove();
+		input.addEventListener('change', async () => {
+			const [file] = input.files || [];
+			if (!file) {
+				sendFileOpened(requestId, null, null);
+				cleanup();
+				return;
+			}
+			try {
+				sendFileOpened(requestId, file.name, await file.arrayBuffer());
+			}
+			finally {
+				cleanup();
+			}
+		}, { once: true });
+		input.addEventListener('cancel', () => {
+			sendFileOpened(requestId, null, null);
+			cleanup();
+		}, { once: true });
+		document.body.appendChild(input);
+		input.click();
+	};
+
+	function drawFrame(timestampMs) {
+		animationFrameId = null;
 		if (stopped) {
 			return;
 		}
 
+		syncRedrawState();
+		if (!isContinuous && !pendingRedraw) {
+			return;
+		}
+
+		if (startTimeMs === null) {
+			startTimeMs = timestampMs;
+		}
+
 		try {
-			instance.exports.draw(contextHandle, performance.now() / 1000.0);
+			pendingRedraw = false;
+			instance.exports.draw(contextHandle, (timestampMs - startTimeMs) / 1000.0);
 		}
 		catch (error) {
 			console.error('Draw error:', error);
@@ -112,10 +300,14 @@ async function startShadeDemo({ canvas, stageElement, moduleName, constructorNam
 			return;
 		}
 
-		animationFrameId = requestAnimationFrame(drawFrame);
+		syncRedrawState();
+		if (isContinuous || pendingRedraw) {
+			requestFrame();
+		}
 	}
 
-	animationFrameId = requestAnimationFrame(drawFrame);
+	syncRedrawState();
+	requestFrame();
 
 	return {
 		stop() {
@@ -123,35 +315,51 @@ async function startShadeDemo({ canvas, stageElement, moduleName, constructorNam
 				return;
 			}
 			stopped = true;
-			cancelAnimationFrame(animationFrameId);
+			if (animationFrameId !== null) {
+				cancelAnimationFrame(animationFrameId);
+				animationFrameId = null;
+			}
 			disconnectResize();
+			canvas.style.cursor = 'default';
 			if (instance.exports.drop) {
 				instance.exports.drop(contextHandle);
 			}
 		},
+		dispatchInput(callback) {
+			callback();
+			syncRedrawState();
+			if (isContinuous || pendingRedraw) {
+				requestFrame();
+			}
+		},
 		mousemove(deltaX, deltaY) {
 			if (instance.exports.mousemove) {
-				instance.exports.mousemove(contextHandle, deltaX, deltaY);
+				this.dispatchInput(() => instance.exports.mousemove(contextHandle, deltaX, deltaY));
 			}
 		},
 		mousedown(button) {
 			if (instance.exports.mousedown) {
-				instance.exports.mousedown(contextHandle, button);
+				this.dispatchInput(() => instance.exports.mousedown(contextHandle, button));
 			}
 		},
 		mouseup(button) {
 			if (instance.exports.mouseup) {
-				instance.exports.mouseup(contextHandle, button);
+				this.dispatchInput(() => instance.exports.mouseup(contextHandle, button));
 			}
 		},
 		wheel(deltaY) {
 			if (instance.exports.wheel) {
-				instance.exports.wheel(contextHandle, deltaY);
+				this.dispatchInput(() => instance.exports.wheel(contextHandle, deltaY));
 			}
 		},
 		keydown(key) {
 			if (instance.exports.keydown) {
-				instance.exports.keydown(contextHandle, key);
+				this.dispatchInput(() => instance.exports.keydown(contextHandle, key));
+			}
+		},
+		keyup(key) {
+			if (instance.exports.keyup) {
+				this.dispatchInput(() => instance.exports.keyup(contextHandle, key));
 			}
 		},
 	};
@@ -164,7 +372,7 @@ const demos = [
 		hint: 'Minimal pipeline + draw call',
 		module: 'webgl.wasm',
 		constructor: 'new_triangle',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/triangle.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/triangle.rs',
 	},
 	{
 		id: 'oldtree',
@@ -172,7 +380,31 @@ const demos = [
 		hint: 'Stylized scene rendering',
 		module: 'webgl.wasm',
 		constructor: 'new_oldtree',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/oldtree.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/oldtree.rs',
+	},
+	{
+		id: 'conway',
+		title: 'Conway',
+		hint: 'Ping-pong texture simulation',
+		module: 'webgl.wasm',
+		constructor: 'new_conway',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/conway.rs',
+	},
+	{
+		id: 'dither',
+		title: 'Dither',
+		hint: 'Ordered dither post-process',
+		module: 'webgl.wasm',
+		constructor: 'new_dither',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/dither.rs',
+	},
+	{
+		id: 'mandelbrot',
+		title: 'Mandelbrot',
+		hint: 'Interactive fractal zoom',
+		module: 'webgl.wasm',
+		constructor: 'new_mandelbrot',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/mandelbrot.rs',
 	},
 	{
 		id: 'text',
@@ -180,7 +412,7 @@ const demos = [
 		hint: 'Signed distance field text',
 		module: 'webgl.wasm',
 		constructor: 'new_text',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/text.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/text.rs',
 	},
 	{
 		id: 'text3d',
@@ -188,7 +420,7 @@ const demos = [
 		hint: '3D text planes with orbit controls',
 		module: 'webgl.wasm',
 		constructor: 'new_text3d',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/text3d.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/text3d.rs',
 	},
 	{
 		id: 'textintro',
@@ -196,7 +428,7 @@ const demos = [
 		hint: 'Animated 3D opening crawl',
 		module: 'webgl.wasm',
 		constructor: 'new_textintro',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/textintro.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/textintro.rs',
 	},
 	{
 		id: 'pixelart',
@@ -204,7 +436,7 @@ const demos = [
 		hint: 'Interactive texture filtering demo',
 		module: 'webgl.wasm',
 		constructor: 'new_pixelart',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/pixelart.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/pixelart.rs',
 	},
 	{
 		id: 'zeldawater',
@@ -212,7 +444,7 @@ const demos = [
 		hint: 'Water shader experiment',
 		module: 'webgl.wasm',
 		constructor: 'new_zeldawater',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/zeldawater.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/zeldawater.rs',
 	},
 	{
 		id: 'globe',
@@ -220,7 +452,47 @@ const demos = [
 		hint: 'Texturing + camera',
 		module: 'webgl.wasm',
 		constructor: 'new_globe',
-		source: 'https://github.com/CasualX/shade/blob/master/examples/webgl/src/globe.rs',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/globe.rs',
+	},
+	{
+		id: 'panels',
+		title: 'Panels',
+		hint: 'Nine-slice panel layout',
+		module: 'webgl.wasm',
+		constructor: 'new_panels',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/panels.rs',
+	},
+	{
+		id: 'polygon',
+		title: 'Polygon',
+		hint: 'Interactive triangulation',
+		module: 'webgl.wasm',
+		constructor: 'new_polygon',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/polygon.rs',
+	},
+	{
+		id: 'scene',
+		title: 'Scene',
+		hint: 'Simple 3D sprite scene',
+		module: 'webgl.wasm',
+		constructor: 'new_scene',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/scene.rs',
+	},
+	{
+		id: 'screenmelt',
+		title: 'Screen Melt',
+		hint: 'Retro post-process transition',
+		module: 'webgl.wasm',
+		constructor: 'new_screenmelt',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/screenmelt.rs',
+	},
+	{
+		id: 'shadertoy',
+		title: 'Shader Toy',
+		hint: 'Fullscreen procedural shader',
+		module: 'webgl.wasm',
+		constructor: 'new_shadertoy',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/shadertoy.rs',
 	},
 ];
 
@@ -283,28 +555,39 @@ Alpine.data('shadeWebglApp', () => ({
 		this.$refs.playerStage.requestFullscreen?.();
 	},
 
+	syncPointer(event) {
+		if (!this.activeRunner) {
+			return;
+		}
+
+		const { x, y } = getCanvasPointerPosition(event, this.$refs.canvas);
+		const deltaX = x - this.lastPointerX;
+		const deltaY = y - this.lastPointerY;
+		this.lastPointerX = x;
+		this.lastPointerY = y;
+		if (deltaX !== 0 || deltaY !== 0) {
+			this.activeRunner.mousemove(deltaX, deltaY);
+		}
+	},
+
 	handleMousemove(event) {
 		if (!this.activeRunner) {
 			return;
 		}
 
-		const deltaX = event.clientX - this.lastPointerX;
-		const deltaY = event.clientY - this.lastPointerY;
-		this.lastPointerX = event.clientX;
-		this.lastPointerY = event.clientY;
-		this.activeRunner.mousemove(deltaX, deltaY);
+		this.syncPointer(event);
 	},
 
 	handleMousedown(event) {
-		this.lastPointerX = event.clientX;
-		this.lastPointerY = event.clientY;
 		if (this.activeRunner) {
+			this.syncPointer(event);
 			this.activeRunner.mousedown(event.button);
 		}
 	},
 
 	handleMouseup(event) {
 		if (this.activeRunner) {
+			this.syncPointer(event);
 			this.activeRunner.mouseup(event.button);
 		}
 	},
@@ -314,6 +597,7 @@ Alpine.data('shadeWebglApp', () => ({
 			return;
 		}
 
+		this.syncPointer(event);
 		this.activeRunner.wheel(getWheelDelta(event, this.$refs.canvas));
 		event.preventDefault();
 	},
@@ -331,6 +615,16 @@ Alpine.data('shadeWebglApp', () => ({
 		}
 
 		this.activeRunner.keydown(key);
+		event.preventDefault();
+	},
+
+	handleKeyup(event) {
+		const key = getDemoKey(event.code);
+		if (!key || !this.activeRunner) {
+			return;
+		}
+
+		this.activeRunner.keyup(key);
 		event.preventDefault();
 	},
 }));

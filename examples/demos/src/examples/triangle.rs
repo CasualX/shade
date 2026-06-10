@@ -1,6 +1,4 @@
-use std::mem;
-
-use shade::cvmath::*;
+use crate::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
@@ -28,7 +26,8 @@ unsafe impl shade::TVertex for TriangleVertex {
 	};
 }
 
-const PROGRAM: &str = r#"#version unified 300 es
+const PROGRAM: &str = r#"
+#version unified 330 core, 300 es
 precision highp float;
 
 #ifdef VERTEX_SHADER
@@ -36,92 +35,72 @@ in vec2 aPos;
 in vec4 aColor;
 #endif
 
-VARYING vec4 VertexColor;
+VARYING vec4 v_color;
 
 #ifdef FRAGMENT_SHADER
 out vec4 o_fragColor;
 #endif
 
-vec3 srgbToLinear(vec3 c) {
-	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
-}
-
-vec4 srgbToLinear(vec4 c) {
-	return vec4(srgbToLinear(c.rgb), c.a);
-}
-
 #ifdef VERTEX_SHADER
 void main() {
-	VertexColor = srgbToLinear(aColor);
+	v_color = aColor;
 	gl_Position = vec4(aPos, 0.0, 1.0);
 }
 #endif
 
 #ifdef FRAGMENT_SHADER
 void main() {
-	o_fragColor = VertexColor;
+	float levels = 10.0;
+	vec3 qColor = floor(v_color.rgb * levels) / (levels - 1.0);
+	o_fragColor = vec4(qColor, v_color.a);
 }
 #endif
 "#;
 
-pub struct Triangle {
-	webgl: shade::webgl::WebGLGraphics,
-	screen_size: Vec2i,
+pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+	Box::new(Triangle::new(g, assets))
+}
+
+struct Triangle {
+	vertices: shade::VertexBuffer,
 	shader: shade::ShaderProgram,
 }
 
 impl Triangle {
-	pub fn new() -> Triangle {
-		shade::webgl::setup_panic_hook();
-
-		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
-			srgb: false,
-		});
-		let g = webgl.as_graphics();
+	fn new(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Triangle {
+		let vertices = g.vertex_buffer(&[
+				TriangleVertex { position: Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
+				TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
+				TriangleVertex { position: Vec2(0.5, -0.5), color: [0, 0, 255, 255] },
+			],
+			shade::BufferUsage::Static,
+		);
 		let mut source = shade::shader_interface! {
 			files {
 				"main.glsl" => PROGRAM,
 			}
 		};
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
-
-		Triangle {
-			webgl,
-			screen_size: Vec2::ZERO,
-			shader,
-		}
+		Triangle { vertices, shader }
 	}
 }
 
-impl crate::DemoContext for Triangle {
-	fn resize(&mut self, width: i32, height: i32) {
-		self.screen_size = Vec2(width, height);
-	}
+impl DemoInterface for Triangle {
+	fn input(&mut self, _input: crate::Input, _g: &mut shade::Graphics, _shell: &mut dyn ShellServices) {}
 
-	fn draw(&mut self, time: f64) {
-		let g = self.webgl.as_graphics();
-		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::BeginArgs::BackBuffer { viewport });
-
-		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0), depth: 1.0);
-
-		let rotation = Mat2::rotation(Angle(time as f32));
-		let vertices = g.vertex_buffer(&[
-			TriangleVertex { position: rotation * Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
-			TriangleVertex { position: rotation * Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
-			TriangleVertex { position: rotation * Vec2(0.5, -0.5), color: [0, 0, 255, 255] },
-		], shade::BufferUsage::Static);
-
+	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
+		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: None,
 			cull_mode: None,
-			mask: shade::DrawMask::ALL,
+			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
 			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: vertices,
+				buffer: self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[],
@@ -129,8 +108,6 @@ impl crate::DemoContext for Triangle {
 			vertex_end: 3,
 			instances: -1,
 		});
-
-		g.release(vertices);
 		g.end();
 	}
 }

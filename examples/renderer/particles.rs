@@ -142,25 +142,20 @@ static INSTANCE_QUAD: [shade::d2::TexturedVertex; 6] = [
 
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		let bounds = Bounds3f::new(
-			Vec3f(-64.0, -64.0, 0.0),
-			Vec3f(64.0, 64.0, 64.0),
-		);
+		let bounds = Bounds3f(Vec3f(-64.0, -64.0, 0.0), Vec3f(64.0, 64.0, 64.0));
 		let instance = Instance { bounds };
 
-		let texture = shade::image::DecodedImage::load_file("examples/textures/snowflake.png").unwrap();
-		let texture = g.image(&(
-			&texture,
-			&shade::TextureProps {
-				mip_levels: 8,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Edge,
-				wrap_v: shade::TextureWrap::Edge,
-				..Default::default()
-			},
-		));
+		let texture_props = shade::TextureProps {
+			mip_levels: 8,
+			usage: shade::TextureUsage::TEXTURE,
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Edge,
+			wrap_v: shade::TextureWrap::Edge,
+			..Default::default()
+		};
+		let texture = shade::image::DecodedImage::load_file("assets/textures/snowflake.png").unwrap();
+		let texture = g.image(&texture_props.bind(&texture));
 
 		let pos_info = shade::Texture2DInfo {
 			width: N,

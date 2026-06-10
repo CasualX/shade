@@ -1,6 +1,4 @@
-use std::mem;
-
-use shade::cvmath::*;
+use crate::*;
 
 #[derive(Copy, Clone, Default, dataview::Pod)]
 #[repr(C)]
@@ -28,7 +26,8 @@ unsafe impl shade::TVertex for Vertex {
 	};
 }
 
-const PROGRAM: &str = r#"#version unified 300 es
+const PROGRAM: &str = r#"
+#version unified 330 core, 300 es
 precision highp float;
 
 #ifdef VERTEX_SHADER
@@ -98,103 +97,68 @@ impl shade::UniformVisitor for Uniform {
 	}
 }
 
-pub struct Context {
-	webgl: shade::webgl::WebGLGraphics,
-	screen_size: Vec2i,
-	shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
-	distortion: shade::Texture2D,
-	vb: shade::VertexBuffer,
-	ib: shade::IndexBuffer,
+pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+	Box::new(ZeldaWater::new(g, assets))
 }
 
-impl Context {
-	pub fn new() -> Context {
-		shade::webgl::setup_panic_hook();
+struct ZeldaWater {
+	vertices: shade::VertexBuffer,
+	indices: shade::IndexBuffer,
+	texture: shade::Texture2D,
+	distortion: shade::Texture2D,
+	shader: shade::ShaderProgram,
+}
 
-		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
-			srgb: false,
-		});
-		let g = webgl.as_graphics();
+impl ZeldaWater {
+	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> ZeldaWater {
+		let vertices = g.vertex_buffer(&[
+				Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
+				Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
+				Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
+				Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
+			],
+			shade::BufferUsage::Static,
+		);
+		let indices = g.index_buffer(&[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
+		let texture = Self::load_repeat_texture(g, assets, "zeldawater/water.png");
+		let distortion = Self::load_repeat_texture(g, assets, "zeldawater/distort.png");
 		let mut source = shade::shader_interface! {
 			files {
 				"main.glsl" => PROGRAM,
 			}
 		};
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		ZeldaWater { vertices, indices, texture, distortion, shader }
+	}
 
-		let texture = {
-			let file_png = include_bytes!("../../zeldawater/water.png");
-			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
-			let props = shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				..Default::default()
-			};
-			g.image(&(&image, &props))
+	fn load_repeat_texture(g: &mut shade::Graphics, assets: &dyn AssetLoader, path: &str) -> shade::Texture2D {
+		let bytes = assets.read(path).unwrap();
+		let image = shade::image::DecodedImage::load_memory_png(&bytes).unwrap();
+		let props = shade::TextureProps {
+			mip_levels: 1,
+			usage: shade::TextureUsage::TEXTURE,
+			filter_min: shade::TextureFilter::Linear,
+			filter_mag: shade::TextureFilter::Linear,
+			wrap_u: shade::TextureWrap::Repeat,
+			wrap_v: shade::TextureWrap::Repeat,
+			..Default::default()
 		};
-
-		let distortion = {
-			let file_png = include_bytes!("../../zeldawater/distort.png");
-			let image = shade::image::DecodedImage::load_memory_png(file_png).unwrap();
-			let props = shade::TextureProps {
-				mip_levels: 1,
-				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				..Default::default()
-			};
-			g.image(&(&image, &props))
-		};
-
-		let vb = g.vertex_buffer(&[
-			Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
-			Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
-			Vertex { position: Vec2f(-1.0, 1.0), uv: Vec2f(0.0, 1.0) },
-			Vertex { position: Vec2f(1.0, 1.0), uv: Vec2f(1.0, 1.0) },
-		], shade::BufferUsage::Static);
-
-		let ib = g.index_buffer(&[0u16, 1, 2, 1, 3, 2], 4, shade::BufferUsage::Static);
-
-		Context {
-			webgl,
-			screen_size: Vec2::ZERO,
-			shader,
-			texture,
-			distortion,
-			vb,
-			ib,
-		}
+		g.image(&props.bind(&image))
 	}
 }
 
-impl crate::DemoContext for Context {
-	fn resize(&mut self, width: i32, height: i32) {
-		self.screen_size = Vec2(width, height);
-	}
-
-	fn draw(&mut self, time: f64) {
-		let g = self.webgl.as_graphics();
-		let viewport = Bounds2::vec(self.screen_size);
-		g.begin(&shade::BeginArgs::BackBuffer { viewport });
-
+impl DemoInterface for ZeldaWater {
+	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
-
 		let uniform = Uniform {
-			time: time as f32,
+			time: frame.time as f32,
 			texture: self.texture,
 			distortion: self.distortion,
 			waterbase: Vec3f(0.0, 0.0, 0.5),
 			wavehighlight: Vec3f(0.5, 0.8, 1.0),
 			waveshadow: Vec3f(0.1, 0.2, 0.3),
 		};
-
 		g.draw_indexed(&shade::DrawIndexedArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -204,16 +168,15 @@ impl crate::DemoContext for Context {
 			prim_type: shade::PrimType::Triangles,
 			shader: self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vb,
+				buffer: self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: self.ib,
+			indices: self.indices,
 			uniforms: &[&uniform],
 			index_start: 0,
 			index_end: 6,
 			instances: -1,
 		});
-
 		g.end();
 	}
 }

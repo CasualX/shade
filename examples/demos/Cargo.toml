@@ -1,0 +1,10 @@
+[package]
+name = "demos"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+dataview = "1.0"
+serde_json = "1.0"
+shade = { path = "../..", default-features = false, features = ["png", "gif", "jpeg", "msdfgen"] }
+urandom = "0.2"

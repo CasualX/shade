@@ -167,6 +167,16 @@ impl Default for TextureProps {
 	}
 }
 
+impl TextureProps {
+	/// Binds the texture properties to the specified image.
+	///
+	/// Create the texture using [`Graphics::image`] with the returned value.
+	#[inline]
+	pub fn bind<'a, T>(&'a self, texture: &'a T) -> (&'a T, &'a TextureProps) where (&'a T, &'a TextureProps): ImageToTexture {
+		(texture, self)
+	}
+}
+
 //----------------------------------------------------------------
 // Texture2D handle.
 

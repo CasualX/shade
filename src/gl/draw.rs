@@ -259,7 +259,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT3x2, "Uniform {name:?} expected `mat3x2` type in shader");
 			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
-			crate::slice_map::<_, _, _, 32>(data, cvmath::Transform2f::into_column_major, |mapped| {
+			crate::util::slice_map::<_, _, _, 32>(data, cvmath::Transform2f::into_column_major, |mapped| {
 				gl_check!(gl::UniformMatrix3x2fv(u.location, mapped.len() as i32, gl::FALSE, mapped.as_ptr() as *const f32));
 			});
 		}
@@ -268,7 +268,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.ty, gl::FLOAT_MAT4x3, "Uniform {name:?} expected `mat4x3` type in shader");
 			debug_assert_eq!(u.array_size as usize, data.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, data.len());
-			crate::slice_map::<_, _, _, 16>(data, cvmath::Transform3f::into_column_major, |mapped| {
+			crate::util::slice_map::<_, _, _, 16>(data, cvmath::Transform3f::into_column_major, |mapped| {
 				gl_check!(gl::UniformMatrix4x3fv(u.location, mapped.len() as i32, gl::FALSE, mapped.as_ptr() as *const f32));
 			});
 		}

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{mem, slice};
 
 pub fn slice_map<T: Copy, U, R, const STACK_CAP: usize>(data: &[T], map: impl Fn(T) -> U, f: impl FnOnce(&[U]) -> R) -> R {

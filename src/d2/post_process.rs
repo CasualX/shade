@@ -12,6 +12,14 @@ impl PostProcessQuad {
 		PostProcessQuad { vertices }
 	}
 
+	/// Creates a full-screen quad with vertically flipped UVs.
+	///
+	/// This is useful when sampling file-backed textures that use a top-left image origin.
+	pub fn create_flipped(g: &mut Graphics) -> PostProcessQuad {
+		let vertices = g.vertex_buffer(&VERTICES_FLIPPED, BufferUsage::Static);
+		PostProcessQuad { vertices }
+	}
+
 	/// Draw the post-process quad with the given shader and blend mode.
 	///
 	/// # Shader
@@ -84,4 +92,13 @@ static VERTICES: [Vertex; 6] = [
 	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
 	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 1.0) },
 	Vertex { pos: Vec2f(-1.0,  1.0), uv: Vec2f(0.0, 1.0) },
+];
+
+static VERTICES_FLIPPED: [Vertex; 6] = [
+	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 1.0) },
+	Vertex { pos: Vec2f( 1.0, -1.0), uv: Vec2f(1.0, 1.0) },
+	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 0.0) },
+	Vertex { pos: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 1.0) },
+	Vertex { pos: Vec2f( 1.0,  1.0), uv: Vec2f(1.0, 0.0) },
+	Vertex { pos: Vec2f(-1.0,  1.0), uv: Vec2f(0.0, 0.0) },
 ];

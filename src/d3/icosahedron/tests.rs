@@ -197,7 +197,8 @@ fn generate_smooth() -> (Vec<TexturedVertexN>, Vec<u8>) {
 
 			let vert_idx = if let Some(&idx) = vertex_map.get(&key) {
 				idx
-			} else {
+			}
+			else {
 				let idx = vertices.len() as u8;
 				vertices.push(TexturedVertexN {
 					pos,

@@ -79,7 +79,7 @@ pub struct Renderable {
 
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		let bunny = shade::model::stl::StlFile::load_file("examples/models/Bunny-LowPoly.stl").unwrap();
+		let bunny = shade::model::stl::StlFile::load_file("assets/models/Bunny-LowPoly.stl").unwrap();
 		let bunny = bunny.smooth_vertices(None);
 
 		// Create the vertex and index buffers

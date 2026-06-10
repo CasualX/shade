@@ -17,7 +17,6 @@ mod sstring;
 
 pub use self::handle::*;
 pub use self::common::*;
-use self::util::*;
 pub use self::graphics::*;
 pub use self::vertex::*;
 pub use self::texture::*;

@@ -99,7 +99,7 @@ pub struct Renderable {
 }
 impl Renderable {
 	pub fn create(g: &mut shade::Graphics) -> Renderable {
-		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../oldtree/vertices.bin");
+		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../assets/oldtree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
 		let mut source = shade::shader_interface! {
@@ -112,7 +112,7 @@ impl Renderable {
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let texture = {
-			let image = shade::image::DecodedImage::load_file_png("examples/oldtree/texture.png").unwrap();
+			let image = shade::image::DecodedImage::load_file_png("assets/oldtree/texture.png").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 8,
 				usage: shade::TextureUsage::TEXTURE,
@@ -122,7 +122,7 @@ impl Renderable {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(&(&image, &props))
+			g.image(&props.bind(&image))
 		};
 		let material = Material { shader, shadow_shader, texture };
 
@@ -139,11 +139,7 @@ impl Renderable {
 			blend_mode: shade::BlendMode::Solid,
 			depth_test: Some(shade::Compare::Less),
 			cull_mode: Some(shade::CullMode::CW),
-			mask: if shadow {
-				shade::DrawMask::DEPTH
-			} else {
-				shade::DrawMask::ALL
-			},
+			mask: if shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::ALL },
 			prim_type: shade::PrimType::Triangles,
 			shader: if shadow { self.material.shadow_shader } else { self.material.shader },
 			vertices: &[shade::DrawVertexBuffer {

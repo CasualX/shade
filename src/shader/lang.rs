@@ -10,7 +10,12 @@ use super::*;
 ///
 /// After each replaced directive, a `#line` directive is emitted so compiler diagnostics map back to the original source line and logical source `index`.
 pub fn preprocess(source: &str, index: usize, replacer: &mut dyn FnMut(&str, &mut String), result: &mut String) {
+	let mut started = false;
 	for (i, line) in source.lines().enumerate() {
+		if !started && line.trim_ascii().is_empty() {
+			continue;
+		}
+		started = true;
 		if line.starts_with('#') {
 			replacer(line, result);
 			let line = i + 2; // #line applies to the following physical line.

@@ -180,18 +180,18 @@ impl Renderable {
 		};
 
 		let diffuse = {
-			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.diffuse.png").unwrap();
-			g.image(&(&image, &props))
+			let image = shade::image::DecodedImage::load_file_png("assets/textures/stonefloor-512.diffuse.png").unwrap();
+			g.image(&props.bind(&image))
 		};
 
 		let normal_map = {
-			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.normal.png").unwrap();
-			g.image(&(&image, &props))
+			let image = shade::image::DecodedImage::load_file_png("assets/textures/stonefloor-512.normal.png").unwrap();
+			g.image(&props.bind(&image))
 		};
 
 		let height_map = {
-			let image = shade::image::DecodedImage::load_file_png("examples/textures/stonefloor-512.height.png").unwrap();
-			g.image(&(&image, &props))
+			let image = shade::image::DecodedImage::load_file_png("assets/textures/stonefloor-512.height.png").unwrap();
+			g.image(&props.bind(&image))
 		};
 
 		let mut source = shade::shader_interface! {

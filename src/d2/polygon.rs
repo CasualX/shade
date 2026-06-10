@@ -36,7 +36,8 @@ pub fn triangulate(positions: &[Point2f]) -> Vec<Index3> {
 	let ccw = signed_area(&positions) >= 0.0;
 	let mut remaining: Vec<usize> = if ccw {
 		(0..n).collect()
-	} else {
+	}
+	else {
 		(0..n).rev().collect()
 	};
 

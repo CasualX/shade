@@ -1,6 +1,8 @@
 [workspace]
 members = [
 	".",
+	"examples/demos",
+	"examples/desktop",
 	"examples/webgl",
 ]
 

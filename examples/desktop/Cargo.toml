@@ -1,0 +1,13 @@
+[package]
+name = "desktop"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+glutin = "0.32"
+glutin-winit = "0.5"
+raw-window-handle = "0.6"
+rustydialogs = "0.4.2"
+shade = { path = "../..", default-features = false, features = ["gl", "png", "gif", "jpeg", "msdfgen"] }
+demos = { path = "../demos" }
+winit = "0.30"

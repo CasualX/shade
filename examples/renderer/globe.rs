@@ -160,7 +160,7 @@ impl Renderable {
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
 		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let texture = {
-			let image = shade::image::DecodedImage::load_file("examples/textures/2k_earth_daymap.jpg").unwrap();
+			let image = shade::image::DecodedImage::load_file("assets/textures/2k_earth_daymap.jpg").unwrap();
 			let props = shade::TextureProps {
 				mip_levels: 8,
 				usage: shade::TextureUsage::TEXTURE,
@@ -170,7 +170,7 @@ impl Renderable {
 				wrap_v: shade::TextureWrap::Repeat,
 				..Default::default()
 			};
-			g.image(&(&image, &props))
+			g.image(&props.bind(&image))
 		};
 		let material = Material { shader, shadow_shader, texture };
 
