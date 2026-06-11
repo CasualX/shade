@@ -87,6 +87,19 @@ function getCanvasPointerPosition(event, canvas) {
 	};
 }
 
+function hasTouchSupport() {
+	return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
+}
+
+function findDemoById(demoId) {
+	return demos.find((demo) => demo.id === demoId) || null;
+}
+
+function getRouteDemo() {
+	const route = window.location.hash.replace(/^#/, '').trim();
+	return route ? findDemoById(route) : null;
+}
+
 function getCssCursor(cursor) {
 	switch (cursor) {
 		case 1:
@@ -503,8 +516,44 @@ Alpine.data('shadeWebglApp', () => ({
 	isLoading: false,
 	lastPointerX: 0,
 	lastPointerY: 0,
+	touchModeEnabled: hasTouchSupport(),
+	touchButton: 0,
+	activeTouchPointerId: null,
+	activeTouchButton: 0,
+	isRouting: false,
+	touchButtonModes: [
+		{ button: 0, label: 'Left' },
+		{ button: 1, label: 'Middle' },
+		{ button: 2, label: 'Right' },
+	],
 
-	async openDemo(demo) {
+	init() {
+		this.handleRouteChange = this.handleRouteChange.bind(this);
+		window.addEventListener('hashchange', this.handleRouteChange);
+		window.addEventListener('popstate', this.handleRouteChange);
+		this.handleRouteChange();
+	},
+
+	destroy() {
+		window.removeEventListener('hashchange', this.handleRouteChange);
+		window.removeEventListener('popstate', this.handleRouteChange);
+		this.stopActiveDemo();
+	},
+
+	setTouchButton(button) {
+		this.touchButton = button;
+	},
+
+	async openDemo(demo, { updateHistory = true } = {}) {
+		if (!demo) {
+			return;
+		}
+
+		if (updateHistory) {
+			window.location.hash = demo.id;
+			return;
+		}
+
 		this.stopActiveDemo();
 		this.activeDemo = demo;
 		this.isLoading = true;
@@ -531,6 +580,7 @@ Alpine.data('shadeWebglApp', () => ({
 	},
 
 	stopActiveDemo() {
+		this.releaseActiveTouch();
 		if (this.activeRunner) {
 			this.activeRunner.stop();
 		}
@@ -541,18 +591,38 @@ Alpine.data('shadeWebglApp', () => ({
 		this.lastPointerY = 0;
 	},
 
-	showGallery() {
+	showGallery({ updateHistory = true } = {}) {
+		if (updateHistory) {
+			history.pushState(null, '', `${window.location.pathname}${window.location.search}`);
+			this.handleRouteChange();
+			return;
+		}
+
 		this.stopActiveDemo();
 		this.activeDemo = null;
 	},
 
-	toggleFullscreen() {
+	async toggleFullscreen() {
 		if (document.fullscreenElement) {
+			screen.orientation?.unlock?.();
 			document.exitFullscreen?.();
 			return;
 		}
 
-		this.$refs.playerStage.requestFullscreen?.();
+		const stage = this.$refs.playerStage;
+		if (!stage?.requestFullscreen) {
+			return;
+		}
+
+		try {
+			await stage.requestFullscreen();
+			if (screen.orientation?.lock) {
+				await screen.orientation.lock('landscape');
+			}
+		}
+		catch (error) {
+			console.warn('Fullscreen/orientation request failed:', error);
+		}
 	},
 
 	syncPointer(event) {
@@ -570,26 +640,90 @@ Alpine.data('shadeWebglApp', () => ({
 		}
 	},
 
-	handleMousemove(event) {
+	getPointerButton(event) {
+		return event.pointerType === 'touch' ? this.touchButton : event.button;
+	},
+
+	releaseActiveTouch(event = null) {
+		if (this.activeTouchPointerId === null) {
+			return;
+		}
+
+		if (event && event.pointerId !== this.activeTouchPointerId) {
+			return;
+		}
+
+		const canvas = this.$refs.canvas;
+		if (canvas && this.activeTouchPointerId !== null && canvas.hasPointerCapture?.(this.activeTouchPointerId)) {
+			canvas.releasePointerCapture(this.activeTouchPointerId);
+		}
+
+		this.activeTouchPointerId = null;
+		this.activeTouchButton = 0;
+	},
+
+	handlePointermove(event) {
 		if (!this.activeRunner) {
 			return;
 		}
 
+		if (event.pointerType === 'touch' && event.pointerId !== this.activeTouchPointerId) {
+			return;
+		}
+
 		this.syncPointer(event);
-	},
-
-	handleMousedown(event) {
-		if (this.activeRunner) {
-			this.syncPointer(event);
-			this.activeRunner.mousedown(event.button);
+		if (event.pointerType === 'touch') {
+			event.preventDefault();
 		}
 	},
 
-	handleMouseup(event) {
-		if (this.activeRunner) {
-			this.syncPointer(event);
-			this.activeRunner.mouseup(event.button);
+	handlePointerdown(event) {
+		if (!this.activeRunner) {
+			return;
 		}
+
+		if (event.pointerType === 'touch' && this.activeTouchPointerId !== null && event.pointerId !== this.activeTouchPointerId) {
+			event.preventDefault();
+			return;
+		}
+
+		const button = this.getPointerButton(event);
+		this.syncPointer(event);
+		if (event.pointerType === 'touch') {
+			this.activeTouchPointerId = event.pointerId;
+			this.activeTouchButton = button;
+			this.$refs.canvas.setPointerCapture?.(event.pointerId);
+			event.preventDefault();
+		}
+		this.activeRunner.mousedown(button);
+	},
+
+	handlePointerup(event) {
+		if (!this.activeRunner) {
+			return;
+		}
+
+		if (event.pointerType === 'touch' && event.pointerId !== this.activeTouchPointerId) {
+			return;
+		}
+
+		this.syncPointer(event);
+		const button = event.pointerType === 'touch' ? this.activeTouchButton : event.button;
+		this.activeRunner.mouseup(button);
+		if (event.pointerType === 'touch') {
+			this.releaseActiveTouch(event);
+			event.preventDefault();
+		}
+	},
+
+	handlePointercancel(event) {
+		if (!this.activeRunner || event.pointerType !== 'touch' || event.pointerId !== this.activeTouchPointerId) {
+			return;
+		}
+
+		this.activeRunner.mouseup(this.activeTouchButton);
+		this.releaseActiveTouch(event);
+		event.preventDefault();
 	},
 
 	handleWheel(event) {
@@ -626,6 +760,32 @@ Alpine.data('shadeWebglApp', () => ({
 
 		this.activeRunner.keyup(key);
 		event.preventDefault();
+	},
+
+	handleRouteChange() {
+		if (this.isRouting) {
+			return;
+		}
+
+		this.isRouting = true;
+		try {
+			const routeDemo = getRouteDemo();
+			if (!routeDemo) {
+				if (this.activeDemo) {
+					this.showGallery({ updateHistory: false });
+				}
+				return;
+			}
+
+			if (this.activeDemo?.id === routeDemo.id) {
+				return;
+			}
+
+			void this.openDemo(routeDemo, { updateHistory: false });
+		}
+		finally {
+			this.isRouting = false;
+		}
 	},
 }));
 

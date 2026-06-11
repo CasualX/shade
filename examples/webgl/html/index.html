@@ -34,25 +34,45 @@
 
 	<template x-if="activeDemo">
 		<div class="player">
-			<div class="player-header">
-				<div class="player-meta">
-					<h2 x-text="activeDemo.title"></h2>
-					<p x-text="activeDemo.hint"></p>
+			<div class="row player-header">
+				<div class="row-main player-meta">
+					<h2 class="row-title row-title-static" x-text="activeDemo.title"></h2>
+					<p class="row-hint" x-text="activeDemo.hint"></p>
 				</div>
-				<div class="player-actions">
+				<div class="row-side player-actions">
 					<a x-bind:href="activeDemo.source" target="_blank" rel="noreferrer">Source</a>
-					<button class="btn btn-danger" type="button" x-on:click="showGallery()">Back</button>
 				</div>
 			</div>
 			<div class="player-stage">
 				<div class="stage-container" x-bind:class="{ 'is-loading': isLoading }" x-ref="playerStage" aria-label="Demo stage">
+					<div class="touch-controls" x-cloak x-show="touchModeEnabled" aria-label="Touch controls">
+						<div class="touch-button-picker" role="toolbar" aria-label="Touch interaction mode">
+							<button
+								class="touch-button touch-button-icon"
+								type="button"
+								x-on:click="toggleFullscreen()"
+								aria-label="Toggle fullscreen"
+							>⛶</button>
+							<template x-for="mode in touchButtonModes" :key="mode.button">
+								<button
+									class="touch-button"
+									type="button"
+									x-bind:class="{ 'is-active': touchButton === mode.button }"
+									x-bind:aria-pressed="touchButton === mode.button"
+									x-text="mode.label"
+									x-on:click="setTouchButton(mode.button)"
+								></button>
+							</template>
+						</div>
+					</div>
 					<canvas
 						x-ref="canvas"
 						tabindex="0"
 						x-bind:aria-label="`Demo: ${activeDemo.title}`"
-						x-on:mousemove="handleMousemove($event)"
-						x-on:mousedown="handleMousedown($event)"
-						x-on:mouseup="handleMouseup($event)"
+						x-on:pointermove="handlePointermove($event)"
+						x-on:pointerdown="handlePointerdown($event)"
+						x-on:pointerup="handlePointerup($event)"
+						x-on:pointercancel="handlePointercancel($event)"
 						x-on:wheel="handleWheel($event)"
 						x-on:keydown="handleKeydown($event)"
 						x-on:keyup="handleKeyup($event)"
