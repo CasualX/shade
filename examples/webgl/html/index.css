@@ -198,6 +198,7 @@ body {
 	border: 1px solid var(--border);
 	background: #000;
 	display: block;
+	touch-action: none;
 }
 
 .stage-container.is-loading::after {
@@ -218,6 +219,58 @@ body {
 	width: 100%;
 	height: 100%;
 	display: block;
+	touch-action: none;
+}
+
+.touch-controls {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	right: 12px;
+	z-index: 2;
+	display: flex;
+	justify-content: flex-start;
+	pointer-events: none;
+}
+
+.touch-button-picker {
+	display: inline-flex;
+	gap: 8px;
+	padding: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	border-radius: 4px;
+	background: rgba(7, 12, 22, 0.74);
+	backdrop-filter: blur(14px);
+	box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+	pointer-events: auto;
+}
+
+.touch-button {
+	appearance: none;
+	min-width: 44px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	padding: 8px 12px;
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--text);
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.touch-button-icon {
+	padding-inline: 10px;
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+.touch-button.is-active {
+	background: var(--primary);
+	color: #07111f;
+}
+
+.touch-button:hover {
+	border-color: rgba(255, 255, 255, 0.18);
 }
 
 .player-header {
@@ -258,13 +311,38 @@ body {
 	flex: none;
 }
 
+@media (max-width: 720px) {
+	body {
+		padding: 12px;
+	}
+
+	.player-header {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.player-actions {
+		justify-content: space-between;
+		flex-wrap: wrap;
+	}
+
+	.touch-controls {
+		top: auto;
+		bottom: 12px;
+		justify-content: center;
+	}
+}
+
 .player-stage {
 	margin-top: 14px;
 }
 
 .player-stage .stage-container {
-	min-height: 420px;
-	height: 62vh;
+	width: min(100%, calc(62vh * 16 / 9));
+	aspect-ratio: 16 / 9;
+	height: auto;
+	min-height: 0;
+	margin-inline: auto;
 }
 
 @media (max-width: 640px) {
@@ -279,7 +357,6 @@ body {
 	}
 
 	.player-stage .stage-container {
-		height: 70vh;
-		min-height: 360px;
+		width: min(100%, calc(70vh * 16 / 9));
 	}
 }
