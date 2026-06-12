@@ -161,14 +161,11 @@ impl Renderable {
 		let shadow_shader = g.shader_compile(&mut source, "shadow.glsl", &[]);
 		let texture = {
 			let image = shade::image::DecodedImage::load_file("assets/textures/2k_earth_daymap.jpg").unwrap();
-			let props = shade::TextureProps {
+			let props = shade::TextureProps! {
 				mip_levels: 8,
 				usage: shade::TextureUsage::TEXTURE,
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				..Default::default()
+				filter: shade::TextureFilter::Linear,
+				wrap: shade::TextureWrap::Repeat,
 			};
 			g.image(&props.bind(&image))
 		};

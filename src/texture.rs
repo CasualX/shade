@@ -177,6 +177,37 @@ impl TextureProps {
 	}
 }
 
+/// Creates a [`TextureProps`] using named fields plus shorthand aliases.
+///
+/// Valid shorthand names:
+/// - `filter`: sets both `filter_min` and `filter_mag`.
+/// - `wrap`: sets both `wrap_u` and `wrap_v`.
+///
+/// Any unspecified fields fall back to [`TextureProps::default()`].
+#[macro_export]
+macro_rules! TextureProps {
+	($($field:tt: $value:expr),* $(,)?) => {
+		$crate::__TextureProps! { [] $($field: $value,)* }
+	};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __TextureProps {
+	([$($f:ident: $v:expr,)*] filter: $value:expr, $($rest:tt)*) => {
+		$crate::__TextureProps! { [$($f: $v,)* filter_min: $value, filter_mag: $value,] $($rest)* }
+	};
+	([$($f:ident: $v:expr,)*] wrap: $value:expr, $($rest:tt)*) => {
+		$crate::__TextureProps! { [$($f: $v,)* wrap_u: $value, wrap_v: $value,] $($rest)* }
+	};
+	([$($f:ident: $v:expr,)*] $field:ident: $value:expr, $($rest:tt)*) => {
+		$crate::__TextureProps! { [$($f: $v,)* $field: $value,] $($rest)* }
+	};
+	([$($f:ident: $v:expr,)*] $($rest:tt)*) => {
+		$crate::TextureProps { $($f: $v,)* $($rest)* ..Default::default() }
+	};
+}
+
 //----------------------------------------------------------------
 // Texture2D handle.
 

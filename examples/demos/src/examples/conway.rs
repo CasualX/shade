@@ -125,14 +125,10 @@ impl Conway {
 			format: shade::TextureFormat::R8,
 			width: field_size.x,
 			height: field_size.y,
-			props: shade::TextureProps {
-				mip_levels: 1,
+			props: shade::TextureProps! {
 				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
-				filter_min: shade::TextureFilter::Nearest,
-				filter_mag: shade::TextureFilter::Nearest,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				..Default::default()
+				filter: shade::TextureFilter::Nearest,
+				wrap: shade::TextureWrap::Repeat,
 			},
 		};
 		let state0 = g.texture2d(&info, &seed);

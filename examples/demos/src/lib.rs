@@ -143,25 +143,11 @@ pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, text_3d: boo
 		let data = assets.read("font/font.png").expect("failed to load font texture");
 		let image = shade::image::ImageRGBA::load_memory_png(&data).expect("failed to decode font texture");
 		let image = image.map_colors(|[r, g, b, a]| shade::color::Rgba8 { r, g, b, a });
-		let props = shade::TextureProps {
-			mip_levels: 1,
+		let props = shade::TextureProps! {
 			usage: shade::TextureUsage::TEXTURE,
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Edge,
-			wrap_v: shade::TextureWrap::Edge,
-			..Default::default()
+			filter: shade::TextureFilter::Linear,
+			wrap: shade::TextureWrap::Edge,
 		};
-
-		/*
-		shade::TextureProps! {
-			mip_levels: 1,
-			usage: TEXTURE,
-			filter: Linear,
-			wrap: Edge,
-		}
-		
-		 */
 		g.image(&props.bind(&image))
 	};
 	// Load the font shader

@@ -145,14 +145,11 @@ impl Renderable {
 		let bounds = Bounds3f(Vec3f(-64.0, -64.0, 0.0), Vec3f(64.0, 64.0, 64.0));
 		let instance = Instance { bounds };
 
-		let texture_props = shade::TextureProps {
+		let texture_props = shade::TextureProps! {
 			mip_levels: 8,
 			usage: shade::TextureUsage::TEXTURE,
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Edge,
-			wrap_v: shade::TextureWrap::Edge,
-			..Default::default()
+			filter: shade::TextureFilter::Linear,
+			wrap: shade::TextureWrap::Edge,
 		};
 		let texture = shade::image::DecodedImage::load_file("assets/textures/snowflake.png").unwrap();
 		let texture = g.image(&texture_props.bind(&texture));
@@ -161,14 +158,10 @@ impl Renderable {
 			width: N,
 			height: N,
 			format: shade::TextureFormat::RGB32F,
-			props: shade::TextureProps {
-				mip_levels: 1,
+			props: shade::TextureProps! {
 				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
-				filter_min: shade::TextureFilter::Nearest,
-				filter_mag: shade::TextureFilter::Nearest,
-				wrap_u: shade::TextureWrap::Repeat,
-				wrap_v: shade::TextureWrap::Repeat,
-				..Default::default()
+				filter: shade::TextureFilter::Nearest,
+				wrap: shade::TextureWrap::Repeat,
 			},
 		};
 		let positions = g.texture2d_create(&pos_info);

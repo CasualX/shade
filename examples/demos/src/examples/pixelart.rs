@@ -48,7 +48,7 @@ struct TurnZoomGesture {
 	screen_center: Vec2f,
 	basis: Vec2f,
 	start_zoom: f32,
-	start_rotation: f32,
+	start_rotation: Anglef,
 }
 
 pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
@@ -73,7 +73,7 @@ struct PixelArt {
 	post_process_mode: PostProcessMode,
 	pan: Vec2f,
 	zoom: f32,
-	rotation: f32,
+	rotation: Anglef,
 	cursor: Vec2f,
 	drag_mode: DragMode,
 }
@@ -116,7 +116,7 @@ impl PixelArt {
 			post_process_mode: PostProcessMode::Crt,
 			pan: Vec2::ZERO,
 			zoom: 1.0,
-			rotation: 0.0,
+			rotation: Anglef::ZERO,
 			cursor: Vec2::ZERO,
 			drag_mode: DragMode::None,
 		};
@@ -144,14 +144,10 @@ impl PixelArt {
 			format: shade::TextureFormat::SRGBA8,
 			width: viewport.width(),
 			height: viewport.height(),
-			props: shade::TextureProps {
-				mip_levels: 1,
+			props: shade::TextureProps! {
 				usage: shade::TextureUsage!(WRITE | SAMPLED | COLOR_TARGET),
-				filter_min: shade::TextureFilter::Linear,
-				filter_mag: shade::TextureFilter::Linear,
-				wrap_u: shade::TextureWrap::Edge,
-				wrap_v: shade::TextureWrap::Edge,
-				..Default::default()
+				filter: shade::TextureFilter::Linear,
+				wrap: shade::TextureWrap::Edge,
 			},
 		};
 		self.render_texture = g.texture2d_update(self.render_texture, &info);
@@ -159,15 +155,11 @@ impl PixelArt {
 
 	fn load_image_bytes(&mut self, g: &mut shade::Graphics, path: Option<String>, bytes: &[u8]) -> Result<(), String> {
 		let image = shade::image::DecodedImage::load_memory(bytes).map_err(|err| format!("{err:?}"))?;
-		let nearest_props = shade::TextureProps {
-			filter_min: shade::TextureFilter::Nearest,
-			filter_mag: shade::TextureFilter::Nearest,
-			..Default::default()
+		let nearest_props = shade::TextureProps! {
+			filter: shade::TextureFilter::Nearest,
 		};
-		let linear_props = shade::TextureProps {
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			..Default::default()
+		let linear_props = shade::TextureProps! {
+			filter: shade::TextureFilter::Linear,
 		};
 		let nearest_texture = g.image(&nearest_props.bind(&image));
 		let linear_texture = g.image(&linear_props.bind(&image));
@@ -183,7 +175,7 @@ impl PixelArt {
 		self.image_size = Vec2(image.width() as f32, image.height() as f32);
 		self.pan = Vec2::ZERO;
 		self.zoom = 1.0;
-		self.rotation = 0.0;
+		self.rotation = Anglef::ZERO;
 		Ok(())
 	}
 
@@ -192,7 +184,7 @@ impl PixelArt {
 			DragMode::None => {}
 			DragMode::Pan => {
 				let zoom = self.zoom.max(1.0 / 64.0);
-				let delta = Transform2::rotation(Angle(-self.rotation)) * (delta / zoom);
+				let delta = Transform2::rotation(-self.rotation) * (delta / zoom);
 				self.pan += delta;
 			}
 			DragMode::TurnZoom(_) => {}
@@ -203,14 +195,10 @@ impl PixelArt {
 		self.zoom = (self.zoom * delta.exp()).clamp(1.0 / 64.0, 64.0);
 	}
 
-	fn screen_center(viewport: Bounds2i) -> Vec2f {
-		Vec2(viewport.width() as f32 * 0.5, viewport.height() as f32 * 0.5)
-	}
-
 	fn begin_turn_zoom(&mut self, viewport: Bounds2i) {
-		let screen_center = Self::screen_center(viewport);
+		let screen_center = viewport.cast::<f32>().center();
 		let basis = self.cursor - screen_center;
-		if basis.x.hypot(basis.y) < TURN_ZOOM_MIN_RADIUS {
+		if basis.len() < TURN_ZOOM_MIN_RADIUS {
 			self.drag_mode = DragMode::None;
 			return;
 		}
@@ -227,15 +215,13 @@ impl PixelArt {
 			return;
 		};
 		let current = self.cursor - gesture.screen_center;
-		let current_len = current.x.hypot(current.y);
+		let (current_dir, current_len) = current.norm_len();
 		if current_len < TURN_ZOOM_MIN_RADIUS {
 			return;
 		}
-		let basis_len = gesture.basis.x.hypot(gesture.basis.y);
-		let basis_angle = gesture.basis.y.atan2(gesture.basis.x);
-		let current_angle = current.y.atan2(current.x);
+		let (basis_dir, basis_len) = gesture.basis.norm_len();
 		self.zoom = (gesture.start_zoom * (current_len / basis_len)).clamp(1.0 / 64.0, 64.0);
-		self.rotation = gesture.start_rotation + (current_angle - basis_angle);
+		self.rotation = gesture.start_rotation + basis_dir.signed_angle(current_dir);
 	}
 
 	fn draw_turn_zoom_overlay(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
@@ -282,9 +268,9 @@ impl PixelArt {
 		cv.uniform.transform = Transform2::ortho(viewport.cast());
 		cv.uniform.texture = self.texture();
 
-		let screen_center = Vec2(viewport.width() as f32 * 0.5, viewport.height() as f32 * 0.5);
-		let half = Vec2(self.image_size.x * 0.5, self.image_size.y * 0.5);
-		let rotate = Transform2::rotation(Angle(self.rotation)).around(screen_center);
+		let screen_center = viewport.cast::<f32>().center();
+		let half = self.image_size * 0.5;
+		let rotate = Transform2::rotation(self.rotation).around(screen_center);
 		let corners = [
 			(Vec2(0.0, 0.0), Vec2(-half.x, -half.y)),
 			(Vec2(0.0, 1.0), Vec2(-half.x,  half.y)),
@@ -322,7 +308,19 @@ impl PixelArt {
 		};
 		scribe.set_baseline_relative(0.0);
 		let hud_text = format!(
-			"image: {}\nmode: {}\npost fx: {}\nzoom: {:.2}x\nrotation: {:.1} deg\n1 = nearest  2 = linear  3 = pixel art\nP = cycle post fx\nleft drag = pan\nright drag = basis rotate + zoom\nwheel = zoom\nF2 = open image",
+			concat!(
+				"image: {}\n",
+				"mode: {}\n",
+				"post fx: {}\n",
+				"zoom: {:.2}x\n",
+				"rotation: {:.1} deg\n",
+				"1 = nearest  2 = linear  3 = pixel art\n",
+				"P = cycle post fx\n",
+				"left drag = pan\n",
+				"right drag = rotate + zoom\n",
+				"wheel = zoom\n",
+				"F2 = open image",
+			),
 			self.image_name,
 			self.filter_mode.label(),
 			match self.post_process_mode {
@@ -330,7 +328,7 @@ impl PixelArt {
 				PostProcessMode::Crt => "crt",
 			},
 			self.zoom,
-			self.rotation.to_degrees(),
+			self.rotation.to_deg(),
 		);
 		hud.text_write(&self.hud_font, &mut scribe, &mut pos, &hud_text);
 		hud.draw(g);

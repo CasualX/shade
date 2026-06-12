@@ -44,14 +44,10 @@ impl ScreenMelt {
 				format: shade::TextureFormat::R8,
 				width: SCREEN_MELT_COLUMNS,
 				height: 1,
-				props: shade::TextureProps {
+				props: shade::TextureProps! {
 					usage: shade::TextureUsage::TEXTURE,
-					mip_levels: 1,
-					filter_min: shade::TextureFilter::Nearest,
-					filter_mag: shade::TextureFilter::Nearest,
-					wrap_u: shade::TextureWrap::Edge,
-					wrap_v: shade::TextureWrap::Edge,
-					..Default::default()
+					filter: shade::TextureFilter::Nearest,
+					wrap: shade::TextureWrap::Edge,
 				},
 			};
 			g.texture2d(&info, &delays)

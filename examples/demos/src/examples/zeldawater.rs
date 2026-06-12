@@ -134,14 +134,10 @@ impl ZeldaWater {
 	fn load_repeat_texture(g: &mut shade::Graphics, assets: &dyn AssetLoader, path: &str) -> shade::Texture2D {
 		let bytes = assets.read(path).unwrap();
 		let image = shade::image::DecodedImage::load_memory_png(&bytes).unwrap();
-		let props = shade::TextureProps {
-			mip_levels: 1,
+		let props = shade::TextureProps! {
 			usage: shade::TextureUsage::TEXTURE,
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-			..Default::default()
+			filter: shade::TextureFilter::Linear,
+			wrap: shade::TextureWrap::Repeat,
 		};
 		g.image(&props.bind(&image))
 	}

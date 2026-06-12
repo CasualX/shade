@@ -169,14 +169,11 @@ impl Renderable {
 
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &vertices, shade::BufferUsage::Static);
 
-		let props = shade::TextureProps {
+		let props = shade::TextureProps! {
 			mip_levels: 8,
 			usage: shade::TextureUsage::TEXTURE,
-			filter_min: shade::TextureFilter::Linear,
-			filter_mag: shade::TextureFilter::Linear,
-			wrap_u: shade::TextureWrap::Repeat,
-			wrap_v: shade::TextureWrap::Repeat,
-			..Default::default()
+			filter: shade::TextureFilter::Linear,
+			wrap: shade::TextureWrap::Repeat,
 		};
 
 		let diffuse = {

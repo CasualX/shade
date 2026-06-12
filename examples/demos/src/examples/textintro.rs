@@ -33,7 +33,7 @@ impl Ease {
 struct TextProperties {
 	position: Vec3f,
 	rotation_axis: Vec3f,
-	rotation_deg: f32,
+	rotation: Anglef,
 	scale: f32,
 	alpha: f32,
 	font_size: f32,
@@ -45,7 +45,7 @@ struct TextProperties {
 
 impl TextProperties {
 	fn plane_transform(&self) -> Transform3f {
-		Transform3f::translation(self.position) * Transform3f::rotation(self.rotation_axis, Angle::deg(self.rotation_deg))
+		Transform3f::translation(self.position) * Transform3f::rotation(self.rotation_axis, self.rotation)
 	}
 
 	fn scribe(&self) -> d2::Scribe {
@@ -168,7 +168,7 @@ impl TextIntro {
 				properties: TextProperties {
 					position: Vec3f(0.0, 0.4, 1.4),
 					rotation_axis: Vec3f::X,
-					rotation_deg: 90.0,
+					rotation: Anglef::deg(90.0),
 					scale: 0.014,
 					alpha: 1.0,
 					font_size: 44.0,
@@ -184,7 +184,7 @@ impl TextIntro {
 				properties: TextProperties {
 					position: Vec3f(0.0, -0.4, 1.0),
 					rotation_axis: Vec3f::X,
-					rotation_deg: 90.0,
+					rotation: Anglef::deg(90.0),
 					scale: 0.056,
 					alpha: 1.0,
 					font_size: 118.0,
@@ -204,7 +204,7 @@ impl TextIntro {
 				properties: TextProperties {
 					position: Vec3f(0.0, -6.8, -2.0),
 					rotation_axis: Vec3f::X,
-					rotation_deg: CRAWL_ANGLE_DEG,
+					rotation: Anglef::deg(CRAWL_ANGLE_DEG),
 					scale: 0.013,
 					alpha: 1.0,
 					font_size: 32.0,
@@ -222,8 +222,8 @@ impl TextIntro {
 	}
 
 	fn crawl_text_up() -> Vec3f {
-		let angle = CRAWL_ANGLE_DEG.to_radians();
-		Vec3f(0.0, angle.cos(), angle.sin())
+		let up = Anglef::deg(CRAWL_ANGLE_DEG).vec2();
+		Vec3f(0.0, up.x, up.y)
 	}
 
 	fn add_text_plane(&self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {

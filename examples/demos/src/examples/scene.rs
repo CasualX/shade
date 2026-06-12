@@ -102,14 +102,10 @@ struct Scene {
 
 impl Scene {
 	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Scene {
-		let props = shade::TextureProps {
-			mip_levels: 1,
+		let props = shade::TextureProps! {
 			usage: shade::TextureUsage::TEXTURE,
-			filter_min: shade::TextureFilter::Nearest,
-			filter_mag: shade::TextureFilter::Nearest,
-			wrap_u: shade::TextureWrap::Edge,
-			wrap_v: shade::TextureWrap::Edge,
-			..Default::default()
+			filter: shade::TextureFilter::Nearest,
+			wrap: shade::TextureWrap::Edge,
 		};
 		let texture = {
 			let bytes = assets.read("textures/scene tiles.png").unwrap();
