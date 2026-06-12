@@ -93,45 +93,132 @@ static DEFAULT_VIEW: ZoomView = ZoomView {
 	height: 2.0,
 };
 
+const MIN_SELECTION_SIZE: f32 = 8.0;
+const ZOOM_ANIMATION_SECONDS: f32 = 0.22;
+const MIN_VIEW_HEIGHT: f32 = 1.0e-12;
+const ZOOM_ANIMATION_IDLE: f64 = -1.0;
+
 impl ZoomView {
 	fn to_bounds(&self, aspect_ratio: f32) -> Bounds2f {
-		let width = self.height * aspect_ratio;
-		Bounds2!(
-			self.center.x - width / 2.0,
-			self.center.y - self.height / 2.0,
-			self.center.x + width / 2.0,
-			self.center.y + self.height / 2.0,
-		)
+		Bounds2::point(self.center, Vec2(aspect_ratio, 1.0) * self.height * 0.5)
+	}
+
+	fn from_bounds(bounds: Bounds2f) -> ZoomView {
+		let bounds = bounds.norm();
+		ZoomView {
+			center: bounds.center(),
+			height: bounds.height().max(MIN_VIEW_HEIGHT),
+		}
 	}
 }
 
-#[derive(Default)]
 struct ZoomViewStack {
-	views: Vec<ZoomView>,
+	current: ZoomView,
+	previous: ZoomView,
+	history: Vec<ZoomView>,
+	animation_start: f64,
 }
 
 impl ZoomViewStack {
-	fn current(&self) -> &ZoomView {
-		self.views.last().unwrap_or(&DEFAULT_VIEW)
+	fn new() -> ZoomViewStack {
+		ZoomViewStack {
+			current: DEFAULT_VIEW.clone(),
+			previous: DEFAULT_VIEW.clone(),
+			history: Vec::new(),
+			animation_start: ZOOM_ANIMATION_IDLE,
+		}
 	}
 
-	fn zoom(&mut self, pt: Vec2f, screen_size: Vec2f, factor: f32) {
+	fn current(&self) -> &ZoomView {
+		&self.current
+	}
+
+	fn screen_to_view(&self, pt: Vec2f, screen_size: Vec2f) -> Vec2f {
 		let current = self.current();
-		let pt_frac = (pt - screen_size * 0.5) / screen_size.shuffle(Y, Y);
-		let clicked_point = current.center + pt_frac * current.height;
-		let center = clicked_point.lerp(current.center, factor);
-		self.views.push(ZoomView { center, height: current.height * factor });
+		let aspect_ratio = screen_size.x / screen_size.y;
+		let bounds = current.to_bounds(aspect_ratio);
+		bounds.mins + pt / screen_size * bounds.size()
+	}
+
+	fn zoom_rect(&mut self, start: Vec2f, end: Vec2f, screen_size: Vec2f, time: f64) -> bool {
+		let screen_bounds = Bounds2(start, end).norm();
+		if screen_bounds.size().vmin() < MIN_SELECTION_SIZE {
+			return false;
+		}
+
+		let view_bounds = Bounds2(
+			self.screen_to_view(screen_bounds.mins, screen_size),
+			self.screen_to_view(screen_bounds.maxs, screen_size),
+		).norm();
+		let view_size = view_bounds.size();
+		let screen_aspect = screen_size.x / screen_size.y;
+		let zoom_height = view_size.y.max(view_size.x / screen_aspect);
+		self.history.push(self.current.clone());
+		self.previous = self.current.clone();
+		self.current = ZoomView {
+			center: view_bounds.center(),
+			height: zoom_height,
+		};
+		self.begin_animation(time);
+		return true;
 	}
 
 	fn pan(&mut self, delta: Vec2f, screen_size: Vec2f) {
-		let Some(current) = self.views.last_mut() else { return };
-		let delta_complex = delta / screen_size.shuffle(Y, Y) * current.height;
-		current.center -= delta_complex;
+		let pan_fraction = delta / screen_size.shuffle(Y, Y);
+		let current_delta = pan_fraction * self.current.height;
+		let previous_delta = pan_fraction * self.previous.height;
+		self.current.center -= current_delta;
+		self.previous.center -= previous_delta;
 	}
 
-	fn back(&mut self) {
-		self.views.pop();
+	fn back(&mut self, time: f64) {
+		self.previous = self.current.clone();
+		self.current = self.history.pop().unwrap_or_else(|| DEFAULT_VIEW.clone());
+		self.begin_animation(time);
 	}
+
+	fn begin_animation(&mut self, time: f64) {
+		let center_is_finite = self.current.center.map(f32::is_finite).reduce(|a, b| a && b);
+		if !center_is_finite || !self.current.height.is_finite() || self.current.height <= 0.0 {
+			self.current = self.previous.clone();
+			self.animation_start = ZOOM_ANIMATION_IDLE;
+			return;
+		}
+		self.current.height = self.current.height.max(MIN_VIEW_HEIGHT);
+		self.animation_start = time;
+	}
+
+	fn view(&mut self, time: f64, aspect_ratio: f32) -> ZoomView {
+		if !self.is_animating() {
+			return self.current.clone();
+		}
+
+		let elapsed = self.animation_elapsed(time);
+		if elapsed >= ZOOM_ANIMATION_SECONDS {
+			self.previous = self.current.clone();
+			self.animation_start = ZOOM_ANIMATION_IDLE;
+			return self.current.clone();
+		}
+
+		let t = (elapsed / ZOOM_ANIMATION_SECONDS).clamp(0.0, 1.0);
+		let t = ease_out_cubic(t);
+
+		let from = self.previous.to_bounds(aspect_ratio);
+		let to = self.current.to_bounds(aspect_ratio);
+		ZoomView::from_bounds(lerp(from, to, t))
+	}
+
+	fn animation_elapsed(&self, time: f64) -> f32 {
+		return (time - self.animation_start).max(0.0) as f32;
+	}
+
+	fn is_animating(&self) -> bool {
+		self.animation_start != ZOOM_ANIMATION_IDLE
+	}
+}
+
+fn ease_out_cubic(t: f32) -> f32 {
+	1.0 - (1.0 - t).powi(3)
 }
 
 pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
@@ -142,9 +229,10 @@ struct Mandelbrot {
 	vertices: shade::VertexBuffer,
 	shader: shade::ShaderProgram,
 	gradient: shade::Texture2D,
-	pan_start: Point2f,
-	panning: bool,
+	color_shader: shade::ShaderProgram,
 	cursor: Point2f,
+	drag_selection: Option<Bounds2f>,
+	panning: bool,
 	screen_size: Vec2f,
 	stack: ZoomViewStack,
 }
@@ -155,9 +243,11 @@ impl Mandelbrot {
 		let mut source = shade::shader_interface! {
 			files {
 				"main.glsl" => PROGRAM,
+				"color.glsl" => shade::shaders::COLOR,
 			}
 		};
 		let shader = g.shader_compile(&mut source, "main.glsl", &[]);
+		let color_shader = g.shader_compile(&mut source, "color.glsl", &[]);
 		let bytes = assets.read("mandelbrot/gradient.png").unwrap();
 		let gradient = shade::image::DecodedImage::load_memory_png(&bytes).unwrap();
 		let gradient = g.image(&gradient);
@@ -165,50 +255,69 @@ impl Mandelbrot {
 			vertices,
 			shader,
 			gradient,
-			pan_start: Point2f::ZERO,
-			panning: false,
+			color_shader,
 			cursor: Point2f::ZERO,
+			drag_selection: None,
+			panning: false,
 			screen_size: Vec2(1.0, 1.0),
-			stack: ZoomViewStack::default(),
+			stack: ZoomViewStack::new(),
 		}
+	}
+
+	fn drag_view_bounds(&self) -> Option<Bounds2f> {
+		let bounds = self.drag_selection?;
+		Some(Bounds2(
+			self.stack.screen_to_view(bounds.mins, self.screen_size),
+			self.stack.screen_to_view(bounds.maxs, self.screen_size),
+		).norm())
 	}
 }
 
 impl DemoInterface for Mandelbrot {
 	fn redraw_mode(&self) -> RedrawMode {
-		RedrawMode::OnDemand
+		if self.stack.is_animating() {
+			RedrawMode::Continuous
+		}
+		else {
+			RedrawMode::OnDemand
+		}
 	}
 
 	fn resize(&mut self, size: Vec2i) {
-		self.screen_size = Vec2(size.x.max(1) as f32, size.y.max(1) as f32);
+		self.screen_size = size.cast();
 	}
 
 	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position, .. } => {
+				let prev_cursor = self.cursor;
 				self.cursor = Point2(position.x, position.y);
+				if let Some(selection) = &mut self.drag_selection {
+					selection.maxs = self.cursor;
+					shell.request_redraw();
+				}
 				if self.panning {
-					self.stack.pan(self.cursor - self.pan_start, self.screen_size);
-					self.pan_start = self.cursor;
+					self.stack.pan(self.cursor - prev_cursor, self.screen_size);
 					shell.request_redraw();
 				}
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: true, .. } => {
-				self.stack.zoom(self.cursor, self.screen_size, 0.5);
-				shell.request_redraw();
-			}
-			Input::MouseButton { button: MouseButton::Right, pressed, .. } => {
+			Input::MouseButton { button: MouseButton::Left, pressed, position } => {
+				self.cursor = position;
 				if pressed {
-					self.pan_start = self.cursor;
-					self.panning = true;
-					self.stack.views.push(self.stack.current().clone());
+					self.drag_selection = Some(Bounds2(self.cursor, self.cursor));
 				}
-				else {
-					self.panning = false;
+				else if let Some(selection) = self.drag_selection.take() {
+					if self.stack.zoom_rect(selection.mins, selection.maxs, self.screen_size, shell.get_time()) {
+						shell.request_redraw();
+					}
 				}
+			}
+			Input::MouseButton { button: MouseButton::Right, pressed, position } => {
+				self.cursor = position;
+				self.panning = pressed;
 			}
 			Input::MouseButton { button: MouseButton::Middle, pressed: true, .. } => {
-				self.stack.back();
+				self.stack.back(shell.get_time());
 				shell.request_redraw();
 			}
 			_ => {}
@@ -217,10 +326,10 @@ impl DemoInterface for Mandelbrot {
 
 	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
 		let viewport = frame.viewport;
+		let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
-		let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
-		let view_bounds = self.stack.current().to_bounds(aspect_ratio);
+		let view_bounds = self.stack.view(frame.time, aspect_ratio).to_bounds(aspect_ratio);
 		let uniforms = Uniforms {
 			transform: Transform2f::ortho(view_bounds).inverse(),
 			gradient: self.gradient,
@@ -242,6 +351,19 @@ impl DemoInterface for Mandelbrot {
 			vertex_end: 6,
 			instances: -1,
 		});
+		if let Some(bounds) = self.drag_view_bounds() {
+			let mut buf = d2::ColorBuffer::new();
+			buf.blend_mode = shade::BlendMode::Alpha;
+			buf.cull_mode = None;
+			buf.uniform.transform = Transform2f::ortho(view_bounds);
+			buf.shader = self.color_shader;
+			let color = Vec4(255, 255, 255, 230);
+			let pen = d2::Pen {
+				template: d2::ColorTemplate { color1: color, color2: color },
+			};
+			buf.draw_line_rect(&pen, &bounds);
+			buf.draw(g);
+		}
 		g.end();
 	}
 }

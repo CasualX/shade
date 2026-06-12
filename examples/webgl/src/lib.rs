@@ -115,21 +115,32 @@ impl SharedContext {
 	}
 
 	fn input(&mut self, input: Input) {
-		let mut shell = WebShellServices { pending_redraw: &mut self.pending_redraw };
+		let mut shell = WebShellServices {
+			pending_redraw: &mut self.pending_redraw,
+			time: self.last_time,
+		};
 		self.demo.input(input, self.webgl.as_graphics(), &mut shell);
 	}
 
 	fn file_opened_impl(&mut self, request_id: u32, path: Option<String>, bytes: Option<Vec<u8>>) {
-		let mut shell = WebShellServices { pending_redraw: &mut self.pending_redraw };
+		let mut shell = WebShellServices {
+			pending_redraw: &mut self.pending_redraw,
+			time: self.last_time,
+		};
 		self.demo.file_opened(request_id, path, bytes, self.webgl.as_graphics(), &mut shell);
 	}
 }
 
 struct WebShellServices<'a> {
 	pending_redraw: &'a mut bool,
+	time: f64,
 }
 
 impl ShellServices for WebShellServices<'_> {
+	fn get_time(&mut self) -> f64 {
+		self.time
+	}
+
 	fn request_redraw(&mut self) {
 		*self.pending_redraw = true;
 	}

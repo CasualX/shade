@@ -34,11 +34,10 @@ pub struct Frame {
 }
 
 pub trait ShellServices {
+	fn get_time(&mut self) -> f64;
 	fn request_redraw(&mut self) {}
 	fn set_cursor(&mut self, _cursor: Cursor) {}
-	fn set_pointer_capture(&mut self, _captured: bool) {}
 	fn open_file(&mut self, _request: FileRequest) {}
-	fn exit(&mut self) {}
 	fn set_status(&mut self, _text: &str) {}
 }
 

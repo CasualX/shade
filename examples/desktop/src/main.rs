@@ -104,9 +104,9 @@ impl AssetLoader for DiskAssets {
 
 struct DesktopServices<'a> {
 	window: &'a winit::window::Window,
+	start: Instant,
 	pending_file_open: Vec<OpenedFile>,
 	redraw: bool,
-	exit: bool,
 }
 
 struct OpenedFile {
@@ -116,17 +116,21 @@ struct OpenedFile {
 }
 
 impl<'a> DesktopServices<'a> {
-	fn new(window: &'a winit::window::Window) -> DesktopServices<'a> {
+	fn new(window: &'a winit::window::Window, start: Instant) -> DesktopServices<'a> {
 		DesktopServices {
 			window,
+			start,
 			pending_file_open: Vec::new(),
 			redraw: false,
-			exit: false,
 		}
 	}
 }
 
 impl ShellServices for DesktopServices<'_> {
+	fn get_time(&mut self) -> f64 {
+		Instant::now().duration_since(self.start).as_secs_f64()
+	}
+
 	fn request_redraw(&mut self) {
 		self.redraw = true;
 	}
@@ -157,10 +161,6 @@ impl ShellServices for DesktopServices<'_> {
 			path: Some(path.display().to_string()),
 			bytes,
 		});
-	}
-
-	fn exit(&mut self) {
-		self.exit = true;
 	}
 
 	fn set_status(&mut self, text: &str) {
@@ -210,8 +210,8 @@ impl App {
 		self.window.window.request_redraw();
 	}
 
-	fn input(&mut self, input: Input) -> bool {
-		let mut services = DesktopServices::new(&self.window.window);
+	fn input(&mut self, input: Input) {
+		let mut services = DesktopServices::new(&self.window.window, self.start);
 		self.demo.input(input, self.opengl.as_graphics(), &mut services);
 		for file in mem::take(&mut services.pending_file_open) {
 			self.demo.file_opened(file.request_id, file.path, file.bytes, self.opengl.as_graphics(), &mut services);
@@ -219,7 +219,6 @@ impl App {
 		if services.redraw {
 			self.window.window.request_redraw();
 		}
-		services.exit
 	}
 
 	fn draw(&mut self) {
@@ -308,20 +307,16 @@ fn main() {
 					if let Some(app) = app.as_deref_mut() {
 						let position = Vec2(position.x as f32, position.y as f32);
 						app.cursor = position;
-						if app.input(Input::MouseMove { position }) {
-							event_loop.exit();
-						}
+						app.input(Input::MouseMove { position });
 					}
 				}
 				WindowEvent::MouseInput { state, button, .. } => {
 					if let Some(app) = app.as_deref_mut() {
-						if app.input(Input::MouseButton {
+						app.input(Input::MouseButton {
 							button: mouse_button(button),
 							pressed: state == ElementState::Pressed,
 							position: app.cursor,
-						}) {
-							event_loop.exit();
-						}
+						});
 					}
 				}
 				WindowEvent::MouseWheel { delta, .. } => {
@@ -330,12 +325,10 @@ fn main() {
 							MouseScrollDelta::LineDelta(_, y) => y * 16.0,
 							MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
 						};
-						if app.input(Input::MouseWheel {
+						app.input(Input::MouseWheel {
 							delta: Vec2(0.0, y),
 							position: app.cursor,
-						}) {
-							event_loop.exit();
-						}
+						});
 					}
 				}
 				WindowEvent::KeyboardInput { event, .. } => {
@@ -350,9 +343,7 @@ fn main() {
 							event_loop.exit();
 						}
 						if let Some(input) = input {
-							if app.input(input) {
-								event_loop.exit();
-							}
+							app.input(input);
 						}
 					}
 				}
