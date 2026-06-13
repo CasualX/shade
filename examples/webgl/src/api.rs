@@ -87,6 +87,11 @@ pub extern "C" fn new_globe() -> *mut DemoHandle {
 }
 
 #[cfg_attr(target_family = "wasm", no_mangle)]
+pub extern "C" fn new_gui_zoo() -> *mut DemoHandle {
+	into_handle(SharedContext::new(demos::examples::gui_zoo::create))
+}
+
+#[cfg_attr(target_family = "wasm", no_mangle)]
 pub extern "C" fn drop(ctx: *mut DemoHandle) {
 	if ctx.is_null() {
 		return;

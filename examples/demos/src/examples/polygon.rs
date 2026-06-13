@@ -164,7 +164,7 @@ impl DemoInterface for Polygon {
 					shell.request_redraw();
 				}
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: true, .. } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed: true, .. } => {
 				if self.shift {
 					self.panning = true;
 					self.pan_start_px = self.cursor_px;
@@ -184,11 +184,11 @@ impl DemoInterface for Polygon {
 				self.drag_to_cursor();
 				shell.request_redraw();
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: false, .. } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed: false, .. } => {
 				self.panning = false;
 				self.end_drag();
 			}
-			Input::MouseButton { button: MouseButton::Right, pressed: true, .. } => {
+			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed: true, .. } => {
 				if self.delete_point_at_cursor() {
 					shell.request_redraw();
 				}

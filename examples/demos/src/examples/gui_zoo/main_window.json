@@ -1,0 +1,302 @@
+{
+  "type": "Window",
+  "name": "main_window",
+  "title": { "value": "GUI Zoo\n\u001b[font_size=13.0]\u001b[color=#ACB2BC]Bound props where needed, inline values where not." },
+  "content": {
+    "type": "ScrollPanel",
+    "content_height": 708,
+    "content": {
+      "type": "Panel",
+      "children": [
+        {
+          "bounds": { "mins": [22, 26], "maxs": [448, 68] },
+          "type": "Label",
+          "text": { "value": "Widgets can inline simple values and only bind the dynamic parts." },
+          "font_size": 16.0,
+          "color": [216, 219, 225, 255]
+        },
+        {
+          "bounds": { "mins": [22, 86], "maxs": [150, 120] },
+          "type": "Button",
+          "name": "button",
+          "content": {
+            "type": "Label",
+            "text": { "value": "Button" },
+            "font_size": 15.0,
+            "color": [241, 242, 244, 255],
+            "align": "MiddleCenter"
+          }
+        },
+        {
+          "bounds": { "mins": [164, 86], "maxs": [292, 120] },
+          "type": "Button",
+          "name": "repeat",
+          "content": {
+            "type": "Label",
+            "text": { "value": "Repeat" },
+            "font_size": 15.0,
+            "color": [241, 242, 244, 255],
+            "align": "MiddleCenter"
+          }
+        },
+        {
+          "bounds": { "mins": [306, 86], "maxs": [434, 120] },
+          "type": "Button",
+          "name": "disabled",
+          "enabled": { "key": 9 },
+          "content": {
+            "type": "Label",
+            "text": { "value": "Disabled" },
+            "font_size": 15.0,
+            "color": [153, 158, 170, 255],
+            "align": "MiddleCenter"
+          }
+        },
+        {
+          "bounds": { "mins": [22, 142], "maxs": [220, 176] },
+          "type": "Checkbox",
+          "name": "checkbox",
+          "label": { "value": "Checkbox row" },
+          "checked": { "key": 2 },
+          "enabled": { "key": 10 }
+        },
+        {
+          "bounds": { "mins": [238, 142], "maxs": [436, 176] },
+          "type": "Checkbox",
+          "name": "toggle",
+          "label": { "value": "Allow Hard mode" },
+          "checked": { "key": 3 }
+        },
+        {
+          "bounds": { "mins": [22, 170], "maxs": [142, 204] },
+          "type": "RadioButton",
+          "name": "radio_easy",
+          "label": { "value": "Easy" },
+          "selected": { "key": 7 },
+          "index": 0
+        },
+        {
+          "bounds": { "mins": [164, 170], "maxs": [290, 204] },
+          "type": "RadioButton",
+          "name": "radio_medium",
+          "label": { "value": "Medium" },
+          "selected": { "key": 7 },
+          "index": 1
+        },
+        {
+          "bounds": { "mins": [306, 170], "maxs": [426, 204] },
+          "type": "RadioButton",
+          "name": "radio_hard",
+          "label": { "value": "Hard" },
+          "selected": { "key": 7 },
+          "index": 2,
+          "enabled": { "key": 3 }
+        },
+        {
+          "bounds": { "mins": [22, 222], "maxs": [118, 270] },
+          "type": "Label",
+          "text": { "value": "Slider" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [118, 222], "maxs": [436, 270] },
+          "type": "Slider",
+          "value": { "key": 4 }
+        },
+        {
+          "bounds": { "mins": [22, 260], "maxs": [118, 308] },
+          "type": "Label",
+          "text": { "value": "Disabled" },
+          "font_size": 15.0,
+          "color": [153, 158, 170, 255]
+        },
+        {
+          "bounds": { "mins": [118, 260], "maxs": [436, 308] },
+          "type": "Slider",
+          "value": { "value": 0.35 },
+          "enabled": { "value": false }
+        },
+        {
+          "bounds": { "mins": [22, 324], "maxs": [436, 398] },
+          "type": "Panel",
+          "children": [
+            {
+              "bounds": { "mins": [0, 0], "maxs": [414, 18] },
+              "type": "Label",
+              "text": { "value": "Swatches" },
+              "font_size": 15.0,
+              "color": [230, 232, 236, 255]
+            },
+            {
+              "bounds": { "mins": [16, 24], "maxs": [52, 60] },
+              "type": "Button",
+              "name": "swatch_0",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [218, 90, 86, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [62, 24], "maxs": [98, 60] },
+              "type": "Button",
+              "name": "swatch_1",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [232, 161, 80, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [108, 24], "maxs": [144, 60] },
+              "type": "Button",
+              "name": "swatch_2",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [96, 171, 106, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [154, 24], "maxs": [190, 60] },
+              "type": "Button",
+              "name": "swatch_3",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [83, 148, 216, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [200, 24], "maxs": [236, 60] },
+              "type": "Button",
+              "name": "swatch_4",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [151, 111, 207, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [246, 24], "maxs": [282, 60] },
+              "type": "Button",
+              "name": "swatch_5",
+              "content": {
+                "type": "ColorSwatch",
+                "color": { "value": [211, 211, 218, 255] }
+              }
+            },
+            {
+              "bounds": { "mins": [0, 60], "maxs": [414, 78] },
+              "type": "Label",
+              "text": { "value": "Click chooses a color through app state binding." },
+              "font_size": 13.0,
+              "color": [171, 178, 188, 255]
+            }
+          ]
+        },
+        {
+          "bounds": { "mins": [22, 416], "maxs": [436, 434] },
+          "type": "Label",
+          "text": { "value": "Bars and meters" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [22, 442], "maxs": [118, 462] },
+          "type": "Label",
+          "text": { "value": "Low" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [118, 442], "maxs": [394, 462] },
+          "type": "ProgressBar",
+          "value": { "key": 5 },
+          "fill": { "value": [218, 90, 86, 255] }
+        },
+        {
+          "bounds": { "mins": [394, 442], "maxs": [436, 462] },
+          "type": "Label",
+          "text": { "key": 11 },
+          "font_size": 15.0,
+          "color": [185, 191, 200, 255],
+          "align": "MiddleRight"
+        },
+        {
+          "bounds": { "mins": [22, 464], "maxs": [118, 484] },
+          "type": "Label",
+          "text": { "value": "Pulse" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [118, 464], "maxs": [394, 484] },
+          "type": "ProgressBar",
+          "value": { "key": 6 },
+          "fill": { "value": [232, 161, 80, 255] }
+        },
+        {
+          "bounds": { "mins": [394, 464], "maxs": [436, 484] },
+          "type": "Label",
+          "text": { "key": 12 },
+          "font_size": 15.0,
+          "color": [185, 191, 200, 255],
+          "align": "MiddleRight"
+        },
+        {
+          "bounds": { "mins": [22, 486], "maxs": [118, 506] },
+          "type": "Label",
+          "text": { "value": "High" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [118, 486], "maxs": [394, 506] },
+          "type": "ProgressBar",
+          "value": { "key": 4 },
+          "fill": { "key": 8 }
+        },
+        {
+          "bounds": { "mins": [394, 486], "maxs": [436, 506] },
+          "type": "Label",
+          "text": { "key": 13 },
+          "font_size": 15.0,
+          "color": [185, 191, 200, 255],
+          "align": "MiddleRight"
+        },
+        {
+          "bounds": { "mins": [22, 528], "maxs": [448, 552] },
+          "type": "Label",
+          "text": { "key": 1 },
+          "font_size": 13.0,
+          "color": [171, 178, 188, 255]
+        },
+        {
+          "bounds": { "mins": [22, 590], "maxs": [436, 608] },
+          "type": "Label",
+          "text": { "value": "Scroll area" },
+          "font_size": 15.0,
+          "color": [230, 232, 236, 255]
+        },
+        {
+          "bounds": { "mins": [22, 616], "maxs": [436, 638] },
+          "type": "Label",
+          "text": { "value": "This main window now uses a wheel-driven vertical scroll container." },
+          "font_size": 13.0,
+          "color": [171, 178, 188, 255]
+        },
+        {
+          "bounds": { "mins": [22, 640], "maxs": [436, 662] },
+          "type": "Label",
+          "text": { "value": "Child widgets should clip cleanly as they move through the viewport." },
+          "font_size": 13.0,
+          "color": [171, 178, 188, 255]
+        },
+        {
+          "bounds": { "mins": [22, 664], "maxs": [436, 686] },
+          "type": "Label",
+          "text": { "value": "The scene renderer now skips widgets whose bounds do not intersect the current clip." },
+          "font_size": 13.0,
+          "color": [171, 178, 188, 255]
+        }
+      ]
+    }
+  }
+}

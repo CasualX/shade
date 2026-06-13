@@ -22,8 +22,8 @@ impl DragEdge {
 			DragEdge::Move => Cursor::Move,
 			DragEdge::TopLeft | DragEdge::BottomRight => Cursor::ResizeNwse,
 			DragEdge::TopRight | DragEdge::BottomLeft => Cursor::ResizeNesw,
-			DragEdge::Left | DragEdge::Right => Cursor::ResizeEastWest,
-			DragEdge::Top | DragEdge::Bottom => Cursor::ResizeNorthSouth,
+			DragEdge::Left | DragEdge::Right => Cursor::ResizeHorizontal,
+			DragEdge::Top | DragEdge::Bottom => Cursor::ResizeVertical,
 		}
 	}
 }
@@ -354,13 +354,13 @@ impl Panels {
 		self.drag_state = None;
 	}
 
-	fn cursor(&self) -> Cursor {
+	fn cursor(&self) -> gui::Cursor {
 		self.drag_state
 			.as_ref()
 			.map(|s| s.edge)
 			.or_else(|| self.hit_test(self.cursor).map(|(_, edge)| edge))
 			.map(DragEdge::cursor)
-			.unwrap_or(Cursor::Default)
+			.unwrap_or(gui::Cursor::Default)
 	}
 }
 
@@ -376,13 +376,13 @@ impl DemoInterface for Panels {
 				shell.set_cursor(self.cursor());
 				shell.request_redraw();
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: true, .. } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed: true, .. } => {
 				if self.begin_drag() {
 					shell.set_cursor(self.cursor());
 					shell.request_redraw();
 				}
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: false, .. } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed: false, .. } => {
 				self.end_drag();
 				shell.set_cursor(self.cursor());
 				shell.request_redraw();

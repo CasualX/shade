@@ -1,6 +1,7 @@
 pub mod api;
 
 use shade::cvmath::*;
+use shade::gui;
 use demos::*;
 
 #[cfg(target_family = "wasm")]
@@ -249,12 +250,12 @@ fn web_key(key: u32) -> Key {
 	}
 }
 
-fn web_mouse_button(button: u32) -> MouseButton {
+fn web_mouse_button(button: u32) -> gui::MouseButton {
 	match button {
-		0 => MouseButton::Left,
-		1 => MouseButton::Middle,
-		2 => MouseButton::Right,
-		other => MouseButton::Other(other as u16),
+		0 => gui::MouseButton::LEFT,
+		1 => gui::MouseButton::MIDDLE,
+		2 => gui::MouseButton::RIGHT,
+		other => gui::MouseButton(other as u8),
 	}
 }
 
@@ -266,8 +267,8 @@ fn web_cursor(cursor: Cursor) -> u32 {
 		Cursor::Grabbing => 3,
 		Cursor::Crosshair => 4,
 		Cursor::Move => 5,
-		Cursor::ResizeEastWest => 6,
-		Cursor::ResizeNorthSouth => 7,
+		Cursor::ResizeHorizontal => 6,
+		Cursor::ResizeVertical => 7,
 		Cursor::ResizeNwse => 8,
 		Cursor::ResizeNesw => 9,
 	}

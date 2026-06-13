@@ -2,6 +2,7 @@ pub mod conway;
 pub mod dither;
 pub mod glyphatlas;
 pub mod globe;
+pub mod gui_zoo;
 pub mod mandelbrot;
 pub mod oldtree;
 pub mod panels;
@@ -36,6 +37,7 @@ const DEMOS: &[DemoEntry] = &[
 	DemoEntry { id: "glyphatlas", create: glyphatlas::create },
 	DemoEntry { id: "spriteatlas", create: spriteatlas::create },
 	DemoEntry { id: "globe", create: globe::create },
+	DemoEntry { id: "gui_zoo", create: gui_zoo::create },
 	DemoEntry { id: "mandelbrot", create: mandelbrot::create },
 	DemoEntry { id: "oldtree", create: oldtree::create },
 	DemoEntry { id: "panels", create: panels::create },

@@ -1,0 +1,104 @@
+{
+  "type": "Window",
+  "name": "drawing_window",
+  "title": { "value": "Drawing Surface\n\u001b[font_size=13.0]\u001b[color=#ACB2BC]Nested panel, shapes, scissor clipping." },
+  "content": {
+    "type": "Panel",
+    "children": [
+      {
+        "bounds": { "mins": [260, 154], "maxs": [420, 258] },
+        "type": "Panel",
+        "children": [
+          {
+            "bounds": { "mins": [44, -18], "maxs": [178, 26] },
+            "type": "Panel",
+            "children": [
+              {
+                "bounds": { "mins": [0, 0], "maxs": [160, 104] },
+                "type": "ColorSwatch",
+                "color": { "value": [190, 91, 86, 210] },
+                "border": { "value": [126, 134, 150, 255] },
+                "inset": 0
+              },
+              {
+                "bounds": { "mins": [10, 12], "maxs": [150, 34] },
+                "type": "Label",
+                "text": { "value": "Clipped child" },
+                "font_size": 15.0,
+                "color": [250, 250, 252, 255]
+              }
+            ]
+          },
+          {
+            "bounds": { "mins": [0, 0], "maxs": [160, 104] },
+            "type": "Panel",
+            "children": [
+              {
+                "bounds": { "mins": [0, 0], "maxs": [160, 104] },
+                "type": "ColorSwatch",
+                "color": { "value": [58, 110, 170, 210] },
+                "border": { "value": [126, 134, 150, 255] },
+                "inset": 0
+              },
+              {
+                "bounds": { "mins": [10, 12], "maxs": [150, 34] },
+                "type": "Label",
+                "text": { "value": "Nested panel" },
+                "font_size": 15.0,
+                "color": [250, 250, 252, 255]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "bounds": { "mins": [24, 28], "maxs": [436, 286] },
+        "type": "Panel",
+        "children": [
+          {
+            "bounds": { "mins": [0, 0], "maxs": [412, 258] },
+            "type": "ColorSwatch",
+            "color": { "value": [31, 34, 41, 255] },
+            "border": { "value": [90, 97, 112, 255] },
+            "inset": 0
+          },
+          {
+            "bounds": { "mins": [22, 24], "maxs": [112, 82] },
+            "type": "ColorSwatch",
+            "color": { "value": [83, 148, 216, 255] },
+            "border": { "value": [0, 0, 0, 0] },
+            "inset": 0
+          },
+          {
+            "bounds": { "mins": [294, 34], "maxs": [430, 98] },
+            "type": "ColorSwatch",
+            "color": { "value": [218, 90, 86, 220] },
+            "border": { "value": [0, 0, 0, 0] },
+            "inset": 0
+          },
+          {
+            "bounds": { "mins": [48, 166], "maxs": [184, 218] },
+            "type": "ColorSwatch",
+            "color": { "value": [0, 0, 0, 0] },
+            "border": { "value": [211, 211, 218, 255] },
+            "inset": 0
+          },
+          {
+            "bounds": { "mins": [22, 104], "maxs": [382, 126] },
+            "type": "Label",
+            "text": { "value": "The red box extends past this control." },
+            "font_size": 15.0,
+            "color": [221, 224, 229, 255]
+          },
+          {
+            "bounds": { "mins": [22, 126], "maxs": [342, 148] },
+            "type": "Label",
+            "text": { "value": "Scissor should cut it cleanly." },
+            "font_size": 15.0,
+            "color": [171, 178, 188, 255]
+          }
+        ]
+      }
+    ]
+  }
+}

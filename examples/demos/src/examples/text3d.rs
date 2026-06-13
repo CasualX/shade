@@ -135,8 +135,8 @@ impl Text3d {
 impl DemoInterface for Text3d {
 	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
 		match input {
-			Input::MouseButton { button: MouseButton::Left, pressed, .. } => self.left_drag = pressed,
-			Input::MouseButton { button: MouseButton::Right, pressed, .. } => self.right_drag = pressed,
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed, .. } => self.left_drag = pressed,
+			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed, .. } => self.right_drag = pressed,
 			Input::MouseMove { position } => {
 				let delta = position - self.cursor;
 				self.cursor = position;

@@ -301,7 +301,7 @@ impl DemoInterface for Mandelbrot {
 					shell.request_redraw();
 				}
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed, position } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed, position } => {
 				self.cursor = position;
 				if pressed {
 					self.drag_selection = Some(Bounds2(self.cursor, self.cursor));
@@ -312,11 +312,11 @@ impl DemoInterface for Mandelbrot {
 					}
 				}
 			}
-			Input::MouseButton { button: MouseButton::Right, pressed, position } => {
+			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed, position } => {
 				self.cursor = position;
 				self.panning = pressed;
 			}
-			Input::MouseButton { button: MouseButton::Middle, pressed: true, .. } => {
+			Input::MouseButton { button: gui::MouseButton::MIDDLE, pressed: true, .. } => {
 				self.stack.back(shell.get_time());
 				shell.request_redraw();
 			}

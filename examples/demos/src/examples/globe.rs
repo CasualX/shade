@@ -189,9 +189,9 @@ impl DemoInterface for Globe {
 
 	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
 		match input {
-			Input::MouseButton { button: MouseButton::Left, pressed, .. } => self.left_click = pressed,
-			Input::MouseButton { button: MouseButton::Middle, pressed, .. } => self.middle_click = pressed,
-			Input::MouseButton { button: MouseButton::Right, pressed, .. } => self.right_click = pressed,
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed, .. } => self.left_click = pressed,
+			Input::MouseButton { button: gui::MouseButton::MIDDLE, pressed, .. } => self.middle_click = pressed,
+			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed, .. } => self.right_click = pressed,
 			Input::MouseMove { position } => {
 				let delta = position - self.cursor;
 				self.cursor = position;

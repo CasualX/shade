@@ -468,6 +468,14 @@ const demos = [
 		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/globe.rs',
 	},
 	{
+		id: 'gui_zoo',
+		title: 'GUI Zoo',
+		hint: 'Retained GUI controls and clipping',
+		module: 'webgl.wasm',
+		constructor: 'new_gui_zoo',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/gui_zoo.rs',
+	},
+	{
 		id: 'panels',
 		title: 'Panels',
 		hint: 'Nine-slice panel layout',

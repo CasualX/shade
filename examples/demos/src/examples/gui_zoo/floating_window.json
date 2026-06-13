@@ -1,0 +1,29 @@
+{
+  "type": "Window",
+  "name": "floating_window",
+  "title": { "key": 1 },
+  "content": {
+    "type": "Panel",
+    "children": [
+      {
+        "bounds": { "mins": [22, 38], "maxs": [118, 72] },
+        "type": "Button",
+        "name": "front",
+        "content": {
+          "type": "Label",
+          "text": { "value": "Front" },
+          "font_size": 15.0,
+          "color": [241, 242, 244, 255],
+          "align": "MiddleCenter"
+        }
+      },
+      {
+        "bounds": { "mins": [132, 38], "maxs": [228, 72] },
+        "type": "Checkbox",
+        "name": "top_hit",
+        "label": { "value": "Top hit" },
+        "checked": { "key": 2 }
+      }
+    ]
+  }
+}

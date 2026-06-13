@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use glutin::prelude::*;
 use shade::cvmath::*;
+use shade::gui;
 use demos::*;
 
 struct GlWindow {
@@ -176,8 +177,8 @@ impl ShellServices for DesktopServices<'_> {
 			Cursor::Grabbing => winit::window::CursorIcon::Grabbing,
 			Cursor::Crosshair => winit::window::CursorIcon::Crosshair,
 			Cursor::Move => winit::window::CursorIcon::Move,
-			Cursor::ResizeEastWest => winit::window::CursorIcon::EwResize,
-			Cursor::ResizeNorthSouth => winit::window::CursorIcon::NsResize,
+			Cursor::ResizeHorizontal => winit::window::CursorIcon::EwResize,
+			Cursor::ResizeVertical => winit::window::CursorIcon::NsResize,
 			Cursor::ResizeNwse => winit::window::CursorIcon::NwseResize,
 			Cursor::ResizeNesw => winit::window::CursorIcon::NeswResize,
 		};
@@ -243,14 +244,14 @@ fn create_demo(demo_id: &str, g: &mut shade::Graphics, assets: &dyn AssetLoader)
 	std::process::exit(2);
 }
 
-fn mouse_button(button: winit::event::MouseButton) -> MouseButton {
+fn mouse_button(button: winit::event::MouseButton) -> gui::MouseButton {
 	match button {
-		winit::event::MouseButton::Left => MouseButton::Left,
-		winit::event::MouseButton::Right => MouseButton::Right,
-		winit::event::MouseButton::Middle => MouseButton::Middle,
-		winit::event::MouseButton::Back => MouseButton::Other(4),
-		winit::event::MouseButton::Forward => MouseButton::Other(5),
-		winit::event::MouseButton::Other(button) => MouseButton::Other(button),
+		winit::event::MouseButton::Left => gui::MouseButton::LEFT,
+		winit::event::MouseButton::Right => gui::MouseButton::RIGHT,
+		winit::event::MouseButton::Middle => gui::MouseButton::MIDDLE,
+		winit::event::MouseButton::Back => gui::MouseButton(4),
+		winit::event::MouseButton::Forward => gui::MouseButton(5),
+		winit::event::MouseButton::Other(button) => gui::MouseButton(button as u8),
 	}
 }
 

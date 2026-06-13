@@ -356,9 +356,9 @@ impl DemoInterface for PixelArt {
 			Input::MouseButton { button, pressed, position } => {
 				self.cursor = position;
 				match (button, pressed) {
-					(MouseButton::Left, true) => self.drag_mode = DragMode::Pan,
-					(MouseButton::Right, true) => self.begin_turn_zoom(self.viewport),
-					(MouseButton::Left | MouseButton::Right, false) => self.drag_mode = DragMode::None,
+					(gui::MouseButton::LEFT, true) => self.drag_mode = DragMode::Pan,
+					(gui::MouseButton::RIGHT, true) => self.begin_turn_zoom(self.viewport),
+					(gui::MouseButton::LEFT | gui::MouseButton::RIGHT, false) => self.drag_mode = DragMode::None,
 					_ => {}
 				}
 				shell.request_redraw();

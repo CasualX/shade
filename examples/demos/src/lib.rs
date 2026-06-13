@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::{fmt, mem};
 
 use shade::cvmath::*;
-use shade::{d2, d3};
+use shade::{d2, d3, gui};
 
 pub mod examples;
 
@@ -36,24 +36,12 @@ pub struct Frame {
 pub trait ShellServices {
 	fn get_time(&mut self) -> f64;
 	fn request_redraw(&mut self) {}
-	fn set_cursor(&mut self, _cursor: Cursor) {}
+	fn set_cursor(&mut self, _cursor: gui::Cursor) {}
 	fn open_file(&mut self, _request: FileRequest) {}
 	fn set_status(&mut self, _text: &str) {}
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Cursor {
-	Default,
-	Pointer,
-	Grab,
-	Grabbing,
-	Crosshair,
-	Move,
-	ResizeEastWest,
-	ResizeNorthSouth,
-	ResizeNwse,
-	ResizeNesw,
-}
+pub use shade::gui::Cursor;
 
 #[derive(Clone, Debug)]
 pub struct FileRequest {
@@ -65,18 +53,10 @@ pub struct FileRequest {
 #[derive(Clone, Debug)]
 pub enum Input {
 	MouseMove { position: Vec2f },
-	MouseButton { button: MouseButton, pressed: bool, position: Vec2f },
+	MouseButton { button: gui::MouseButton, pressed: bool, position: Vec2f },
 	MouseWheel { delta: Vec2f, position: Vec2f },
 	KeyDown(Key),
 	KeyUp(Key),
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum MouseButton {
-	Left,
-	Right,
-	Middle,
-	Other(u16),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

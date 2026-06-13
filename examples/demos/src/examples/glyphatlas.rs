@@ -414,7 +414,7 @@ impl DemoInterface for GlyphAtlas {
 				shell.set_cursor(if self.hovered.is_some() { Cursor::Pointer } else { Cursor::Default });
 				shell.request_redraw();
 			}
-			Input::MouseButton { button: MouseButton::Left, pressed: true, position } => {
+			Input::MouseButton { button: gui::MouseButton::LEFT, pressed: true, position } => {
 				self.cursor = position;
 				self.hovered = self.pick_glyph(position);
 				self.selected = self.hovered;
