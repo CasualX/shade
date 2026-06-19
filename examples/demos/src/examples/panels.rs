@@ -1,4 +1,5 @@
 use crate::*;
+use std::rc::Rc;
 
 const INFLATE_PX: i32 = 5;
 
@@ -27,10 +28,9 @@ impl DragEdge {
 	}
 }
 
-#[derive(Copy, Clone, PartialEq)]
 struct PanelInstance {
-	texture: shade::Texture2D,
-	shader: shade::ShaderProgram,
+	texture: Rc<dyn shade::Texture2D>,
+	shader: Rc<dyn shade::ShaderProgram>,
 	uv_x: &'static [f32],
 	uv_y: &'static [f32],
 	template_x: &'static [d2::layout::Unit],
@@ -92,7 +92,7 @@ struct Panels {
 	panels: Vec<PanelInstance>,
 	drag_state: Option<DragState>,
 	cursor: Vec2i,
-	line_shader: shade::ShaderProgram,
+	line_shader: Box<dyn shade::ShaderProgram>,
 }
 
 fn flex_panel(min: f32, max: f32, template: &[d2::layout::Unit]) -> Vec<f32> {
@@ -124,12 +124,12 @@ impl Panels {
 
 		{
 			use d2::layout::Unit::*;
-			let texture = {
+			let texture: Rc<dyn shade::Texture2D> = {
 				let bytes = assets.read("textures/panel.png").unwrap();
 				let image = shade::image::DecodedImage::load_memory(&bytes).unwrap();
-				g.image(&texture_props.bind(&image))
+				Rc::from(g.image(&texture_props.bind(&image)))
 			};
-			let shader = g.shader_compile(&mut shader_interface, "textured.glsl", &[]);
+			let shader: Rc<dyn shade::ShaderProgram> = Rc::from(g.shader_compile(&mut shader_interface, "textured.glsl", &[]));
 			const W: f32 = 512.0;
 			const H: f32 = 512.0;
 			panels.push(PanelInstance {
@@ -146,12 +146,12 @@ impl Panels {
 
 		{
 			use d2::layout::Unit::*;
-			let texture = {
+			let texture: Rc<dyn shade::Texture2D> = {
 				let bytes = assets.read("textures/panels.png").unwrap();
 				let image = shade::image::DecodedImage::load_memory(&bytes).unwrap();
-				g.image(&texture_props.bind(&image))
+				Rc::from(g.image(&texture_props.bind(&image)))
 			};
-			let shader = g.shader_compile(&mut shader_interface, "pixelart.glsl", &[]);
+			let shader: Rc<dyn shade::ShaderProgram> = Rc::from(g.shader_compile(&mut shader_interface, "pixelart.glsl", &[]));
 			const W: f32 = 64.0;
 			const H: f32 = 256.0;
 			const fn pos(x: i32, y: i32) -> Bounds2i {
@@ -276,8 +276,8 @@ impl Panels {
 			];
 			for (uv_x, uv_y, template_x, template_y, bounds, min_size) in specs {
 				panels.push(PanelInstance {
-					texture,
-					shader,
+					texture: texture.clone(),
+					shader: shader.clone(),
 					uv_x,
 					uv_y,
 					template_x,
@@ -400,8 +400,8 @@ impl DemoInterface for Panels {
 		buf.cull_mode = None;
 		buf.uniform.transform = Transform2::ortho(viewport.cast());
 		for panel in &self.panels {
-			buf.shader = panel.shader;
-			buf.uniform.texture = panel.texture;
+			buf.shader = Some(&*panel.shader);
+			buf.uniform.texture = &*panel.texture;
 			let template_vertex = d2::TexturedTemplate { uv: Vec2::ZERO, color: Vec4(255, 255, 255, 255) };
 			let pos_x = flex_panel(panel.bounds.left() as f32, panel.bounds.right() as f32, panel.template_x);
 			let pos_y = flex_panel(panel.bounds.top() as f32, panel.bounds.bottom() as f32, panel.template_y);
@@ -414,7 +414,7 @@ impl DemoInterface for Panels {
 			buf.blend_mode = shade::BlendMode::Alpha;
 			buf.cull_mode = None;
 			buf.uniform.transform = Transform2::ortho(viewport.cast());
-			buf.shader = self.line_shader;
+			buf.shader = Some(&*self.line_shader);
 			let color = Vec4(255, 255, 255, 128);
 			let pen = d2::Pen {
 				template: d2::ColorTemplate { color1: color, color2: color },

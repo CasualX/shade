@@ -8,6 +8,7 @@ struct Text3d {
 	font: d2::FontResource<shade::msdfgen::Font>,
 	camera: d3::ArcballCamera,
 	axes: d3::axes::AxesModel,
+	color3d_shader: Box<dyn shade::ShaderProgram>,
 	cursor: Vec2f,
 	left_drag: bool,
 	right_drag: bool,
@@ -23,9 +24,9 @@ impl Text3d {
 		};
 		let font = load_font(g, assets, true);
 		let color3d_shader = g.shader_compile(&mut shader_source, "color3d.glsl", &[]);
-		let axes = d3::axes::AxesModel::create(g, color3d_shader);
+		let axes = d3::axes::AxesModel::create(g);
 		let camera = d3::ArcballCamera::new(Vec3f(0.0, -8.0, 4.6), Vec3f(0.0, -0.4, 0.9), Vec3f::Z);
-		Text3d { font, camera, axes, cursor: Vec2f::ZERO, left_drag: false, right_drag: false }
+		Text3d { font, camera, axes, color3d_shader, cursor: Vec2f::ZERO, left_drag: false, right_drag: false }
 	}
 
 	fn camera(&self, viewport: Bounds2i) -> d3::Camera {
@@ -122,7 +123,7 @@ impl Text3d {
 		}
 	}
 
-	fn add_text_plane(&self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
+	fn add_text_plane<'a>(&'a self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
 		buf.uniform.plane_transform = plane;
 		buf.uniform.text.transform = Transform2f::compose(Vec2f(scale, 0.0), Vec2f(0.0, -scale), Vec2f::ZERO);
 		let bounds = Bounds2f::point(Vec2f::ZERO, Vec2f::ZERO);
@@ -156,7 +157,7 @@ impl DemoInterface for Text3d {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.08, 0.10, 0.12, 1.0), depth: 1.0);
 		let camera = self.camera(frame.viewport);
-		self.axes.draw(g, &camera, &d3::axes::AxesInstance {
+		self.axes.draw(g, &*self.color3d_shader, &camera, &d3::axes::AxesInstance {
 			local: Transform3f::scaling(Vec3f::dup(3.0)),
 			depth_test: Some(shade::Compare::LessEqual),
 		});

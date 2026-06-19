@@ -97,8 +97,8 @@ void main() {}
 "#;
 
 pub struct Material {
-	shader: shade::ShaderProgram,
-	shadow_shader: shade::ShaderProgram,
+	shader: Box<dyn shade::ShaderProgram>,
+	shadow_shader: Box<dyn shade::ShaderProgram>,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, _set: &mut dyn shade::UniformSetter) {
@@ -111,6 +111,17 @@ pub struct Instance {
 impl shade::UniformVisitor for Instance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_model", &self.model);
+	}
+}
+
+struct TransformUniforms {
+	transform: Mat4f,
+	light_transform: Mat4f,
+}
+impl shade::UniformVisitor for TransformUniforms {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_transform", &self.transform);
+		set.value("u_lightTransform", &self.light_transform);
 	}
 }
 
@@ -142,9 +153,10 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
+		let uniforms = TransformUniforms { transform, light_transform };
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -152,21 +164,12 @@ impl Renderable {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR | shade::DrawMask::DEPTH,
 			prim_type: shade::PrimType::Triangles,
-			shader: if shadow { self.material.shadow_shader } else { self.material.shader },
+			shader: if shadow { &*self.material.shadow_shader } else { &*self.material.shader },
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
+				buffer: &*self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			uniforms: &[
-				camera,
-				light,
-				&self.material,
-				&self.instance,
-				&shade::UniformFn(|set| {
-					set.value("u_transform", &transform);
-					set.value("u_lightTransform", &light_transform);
-				}),
-			],
+			uniforms: &[camera, light, &self.material, &self.instance, &uniforms],
 			vertex_start: 0,
 			vertex_end: self.mesh.vertices_len,
 			instances: -1,
@@ -177,7 +180,7 @@ impl Renderable {
 impl super::IRenderable for Renderable {
 	fn update(&mut self, _globals: &crate::Globals) {
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

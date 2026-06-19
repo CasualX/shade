@@ -57,30 +57,30 @@ impl ToVertexUV<TexturedVertex> for TexturedTemplate {
 
 /// Textured uniform.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TexturedUniform {
+pub struct TexturedUniform<'a> {
 	pub transform: Transform2f,
-	pub texture: Texture2D,
+	pub texture: &'a dyn Texture2D,
 	pub colormod: Vec4f,
 }
 
-impl Default for TexturedUniform {
+impl<'a> Default for TexturedUniform<'a> {
 	#[inline]
 	fn default() -> Self {
 		TexturedUniform {
 			transform: Transform2::IDENTITY,
-			texture: Texture2D::INVALID,
+			texture: &crate::DefaultTexture2D,
 			colormod: Vec4::ONE,
 		}
 	}
 }
 
-impl UniformVisitor for TexturedUniform {
+impl<'a> UniformVisitor for TexturedUniform<'a> {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", self.texture);
 		set.value("u_colorModulation", &self.colormod);
 	}
 }
 
 /// DrawBuilder for textured graphics.
-pub type TexturedBuffer = DrawBuilder<TexturedVertex, TexturedUniform>;
+pub type TexturedBuffer<'a> = DrawBuilder<'a, TexturedVertex, TexturedUniform<'a>>;

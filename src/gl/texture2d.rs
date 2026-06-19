@@ -79,7 +79,7 @@ fn gl_texture_filter_min(props: &crate::TextureProps) -> GLint {
 	}) as GLint
 }
 
-pub fn create(this: &mut GlGraphics, info: &crate::Texture2DInfo) -> crate::Texture2D {
+pub fn create(this: &mut GlGraphics, info: &crate::Texture2DInfo) -> Box<dyn crate::Texture2D> {
 	let mut texture = 0;
 	gl_check!(gl::GenTextures(1, &mut texture));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture));
@@ -99,32 +99,22 @@ pub fn create(this: &mut GlGraphics, info: &crate::Texture2DInfo) -> crate::Text
 	let GlTextureFormat { internal_format, .. } = GlTextureFormat::get(info.format, &this.config);
 	gl_check!(gl::TexStorage2D(gl::TEXTURE_2D, info.props.mip_levels as GLsizei, internal_format, info.width, info.height));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
-	this.objects.insert(GlTexture2D { texture, info: *info })
+	Box::new(GlTexture2D { generation: this.generation, texture, info: *info })
 }
 
-pub fn get_info(this: &GlGraphics, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-	let Some(tex2d) = this.objects.get_texture2d(id) else { return None };
-	return Some(&tex2d.info);
-}
-
-pub fn generate_mipmap(this: &mut GlGraphics, id: crate::Texture2D) {
-	let Some(tex2d) = this.objects.get_texture2d(id) else { return };
+pub fn generate_mipmap(_this: &mut GlGraphics, texture: &mut dyn crate::Texture2D) {
+	let tex2d = objects::texture2d_mut(texture);
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, tex2d.texture));
 	gl_check!(gl::GenerateMipmap(gl::TEXTURE_2D));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 }
 
-pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-	if id == crate::Texture2D::INVALID {
-		return create(this, info);
-	}
-	let Some(tex2d) = this.objects.get_texture2d_mut(id) else {
-		return crate::Texture2D::INVALID;
-	};
+pub fn update(this: &mut GlGraphics, texture: &mut dyn crate::Texture2D, info: &crate::Texture2DInfo) {
+	let tex2d = objects::texture2d_mut(texture);
 
 	// Short-circuit if no changes.
 	if &tex2d.info == info {
-		return id;
+		return;
 	}
 
 	// With TexStorage2D, the texture storage is immutable. Any change to
@@ -161,11 +151,10 @@ pub fn update(this: &mut GlGraphics, id: crate::Texture2D, info: &crate::Texture
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 
 	tex2d.info = *info;
-	return id;
 }
 
-pub fn write(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &[u8]) {
-	let Some(texture) = this.objects.get_texture2d(id) else { return };
+pub fn write(this: &mut GlGraphics, texture: &mut dyn crate::Texture2D, level: u8, data: &[u8]) {
+	let texture = objects::texture2d_mut(texture);
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 	this.metrics.bytes_uploaded = usize::wrapping_add(this.metrics.bytes_uploaded, data.len());
@@ -178,20 +167,18 @@ pub fn write(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &[u8]
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 }
 
-pub fn read_into(this: &mut GlGraphics, id: crate::Texture2D, level: u8, data: &mut [u8]) {
-	let Some(texture) = this.objects.get_texture2d(id) else { return };
-	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
-	assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
+pub fn read_into(this: &mut GlGraphics, texture: &dyn crate::Texture2D, level: u8, data: &mut [u8]) {
+	let texture = objects::texture2d(this, texture);
+	let texture_id = texture.texture;
+	let info = *texture.info;
+	assert!(level < info.props.mip_levels, "Invalid mip level {}", level);
+	assert!(info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 	this.metrics.bytes_downloaded = usize::wrapping_add(this.metrics.bytes_downloaded, data.len());
-	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture.texture));
-	let GlTextureFormat { format, type_, align, .. } = GlTextureFormat::get(texture.info.format, &this.config);
-	let (_w, _h, expected_size) = texture.info.mip_size(level);
+	gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture_id));
+	let GlTextureFormat { format, type_, align, .. } = GlTextureFormat::get(info.format, &this.config);
+	let (_w, _h, expected_size) = info.mip_size(level);
 	assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
 	gl_check!(gl::PixelStorei(gl::PACK_ALIGNMENT, align)); // Force correct byte alignment
 	gl_check!(gl::GetTexImage(gl::TEXTURE_2D, level as GLint, format, type_, data.as_mut_ptr() as *mut _));
 	gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
-}
-
-pub fn release(texture: &GlTexture2D) {
-	gl_check!(gl::DeleteTextures(1, &texture.texture));
 }

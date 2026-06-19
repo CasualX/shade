@@ -8,7 +8,7 @@ pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn Dem
 }
 
 struct Polygon {
-	color_shader: shade::ShaderProgram,
+	color_shader: Box<dyn shade::ShaderProgram>,
 	points: Vec<Point2f>,
 	cursor_px: Vec2f,
 	view_offset: Vec2f,
@@ -201,7 +201,7 @@ impl DemoInterface for Polygon {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.08, 0.09, 0.11, 1.0));
 		let mut cv = shade::d2::ColorBuffer::new();
-		cv.shader = self.color_shader;
+		cv.shader = Some(&*self.color_shader);
 		cv.blend_mode = shade::BlendMode::Alpha;
 		let w = frame.viewport.width() as f32;
 		let h = frame.viewport.height() as f32;

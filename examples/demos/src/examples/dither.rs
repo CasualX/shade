@@ -1,16 +1,16 @@
 use crate::*;
 
-struct PostProcessDitherUniforms {
-	texture: shade::Texture2D,
-	dither: shade::Texture2D,
+struct PostProcessDitherUniforms<'a> {
+	texture: &'a dyn shade::Texture2D,
+	dither: &'a dyn shade::Texture2D,
 	dither_scale: f32,
 	levels: f32,
 }
 
-impl shade::UniformVisitor for PostProcessDitherUniforms {
+impl<'a> shade::UniformVisitor for PostProcessDitherUniforms<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.sampler2d("u_texture", &[self.texture]);
-		set.sampler2d("u_dither", &[self.dither]);
+		set.value("u_texture", self.texture);
+		set.value("u_dither", self.dither);
 		set.value("u_dither_scale", &self.dither_scale);
 		set.value("u_levels", &self.levels);
 	}
@@ -66,9 +66,9 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 
 struct Dither {
 	pp: shade::d2::PostProcessQuad,
-	pp_shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
-	dither: [shade::Texture2D; 7],
+	pp_shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
+	dither: [Box<dyn shade::Texture2D>; 7],
 	dither_index: usize,
 	levels: f32,
 }
@@ -129,12 +129,12 @@ impl DemoInterface for Dither {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		let index = self.dither_index;
 		let uniforms = PostProcessDitherUniforms {
-			texture: self.texture,
-			dither: self.dither[index],
+			texture: &*self.texture,
+			dither: &*self.dither[index],
 			dither_scale: 1.0,
 			levels: self.levels,
 		};
-		self.pp.draw(g, self.pp_shader, shade::BlendMode::Alpha, &[&uniforms]);
+		self.pp.draw(g, &*self.pp_shader, shade::BlendMode::Alpha, &[&uniforms]);
 		g.end();
 	}
 }

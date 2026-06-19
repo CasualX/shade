@@ -11,11 +11,45 @@ pub struct SharedState {
 }
 
 struct DrawData {
-	vertices: VertexBuffer,
-	indices: IndexBuffer,
+	vertices: Box<dyn VertexBuffer>,
+	indices: Box<dyn IndexBuffer>,
 }
 
-trait IDrawBuffer: any::Any {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+struct BufferTypeId {
+	vertex: any::TypeId,
+	uniform: any::TypeId,
+}
+
+#[doc(hidden)]
+pub trait BufferTypeKey {
+	fn key() -> any::TypeId;
+}
+
+impl<'a> BufferTypeKey for d2::ColorUniform<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<d2::ColorUniform<'static>>()
+	}
+}
+
+impl<'a> BufferTypeKey for d2::TextUniform<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<d2::TextUniform<'static>>()
+	}
+}
+
+impl<'a> BufferTypeKey for d2::TextUniform3<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<d2::TextUniform3<'static>>()
+	}
+}
+
+trait IDrawBuffer<'a> {
+	fn buffer_type_id(&self) -> BufferTypeId;
+	fn buffer_ptr(&mut self) -> *mut ();
 	fn clear(&mut self);
 	fn data(&self, g: &mut Graphics) -> DrawData;
 	fn draw(&self, g: &mut Graphics);
@@ -24,20 +58,34 @@ trait IDrawBuffer: any::Any {
 	fn shared_state(&self) -> SharedState;
 }
 
-impl dyn IDrawBuffer {
+impl<'a> dyn IDrawBuffer<'a> + 'a {
 	#[inline]
-	fn downcast_mut<V: TVertex, U: TUniform + 'static>(&mut self) -> Option<&mut DrawBuilder<V, U>> {
-		(self as &mut dyn any::Any).downcast_mut::<DrawBuilder<V, U>>()
+	fn downcast_mut<V: TVertex, U: TUniform + BufferTypeKey + 'a>(&mut self) -> Option<&mut DrawBuilder<'a, V, U>> {
+		if self.buffer_type_id() == (BufferTypeId { vertex: any::TypeId::of::<V>(), uniform: U::key() }) {
+			Some(unsafe { &mut *(self.buffer_ptr() as *mut DrawBuilder<'a, V, U>) })
+		}
+		else {
+			None
+		}
 	}
 }
 
-impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
+impl<'a, T: TVertex, U: TUniform + BufferTypeKey + 'a> IDrawBuffer<'a> for DrawBuilder<'a, T, U> {
+	fn buffer_type_id(&self) -> BufferTypeId {
+		BufferTypeId {
+			vertex: any::TypeId::of::<T>(),
+			uniform: U::key(),
+		}
+	}
+	fn buffer_ptr(&mut self) -> *mut () {
+		self as *mut Self as *mut ()
+	}
 	fn clear(&mut self) {
 		self.clear();
 	}
 	fn data(&self, g: &mut Graphics) -> DrawData {
-		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Static).unwrap();
-		let indices = g.index_buffer(&self.indices, self.vertices.len() as u16, BufferUsage::Static).unwrap();
+		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Static);
+		let indices = g.index_buffer(&self.indices, self.vertices.len() as u16, BufferUsage::Static);
 		DrawData { vertices, indices }
 	}
 	fn draw(&self, g: &mut Graphics) {
@@ -46,8 +94,8 @@ impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
 	fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>, data: &DrawData) {
 		let batch = DrawBatch {
 			commands: &self.commands[range],
-			vertices: data.vertices,
-			indices: data.indices,
+			vertices: &*data.vertices,
+			indices: &*data.indices,
 		};
 		draw_range(self, g, &batch)
 	}
@@ -65,29 +113,27 @@ impl<T: TVertex, U: TUniform + 'static> IDrawBuffer for DrawBuilder<T, U> {
 }
 
 
-pub struct DrawBatch<'a> {
-	pub commands: &'a [drawbuf::DrawCommand],
-	pub vertices: VertexBuffer,
-	pub indices: IndexBuffer,
+pub struct DrawBatch<'a, 'r> {
+	pub commands: &'a [drawbuf::DrawCommand<'r>],
+	pub vertices: &'a dyn VertexBuffer,
+	pub indices: &'a dyn IndexBuffer,
 }
 
 /// Draws the DrawBuilder.
-fn draw<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics) {
-	let vertices = g.vertex_buffer(&this.vertices, BufferUsage::Static).unwrap();
-	let indices = g.index_buffer(&this.indices, this.vertices.len() as u16, BufferUsage::Static).unwrap();
+fn draw<'a, V: TVertex, U: TUniform>(this: &DrawBuilder<'a, V, U>, g: &mut Graphics) {
+	let vertices = g.vertex_buffer(&this.vertices, BufferUsage::Static);
+	let indices = g.index_buffer(&this.indices, this.vertices.len() as u16, BufferUsage::Static);
 	let range = DrawBatch {
 		commands: &this.commands,
-		vertices,
-		indices,
+		vertices: &*vertices,
+		indices: &*indices,
 	};
 
 	draw_range(this, g, &range);
-	g.release(indices);
-	g.release(vertices);
 }
 
 /// Draws the specified commands from the buffer.
-fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphics, batch: &DrawBatch) {
+fn draw_range<'r, V: TVertex, U: TUniform>(this: &DrawBuilder<'r, V, U>, g: &mut Graphics, batch: &DrawBatch<'_, 'r>) {
 	for cmd in batch.commands {
 		let uniforms = &this.uniforms[cmd.pipeline_state.uniform_index as usize];
 		g.draw_indexed(&DrawIndexedArgs {
@@ -97,7 +143,7 @@ fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphic
 			cull_mode: cmd.pipeline_state.cull_mode,
 			mask: cmd.pipeline_state.mask,
 			prim_type: cmd.pipeline_state.prim_type,
-			shader: cmd.pipeline_state.shader,
+			shader: cmd.pipeline_state.shader.expect("Draw command has no shader"),
 			uniforms: &[uniforms],
 			vertices: &[DrawVertexBuffer {
 				buffer: batch.vertices,
@@ -113,7 +159,7 @@ fn draw_range<V: TVertex, U: TUniform>(this: &DrawBuilder<V, U>, g: &mut Graphic
 
 
 struct DrawSub {
-	id: any::TypeId,
+	id: BufferTypeId,
 	range: ops::Range<usize>,
 }
 
@@ -128,15 +174,15 @@ struct DrawSub {
 /// Note: shared render state (scissor, blend mode, etc.) is carried over when switching between buffers of different types,
 /// but shaders and uniforms are not.
 #[derive(Default)]
-pub struct DrawPool {
-	pool: HashMap<any::TypeId, Box<dyn IDrawBuffer>>,
+pub struct DrawPool<'a> {
+	pool: HashMap<BufferTypeId, Box<dyn IDrawBuffer<'a> + 'a>>,
 	subs: Vec<DrawSub>,
 }
 
-impl DrawPool {
+impl<'a> DrawPool<'a> {
 	/// Creates a new command buffer pool.
 	#[inline]
-	pub fn new() -> DrawPool {
+	pub fn new() -> DrawPool<'a> {
 		DrawPool {
 			pool: HashMap::new(),
 			subs: Vec::new(),
@@ -160,7 +206,7 @@ impl DrawPool {
 	/// is preserved from the previous buffer to maintain consistency.
 	///
 	/// Note that shader and shader uniforms are *not* carried over and must be set explicitly.
-	pub fn get<V: TVertex, U: TUniform + 'static>(&mut self) -> &mut DrawBuilder<V, U> {
+	pub fn get<V: TVertex, U: TUniform + BufferTypeKey + 'a>(&mut self) -> &mut DrawBuilder<'a, V, U> {
 		let mut shared_state = None;
 
 		// Check the last submission buffer
@@ -171,7 +217,7 @@ impl DrawPool {
 			if let Some(buf) = buf.downcast_mut::<V, U>() {
 				// Fixed by -Zpolonius...
 				// return buf;
-				return unsafe { &mut *(buf as *mut DrawBuilder<V, U>) };
+				return unsafe { &mut *(buf as *mut DrawBuilder<'a, V, U>) };
 			}
 
 			// Otherwise update its range to include the latest commands
@@ -182,11 +228,14 @@ impl DrawPool {
 		}
 
 		// Create a new command buffer if it doesn't exist
-		let id = any::TypeId::of::<DrawBuilder<V, U>>();
+		let id = BufferTypeId {
+			vertex: any::TypeId::of::<V>(),
+			uniform: U::key(),
+		};
 		let buf = self.pool.entry(id)
 			.or_insert_with(|| {
-				let new_buf = DrawBuilder::<V, U>::new();
-				Box::new(new_buf) as Box<dyn IDrawBuffer>
+				let new_buf = DrawBuilder::<'a, V, U>::new();
+				Box::new(new_buf) as Box<dyn IDrawBuffer<'a> + 'a>
 			});
 
 		let buf = buf.downcast_mut::<V, U>().unwrap();
@@ -221,7 +270,7 @@ impl DrawPool {
 		}
 
 		// Upload the buffers
-		let data: HashMap<any::TypeId, DrawData> = self.pool.iter().map(|(&id, buf)| {
+		let data: HashMap<BufferTypeId, DrawData> = self.pool.iter().map(|(&id, buf)| {
 			(id, buf.data(g))
 		}).collect();
 
@@ -232,10 +281,6 @@ impl DrawPool {
 		}
 
 		// Free the buffers
-		for data in data.values() {
-			g.release(data.indices);
-			g.release(data.vertices);
-		}
 	}
 
 	/// Draws all commands without preserving submission order.

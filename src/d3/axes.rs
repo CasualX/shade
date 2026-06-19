@@ -8,24 +8,23 @@ pub struct AxesInstance {
 
 #[derive(Debug)]
 pub struct AxesModel {
-	pub shader: ShaderProgram,
-	pub vertices: VertexBuffer,
+	pub vertices: Box<dyn VertexBuffer>,
 	pub vertices_len: u32,
-	pub indices: IndexBuffer,
+	pub indices: Box<dyn IndexBuffer>,
 	pub indices_len: u32,
 }
 
 impl AxesModel {
-	pub fn create(g: &mut Graphics, shader: ShaderProgram) -> AxesModel {
+	pub fn create(g: &mut Graphics) -> AxesModel {
 		let vertices = g.vertex_buffer(&VERTICES, BufferUsage::Static);
 		let vertices_len = VERTICES.len() as u32;
 		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
-		AxesModel { shader, vertices, vertices_len, indices, indices_len }
+		AxesModel { vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, camera: &camera::Camera, instance: &AxesInstance) {
+	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &AxesInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.local,
 			colormod: Vec4f::ONE,
@@ -38,13 +37,13 @@ impl AxesModel {
 			cull_mode: None,
 			mask: DrawMask::ALL,
 			prim_type: PrimType::Lines,
-			shader: self.shader,
+			shader,
 			uniforms: &[&uniforms],
 			vertices: &[DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			indices: self.indices,
+			indices: &*self.indices,
 			index_start: 0,
 			index_end: self.indices_len,
 			instances: -1,

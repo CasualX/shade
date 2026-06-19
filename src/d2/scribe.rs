@@ -5,44 +5,14 @@ mod font;
 mod resource;
 mod v;
 
-pub use self::font::IFont;
+pub use self::font::{IFont, ITextTarget};
 pub use self::resource::FontResource;
 pub use self::v::*;
 
 /// DrawBuilder for writing text.
-pub type TextBuffer = DrawBuilder<TextVertex, TextUniform>;
+pub type TextBuffer<'a> = DrawBuilder<'a, TextVertex, TextUniform<'a>>;
 /// DrawBuilder for writing text on a 3D plane.
-pub type TextBuffer3 = DrawBuilder<TextVertex, TextUniform3>;
-
-/// Target that can receive laid-out text glyph quads.
-pub trait ITextTarget {
-	fn text_quad(&mut self, vertices: &[TextVertex; 4]);
-	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D);
-}
-
-impl ITextTarget for TextBuffer {
-	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
-		let mut p = self.begin(PrimType::Triangles, 4, 2);
-		p.add_indices_quad();
-		p.add_vertices(vertices);
-	}
-	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D) {
-		self.uniform.texture = texture;
-		self.shader = shader;
-	}
-}
-
-impl ITextTarget for TextBuffer3 {
-	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
-		let mut p = self.begin(PrimType::Triangles, 4, 2);
-		p.add_indices_quad();
-		p.add_vertices(vertices);
-	}
-	fn set_shader_texture(&mut self, shader: ShaderProgram, texture: Texture2D) {
-		self.uniform.text.texture = texture;
-		self.shader = shader;
-	}
-}
+pub type TextBuffer3<'a> = DrawBuilder<'a, TextVertex, TextUniform3<'a>>;
 
 /// Text alignment within a rectangular box.
 ///
@@ -149,14 +119,30 @@ impl Scribe {
 	}
 }
 
-impl<V, U> DrawBuilder<V, U> where Self: ITextTarget {
+impl<'a> ITextTarget for TextBuffer<'a> {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+		let mut p = self.begin(PrimType::Triangles, 4, 2);
+		p.add_indices_quad();
+		p.add_vertices(vertices);
+	}
+}
+
+impl<'a> TextBuffer<'a> {
 	/// Writes a text string.
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_write<T: fmt::Display>(&mut self, font: &FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
-		self.set_shader_texture(font.shader, font.texture);
-		text_write(self, font.as_dyn().font, scribe, cursor, &text);
+	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+		self.uniform.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_write(self, &font.font, scribe, cursor, &text);
+	}
+
+	/// Writes a text string using a borrowed font resource.
+	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+		self.uniform.texture = font.texture;
+		self.shader = Some(font.shader);
+		text_write(self, font.font, scribe, cursor, &text);
 	}
 
 	/// Writes individual lines of text strings using the box model.
@@ -165,9 +151,10 @@ impl<V, U> DrawBuilder<V, U> where Self: ITextTarget {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_lines(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
-		self.set_shader_texture(font.shader, font.texture);
-		text_lines(self, font.as_dyn().font, scribe, rect, align, lines);
+	pub fn text_lines(&mut self, font: &'a FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
+		self.uniform.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_lines(self, &font.font, scribe, rect, align, lines);
 	}
 
 	/// Writes a text string using the box model.
@@ -176,9 +163,75 @@ impl<V, U> DrawBuilder<V, U> where Self: ITextTarget {
 	///
 	/// Escape sequences can modify the scribe properties in the middle of the text string,
 	/// strip user controlled text of ascii escape characters to avoid this.
-	pub fn text_box(&mut self, font: &FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
-		self.set_shader_texture(font.shader, font.texture);
-		text_box(self, font.as_dyn().font, scribe, rect, align, text);
+	pub fn text_box(&mut self, font: &'a FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+		self.uniform.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_box(self, &font.font, scribe, rect, align, text);
+	}
+
+	/// Writes a text string using the box model and a borrowed font resource.
+	pub fn text_box_ref(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+		self.uniform.texture = font.texture;
+		self.shader = Some(font.shader);
+		text_box(self, font.font, scribe, rect, align, text);
+	}
+}
+
+impl<'a> ITextTarget for TextBuffer3<'a> {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]) {
+		let mut p = self.begin(PrimType::Triangles, 4, 2);
+		p.add_indices_quad();
+		p.add_vertices(vertices);
+	}
+}
+
+impl<'a> TextBuffer3<'a> {
+	/// Writes a text string.
+	///
+	/// Escape sequences can modify the scribe properties in the middle of the text string,
+	/// strip user controlled text of ascii escape characters to avoid this.
+	pub fn text_write<T: fmt::Display>(&mut self, font: &'a FontResource<impl IFont>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+		self.uniform.text.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_write(self, &font.font, scribe, cursor, &text);
+	}
+
+	/// Writes a text string using a borrowed font resource.
+	pub fn text_write_ref<T: fmt::Display>(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &mut Scribe, cursor: &mut Vec2f, text: T) {
+		self.uniform.text.texture = font.texture;
+		self.shader = Some(font.shader);
+		text_write(self, font.font, scribe, cursor, &text);
+	}
+
+	/// Writes individual lines of text strings using the box model.
+	///
+	/// The text will be aligned within the rect according to the alignment.
+	///
+	/// Escape sequences can modify the scribe properties in the middle of the text string,
+	/// strip user controlled text of ascii escape characters to avoid this.
+	pub fn text_lines(&mut self, font: &'a FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, lines: &[&dyn fmt::Display]) {
+		self.uniform.text.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_lines(self, &font.font, scribe, rect, align, lines);
+	}
+
+	/// Writes a text string using the box model.
+	///
+	/// The text will be aligned within the rect according to the alignment.
+	///
+	/// Escape sequences can modify the scribe properties in the middle of the text string,
+	/// strip user controlled text of ascii escape characters to avoid this.
+	pub fn text_box(&mut self, font: &'a FontResource<impl IFont>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+		self.uniform.text.texture = &*font.texture;
+		self.shader = Some(&*font.shader);
+		text_box(self, &font.font, scribe, rect, align, text);
+	}
+
+	/// Writes a text string using the box model and a borrowed font resource.
+	pub fn text_box_ref(&mut self, font: &FontResource<&'a dyn IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, scribe: &Scribe, rect: &Bounds2f, align: TextAlign, text: &str) {
+		self.uniform.text.texture = font.texture;
+		self.shader = Some(font.shader);
+		text_box(self, font.font, scribe, rect, align, text);
 	}
 }
 

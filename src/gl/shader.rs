@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
+pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str) -> Box<dyn crate::ShaderProgram> {
 	let mut success = true;
 	let mut status = 0;
 
@@ -33,7 +33,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 	if !success {
 		gl_check!(gl::DeleteShader(vertex_shader));
 		gl_check!(gl::DeleteShader(fragment_shader));
-		return crate::ShaderProgram::INVALID;
+		panic!("OpenGL shader compilation failed");
 	}
 
 	let program = gl_check!(gl::CreateProgram());
@@ -52,7 +52,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		gl_check!(gl::GetProgramInfoLog(program, log_len, ptr::null_mut::<GLsizei>(), log.as_mut_ptr() as *mut GLchar));
 		eprintln!("# Program link log:\n{}", String::from_utf8_lossy(&log));
 		gl_check!(gl::DeleteProgram(program));
-		return crate::ShaderProgram::INVALID;
+		panic!("OpenGL shader linking failed");
 	}
 
 	let mut nattribs = 0;
@@ -104,15 +104,11 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 		// eprintln!("Uniform: {} (location: {})", shader.uniforms.last().unwrap().name(), location);
 	}
 
-	this.objects.insert(GlShaderProgram { program, attribs, uniforms })
+	Box::new(GlShaderProgram { generation: this.generation, program, attribs, uniforms })
 }
 
-pub fn compile2(this: &mut GlGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+pub fn compile2(this: &mut GlGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> Box<dyn crate::ShaderProgram> {
 	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, "330 core", "GLSL_CORE", defines, interface);
 	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, "330 core", "GLSL_CORE", defines, interface);
 	compile(this, &vertex_source, &fragment_source)
-}
-
-pub fn release(shader: &GlShaderProgram) {
-	gl_check!(gl::DeleteProgram(shader.program));
 }

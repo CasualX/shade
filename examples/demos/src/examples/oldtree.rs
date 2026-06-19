@@ -49,13 +49,13 @@ void main() {
 "#;
 
 struct OldTreeMaterial {
-	shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
+	shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
 }
 
 impl shade::UniformVisitor for OldTreeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.sampler2d("u_diffuse", &[self.texture]);
+		set.value("u_diffuse", &*self.texture);
 	}
 }
 
@@ -117,9 +117,9 @@ impl OldTreeRenderable {
 				stencil: 0,
 			},
 			prim_type: shade::PrimType::Triangles,
-			shader: self.material.shader,
+			shader: &*self.material.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
+				buffer: &*self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[camera, &self.material, &self.instance],

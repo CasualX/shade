@@ -2,16 +2,16 @@ use crate::*;
 
 const SCREEN_MELT_COLUMNS: i32 = 160;
 
-struct PostProcessMeltUniforms {
-	scene: shade::Texture2D,
-	delays: shade::Texture2D,
+struct PostProcessMeltUniforms<'a> {
+	scene: &'a dyn shade::Texture2D,
+	delays: &'a dyn shade::Texture2D,
 	time: f32,
 }
 
-impl shade::UniformVisitor for PostProcessMeltUniforms {
+impl<'a> shade::UniformVisitor for PostProcessMeltUniforms<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.sampler2d("u_scene", &[self.scene]);
-		set.sampler2d("u_delays", &[self.delays]);
+		set.value("u_scene", self.scene);
+		set.value("u_delays", self.delays);
 		set.value("u_time", &self.time);
 	}
 }
@@ -22,11 +22,11 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 
 struct ScreenMelt {
 	pp: shade::d2::PostProcessQuad,
-	pp_copy_shader: shade::ShaderProgram,
-	pp_melt_shader: shade::ShaderProgram,
-	gameplay_texture: shade::Texture2D,
-	main_menu_texture: shade::Texture2D,
-	delay_texture: shade::Texture2D,
+	pp_copy_shader: Box<dyn shade::ShaderProgram>,
+	pp_melt_shader: Box<dyn shade::ShaderProgram>,
+	gameplay_texture: Box<dyn shade::Texture2D>,
+	main_menu_texture: Box<dyn shade::Texture2D>,
+	delay_texture: Box<dyn shade::Texture2D>,
 }
 
 impl ScreenMelt {
@@ -79,15 +79,15 @@ impl DemoInterface for ScreenMelt {
 	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		self.pp.draw(g,
-			self.pp_copy_shader,
+			&*self.pp_copy_shader,
 			shade::BlendMode::Alpha,
 			&[&shade::shaders::PostProcessCopyUniforms {
-				texture: self.gameplay_texture,
+				texture: &*self.gameplay_texture,
 			}],
 		);
-		self.pp.draw(g, self.pp_melt_shader, shade::BlendMode::Alpha, &[&PostProcessMeltUniforms {
-			scene: self.main_menu_texture,
-			delays: self.delay_texture,
+		self.pp.draw(g, &*self.pp_melt_shader, shade::BlendMode::Alpha, &[&PostProcessMeltUniforms {
+			scene: &*self.main_menu_texture,
+			delays: &*self.delay_texture,
 			time: (frame.time as f32 - 2.0) * 2.0,
 		}]);
 		g.end();

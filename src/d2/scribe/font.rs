@@ -1,5 +1,10 @@
 use super::*;
 
+/// Target that can receive laid-out text glyph quads.
+pub trait ITextTarget {
+	fn text_quad(&mut self, vertices: &[TextVertex; 4]);
+}
+
 /// Font implementation trait.
 pub trait IFont {
 	/// Write a span of text to the text buffer.

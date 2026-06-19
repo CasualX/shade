@@ -82,9 +82,9 @@ impl ToVertex<TextVertex> for TextTemplate {
 
 /// Text uniform.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TextUniform {
+pub struct TextUniform<'a> {
 	pub transform: Transform2f,
-	pub texture: Texture2D,
+	pub texture: &'a dyn Texture2D,
 	pub unit_range: Vec2f,
 	pub threshold: f32,
 	pub out_bias: f32,
@@ -92,12 +92,12 @@ pub struct TextUniform {
 	pub outline_width_relative: f32,
 }
 
-impl Default for TextUniform {
+impl<'a> Default for TextUniform<'a> {
 	#[inline]
 	fn default() -> Self {
 		TextUniform {
 			transform: Transform2::IDENTITY,
-			texture: Texture2D::INVALID,
+			texture: &crate::DefaultTexture2D,
 			unit_range: Vec2::dup(4.0f32) / Vec2(232.0f32, 232.0f32),
 			threshold: 0.5,
 			out_bias: 0.0,
@@ -107,10 +107,10 @@ impl Default for TextUniform {
 	}
 }
 
-impl UniformVisitor for TextUniform {
+impl<'a> UniformVisitor for TextUniform<'a> {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", self.texture);
 		set.value("u_unitRange", &self.unit_range);
 		set.value("u_threshold", &self.threshold);
 		set.value("u_outBias", &self.out_bias);
@@ -120,14 +120,14 @@ impl UniformVisitor for TextUniform {
 }
 
 /// Text uniform for drawing 2D text vertices on a 3D plane.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct TextUniform3 {
-	pub text: TextUniform,
+#[derive(Clone, Default, PartialEq)]
+pub struct TextUniform3<'a> {
+	pub text: TextUniform<'a>,
 	pub camera_transform: Mat4f,
 	pub plane_transform: Transform3f,
 }
 
-impl UniformVisitor for TextUniform3 {
+impl<'a> UniformVisitor for TextUniform3<'a> {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		self.text.visit(set);
 		set.value("u_cameraTransform", &self.camera_transform);

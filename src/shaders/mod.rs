@@ -12,19 +12,19 @@ pub const POST_PROCESS_PIXELART: &str = include_str!("post_process.pixelart.glsl
 pub const POST_PROCESS_MELT: &str = include_str!("post_process.melt.glsl");
 
 #[derive(Copy, Clone)]
-pub struct PostProcessCopyUniforms {
-	pub texture: crate::Texture2D,
+pub struct PostProcessCopyUniforms<'a> {
+	pub texture: &'a dyn crate::Texture2D,
 }
 
-impl crate::UniformVisitor for PostProcessCopyUniforms {
+impl<'a> crate::UniformVisitor for PostProcessCopyUniforms<'a> {
 	fn visit(&self, set: &mut dyn crate::UniformSetter) {
 		set.sampler2d("u_texture", &[self.texture]);
 	}
 }
 
-#[derive(Copy, Clone)]
-pub struct PostProcessCrtUniforms {
-	pub texture: crate::Texture2D,
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PostProcessCrtUniforms<'a> {
+	pub texture: &'a dyn crate::Texture2D,
 	pub scanline_intensity: f32,
 	pub scanline_count: f32,
 	pub adaptive_intensity: f32,
@@ -40,10 +40,10 @@ pub struct PostProcessCrtUniforms {
 	pub time: f32,
 }
 
-impl Default for PostProcessCrtUniforms {
+impl<'a> Default for PostProcessCrtUniforms<'a> {
 	fn default() -> Self {
 		PostProcessCrtUniforms {
-			texture: crate::Texture2D::INVALID,
+			texture: &crate::DefaultTexture2D,
 			scanline_intensity: 0.5,
 			scanline_count: 256.0,
 			adaptive_intensity: 0.3,
@@ -61,7 +61,7 @@ impl Default for PostProcessCrtUniforms {
 	}
 }
 
-impl crate::UniformVisitor for PostProcessCrtUniforms {
+impl<'a> crate::UniformVisitor for PostProcessCrtUniforms<'a> {
 	fn visit(&self, set: &mut dyn crate::UniformSetter) {
 		set.sampler2d("u_texture", &[self.texture]);
 		set.value("u_scanline_intensity", &self.scanline_intensity);

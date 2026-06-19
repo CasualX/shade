@@ -70,24 +70,24 @@ void main() {
 "#;
 
 #[derive(Clone, Debug, PartialEq)]
-struct MyUniform3 {
+struct MyUniform3<'a> {
 	transform: Mat4f,
-	texture: shade::Texture2D,
+	texture: &'a dyn shade::Texture2D,
 }
 
-impl Default for MyUniform3 {
+impl<'a> Default for MyUniform3<'a> {
 	fn default() -> Self {
 		MyUniform3 {
 			transform: Mat4::IDENTITY,
-			texture: shade::Texture2D::INVALID,
+			texture: &shade::DefaultTexture2D,
 		}
 	}
 }
 
-impl shade::UniformVisitor for MyUniform3 {
+impl<'a> shade::UniformVisitor for MyUniform3<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", self.texture);
 	}
 }
 
@@ -96,8 +96,8 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct Scene {
-	texture: shade::Texture2D,
-	shader: shade::ShaderProgram,
+	texture: Box<dyn shade::Texture2D>,
+	shader: Box<dyn shade::ShaderProgram>,
 }
 
 impl Scene {
@@ -138,9 +138,9 @@ impl DemoInterface for Scene {
 		let mut cv = shade::im::DrawBuilder::<MyVertex3, MyUniform3>::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.depth_test = Some(shade::Compare::Less);
-		cv.shader = self.shader;
+		cv.shader = Some(&*self.shader);
 		cv.uniform.transform = projection * view;
-		cv.uniform.texture = self.texture;
+		cv.uniform.texture = &*self.texture;
 		floor_tile(&mut cv, 0, 0, &GRASS);
 		floor_tile(&mut cv, 1, 0, &GRASS);
 		floor_tile(&mut cv, 2, 0, &GRASS);
@@ -167,7 +167,7 @@ const GRASS: Sprite = Sprite { left: 1.0, up: 35.0, right: 32.0, down: 66.0 };
 const DROP: Sprite = Sprite { left: 35.0, up: 35.0, right: 66.0, down: 66.0 };
 const BEAR: Sprite = Sprite { left: 3.0, up: 68.0, right: 49.0, down: 152.0 };
 
-fn floor_tile(cv: &mut shade::im::DrawBuilder<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
+fn floor_tile(cv: &mut shade::im::DrawBuilder<'_, MyVertex3, MyUniform3<'_>>, x: i32, y: i32, sprite: &Sprite) {
 	let mut cv = cv.begin(shade::PrimType::Triangles, 4, 2);
 	cv.add_indices_quad();
 	cv.add_vertex(MyVertex3 {
@@ -192,7 +192,7 @@ fn floor_tile(cv: &mut shade::im::DrawBuilder<MyVertex3, MyUniform3>, x: i32, y:
 	});
 }
 
-fn floor_thing(cv: &mut shade::im::DrawBuilder<MyVertex3, MyUniform3>, x: i32, y: i32, sprite: &Sprite) {
+fn floor_thing(cv: &mut shade::im::DrawBuilder<'_, MyVertex3, MyUniform3<'_>>, x: i32, y: i32, sprite: &Sprite) {
 	let mut cv = cv.begin(shade::PrimType::Triangles, 4, 2);
 	let yoffs = -7.0;
 	let zoffs1 = 12.0;

@@ -119,13 +119,13 @@ void main() {
 // Globe renderable
 
 pub struct Material {
-	shader: shade::ShaderProgram,
-	shadow_shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
+	shader: Box<dyn shade::ShaderProgram>,
+	shadow_shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", &*self.texture);
 	}
 }
 
@@ -137,6 +137,15 @@ impl shade::UniformVisitor for Instance {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_globePosition", &self.position);
 		set.value("u_globeRadius", &self.radius);
+	}
+}
+
+struct LightTransformUniforms {
+	light_transform: Mat4f,
+}
+impl shade::UniformVisitor for LightTransformUniforms {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_lightTransform", &self.light_transform);
 	}
 }
 
@@ -178,7 +187,10 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
+		let uniforms = LightTransformUniforms {
+			light_transform: light.light_view_proj,
+		};
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -186,18 +198,10 @@ impl Renderable {
 			cull_mode: Some(shade::CullMode::CW),
 			mask: if shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::ALL },
 			prim_type: shade::PrimType::Triangles,
-			shader: if shadow { self.material.shadow_shader } else { self.material.shader },
-			uniforms: &[
-				camera,
-				light,
-				&self.material,
-				&self.instance,
-				&shade::UniformFn(|set| {
-					set.value("u_lightTransform", &light.light_view_proj);
-				}),
-			],
+			shader: if shadow { &*self.material.shadow_shader } else { &*self.material.shader },
+			uniforms: &[camera, light, &self.material, &self.instance, &uniforms],
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
+				buffer: &*self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			vertex_start: 0,
@@ -210,7 +214,7 @@ impl Renderable {
 impl super::IRenderable for Renderable {
 	fn update(&mut self, _globals: &crate::Globals) {
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, shadow: bool) {
+	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

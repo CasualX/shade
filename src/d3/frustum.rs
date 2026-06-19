@@ -6,17 +6,15 @@ pub struct FrustumInstance {
 	pub view_proj: Mat4f,
 }
 
-#[derive(Debug)]
 pub struct FrustumModel {
-	pub shader: ShaderProgram,
-	pub vertices: VertexBuffer,
+	pub vertices: Box<dyn VertexBuffer>,
 	pub vertices_len: u32,
-	pub indices: IndexBuffer,
+	pub indices: Box<dyn IndexBuffer>,
 	pub indices_len: u32,
 }
 
 impl FrustumModel {
-	pub fn create(g: &mut Graphics, shader: ShaderProgram, clip: Clip) -> FrustumModel {
+	pub fn create(g: &mut Graphics, clip: Clip) -> FrustumModel {
 		// There's no BaseVertex support in WebGL!
 		// To keep compatibility the vertices are selected when the frustum is created
 		let vertices = match clip {
@@ -28,10 +26,10 @@ impl FrustumModel {
 		let indices_len = INDICES.len() as u32;
 		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
 
-		FrustumModel { shader, vertices, vertices_len, indices, indices_len }
+		FrustumModel { vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, camera: &camera::Camera, instance: &FrustumInstance) {
+	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &FrustumInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.view_proj.inverse(),
 			colormod: Vec4f::ONE,
@@ -44,13 +42,13 @@ impl FrustumModel {
 			cull_mode: None,
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Lines,
-			shader: self.shader,
+			shader,
 			uniforms: &[camera, &uniforms],
 			vertices: &[DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			indices: self.indices,
+			indices: &*self.indices,
 			index_start: LINES_INDEX_START,
 			index_end: LINES_INDEX_END,
 			instances: -1,
@@ -63,13 +61,13 @@ impl FrustumModel {
 			cull_mode: None,
 			mask: DrawMask::COLOR,
 			prim_type: PrimType::Triangles,
-			shader: self.shader,
+			shader,
 			uniforms: &[&uniforms],
 			vertices: &[DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
-			indices: self.indices,
+			indices: &*self.indices,
 			index_start: TRIANGLES_INDEX_START,
 			index_end: TRIANGLES_INDEX_END,
 			instances: -1,

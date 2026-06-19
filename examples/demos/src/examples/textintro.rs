@@ -226,7 +226,7 @@ impl TextIntro {
 		Vec3f(0.0, up.x, up.y)
 	}
 
-	fn add_text_plane(&self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
+	fn add_text_plane<'a>(&'a self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
 		buf.uniform.plane_transform = plane;
 		buf.uniform.text.transform = Transform2f::compose(Vec2f(scale, 0.0), Vec2f(0.0, -scale), Vec2f::ZERO);
 		let bounds = Bounds2f::point(Vec2f::ZERO, Vec2f::ZERO);

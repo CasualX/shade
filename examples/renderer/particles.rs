@@ -99,14 +99,13 @@ void main() {
 "#;
 
 struct Material {
-	shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
-	positions: shade::Texture2D,
+	shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
+	positions: usize,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_positions", &self.positions);
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", &*self.texture);
 	}
 }
 
@@ -120,13 +119,36 @@ impl shade::UniformVisitor for Instance {
 	}
 }
 
+struct UpdateUniforms<'a> {
+	positions: &'a dyn shade::Texture2D,
+	delta_time: f32,
+	bounds: Bounds3f,
+}
+impl<'a> shade::UniformVisitor for UpdateUniforms<'a> {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_positions", self.positions);
+		set.value("u_deltaTime", &self.delta_time);
+		set.value("u_boundsMins", &self.bounds.mins);
+		set.value("u_boundsMaxs", &self.bounds.maxs);
+	}
+}
+
+struct PositionUniforms<'a> {
+	positions: &'a dyn shade::Texture2D,
+}
+impl<'a> shade::UniformVisitor for PositionUniforms<'a> {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_positions", self.positions);
+	}
+}
+
 pub struct Renderable {
-	mesh: shade::VertexBuffer,
+	mesh: Box<dyn shade::VertexBuffer>,
 	material: Material,
 	instance: Instance,
 
-	positions: [shade::Texture2D; 2],
-	update_shader: shade::ShaderProgram,
+	positions: [Box<dyn shade::Texture2D>; 2],
+	update_shader: Box<dyn shade::ShaderProgram>,
 	index: bool,
 	pp: shade::d2::PostProcessQuad,
 }
@@ -164,7 +186,7 @@ impl Renderable {
 				wrap: shade::TextureWrap::Repeat,
 			},
 		};
-		let positions = g.texture2d_create(&pos_info);
+		let mut positions = g.texture2d_create(&pos_info);
 		let mut initial_data = Vec::with_capacity((N * N * 3) as usize);
 		let mut rng = urandom::new();
 		for _y in 0..N {
@@ -177,7 +199,7 @@ impl Renderable {
 				initial_data.push(pz);
 			}
 		}
-		g.texture2d_write(positions, 0, dataview::bytes(initial_data.as_slice()));
+		g.texture2d_write(&mut *positions, 0, dataview::bytes(initial_data.as_slice()));
 
 		let positions2 = g.texture2d_create(&pos_info);
 
@@ -187,13 +209,13 @@ impl Renderable {
 				"update.glsl" => UPDATE_PROGRAM,
 			}
 		};
-		let shader = g.shader_compile(&mut source, "particle.glsl", &[]).unwrap();
-		let material = Material { shader, texture, positions };
+		let shader = g.shader_compile(&mut source, "particle.glsl", &[]);
+		let material = Material { shader, texture, positions: 0 };
 
 		let mesh = g.vertex_buffer(&INSTANCE_QUAD, shade::BufferUsage::Static);
 
 		let pp = shade::d2::PostProcessQuad::create(g);
-		let update_shader = g.shader_compile(&mut source, "update.glsl", &[]).unwrap();
+		let update_shader = g.shader_compile(&mut source, "update.glsl", &[]);
 
 		Renderable { mesh, material, instance, positions: [positions, positions2], index: false, pp, update_shader }
 	}
@@ -203,27 +225,21 @@ impl Renderable {
 		let dst = if self.index { 0 } else { 1 };
 		self.index = !self.index;
 
-		let src = self.positions[src];
-		let dst = self.positions[dst];
-
 		self.material.positions = dst;
 
 		g.begin(&shade::BeginArgs::Immediate {
 			viewport: Bounds2i::new(Vec2i::ZERO, Vec2i(N, N)),
-			color: &[dst],
+			color: &[&*self.positions[dst]],
 			levels: None,
-			depth: shade::Texture2D::INVALID,
+			depth: None,
 		});
 
-		self.pp.draw(g, self.update_shader, shade::BlendMode::Solid, &[
-			globals,
-			&shade::UniformFn(|set| {
-				set.value("u_positions", &src);
-				set.value("u_deltaTime", &0.01f32);
-				set.value("u_boundsMins", &self.instance.bounds.mins);
-				set.value("u_boundsMaxs", &self.instance.bounds.maxs);
-			}),
-		]);
+		let uniforms = UpdateUniforms {
+			positions: &*self.positions[src],
+			delta_time: 0.01,
+			bounds: self.instance.bounds,
+		};
+		self.pp.draw(g, &*self.update_shader, shade::BlendMode::Solid, &[globals, &uniforms]);
 
 		g.end();
 	}
@@ -238,6 +254,9 @@ impl crate::IRenderable for Renderable {
 		// }
 
 		let mask = if _shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::COLOR };
+		let positions = PositionUniforms {
+			positions: &*self.positions[self.material.positions],
+		};
 
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -246,17 +265,11 @@ impl crate::IRenderable for Renderable {
 			cull_mode: None,
 			mask,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.material.shader,
-			uniforms: &[
-				camera,
-				light,
-				globals,
-				&self.material,
-				&self.instance,
-			],
+			shader: &*self.material.shader,
+			uniforms: &[camera, light, globals, &positions, &self.material, &self.instance],
 			vertices: &[
 				shade::DrawVertexBuffer {
-					buffer: self.mesh,
+					buffer: &*self.mesh,
 					divisor: shade::VertexDivisor::PerVertex,
 				},
 			],

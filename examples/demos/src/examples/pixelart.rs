@@ -56,16 +56,16 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct PixelArt {
-	textured_shader: shade::ShaderProgram,
-	pixelart_shader: shade::ShaderProgram,
+	textured_shader: Box<dyn shade::ShaderProgram>,
+	pixelart_shader: Box<dyn shade::ShaderProgram>,
 	pp: shade::d2::PostProcessQuad,
-	pp_copy_shader: shade::ShaderProgram,
-	pp_crt_shader: shade::ShaderProgram,
-	line_shader: shade::ShaderProgram,
+	pp_copy_shader: Box<dyn shade::ShaderProgram>,
+	pp_crt_shader: Box<dyn shade::ShaderProgram>,
+	line_shader: Box<dyn shade::ShaderProgram>,
 	hud_font: d2::FontResource<shade::msdfgen::Font>,
-	nearest_texture: shade::Texture2D,
-	linear_texture: shade::Texture2D,
-	render_texture: shade::Texture2D,
+	nearest_texture: Option<Box<dyn shade::Texture2D>>,
+	linear_texture: Option<Box<dyn shade::Texture2D>>,
+	render_texture: Option<Box<dyn shade::Texture2D>>,
 	image_name: String,
 	image_size: Vec2f,
 	viewport: Bounds2i,
@@ -106,9 +106,9 @@ impl PixelArt {
 			pp_crt_shader,
 			line_shader,
 			hud_font,
-			nearest_texture: shade::Texture2D::INVALID,
-			linear_texture: shade::Texture2D::INVALID,
-			render_texture: shade::Texture2D::INVALID,
+			nearest_texture: None,
+			linear_texture: None,
+			render_texture: None,
 			image_name: "lapras.png".to_owned(),
 			image_size: Vec2(1.0, 1.0),
 			viewport: Bounds2!(0, 0, 1, 1),
@@ -125,17 +125,17 @@ impl PixelArt {
 		demo
 	}
 
-	fn shader(&self) -> shade::ShaderProgram {
+	fn shader(&self) -> &dyn shade::ShaderProgram {
 		match self.filter_mode {
-			FilterMode::Nearest | FilterMode::Linear => self.textured_shader,
-			FilterMode::PixelArt => self.pixelart_shader,
+			FilterMode::Nearest | FilterMode::Linear => &*self.textured_shader,
+			FilterMode::PixelArt => &*self.pixelart_shader,
 		}
 	}
 
-	fn texture(&self) -> shade::Texture2D {
+	fn texture(&self) -> &dyn shade::Texture2D {
 		match self.filter_mode {
-			FilterMode::Nearest => self.nearest_texture,
-			FilterMode::Linear | FilterMode::PixelArt => self.linear_texture,
+			FilterMode::Nearest => &**self.nearest_texture.as_ref().expect("nearest texture is not loaded"),
+			FilterMode::Linear | FilterMode::PixelArt => &**self.linear_texture.as_ref().expect("linear texture is not loaded"),
 		}
 	}
 
@@ -150,7 +150,12 @@ impl PixelArt {
 				wrap: shade::TextureWrap::Edge,
 			},
 		};
-		self.render_texture = g.texture2d_update(self.render_texture, &info);
+		if let Some(texture) = &mut self.render_texture {
+			g.texture2d_update(&mut **texture, &info);
+		}
+		else {
+			self.render_texture = Some(g.texture2d_create(&info));
+		}
 	}
 
 	fn load_image_bytes(&mut self, g: &mut shade::Graphics, path: Option<String>, bytes: &[u8]) -> Result<(), String> {
@@ -163,14 +168,8 @@ impl PixelArt {
 		};
 		let nearest_texture = g.image(&nearest_props.bind(&image));
 		let linear_texture = g.image(&linear_props.bind(&image));
-		if self.nearest_texture != shade::Texture2D::INVALID {
-			g.release(self.nearest_texture);
-		}
-		if self.linear_texture != shade::Texture2D::INVALID {
-			g.release(self.linear_texture);
-		}
-		self.nearest_texture = nearest_texture;
-		self.linear_texture = linear_texture;
+		self.nearest_texture = Some(nearest_texture);
+		self.linear_texture = Some(linear_texture);
 		self.image_name = path.as_deref().and_then(|path| path.rsplit(['/', '\\']).next()).unwrap_or("image").to_owned();
 		self.image_size = Vec2(image.width() as f32, image.height() as f32);
 		self.pan = Vec2::ZERO;
@@ -232,7 +231,7 @@ impl PixelArt {
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.cull_mode = None;
 		buf.uniform.transform = Transform2::ortho(viewport.cast());
-		buf.shader = self.line_shader;
+		buf.shader = Some(&*self.line_shader);
 
 		let basis_pen = d2::Pen {
 			template: d2::ColorTemplate {
@@ -254,17 +253,18 @@ impl PixelArt {
 
 	fn draw_scene(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
 		self.ensure_render_texture(g, viewport);
+		let render_texture = &**self.render_texture.as_ref().expect("render texture was not created");
 		g.begin(&shade::BeginArgs::Immediate {
 			viewport,
-			color: &[self.render_texture],
+			color: &[render_texture],
 			levels: None,
-			depth: shade::Texture2D::INVALID,
+			depth: None,
 		});
 		shade::clear!(g, color: Vec4(0.08, 0.09, 0.10, 1.0));
 
 		let mut cv = shade::d2::TexturedBuffer::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
-		cv.shader = self.shader();
+		cv.shader = Some(self.shader());
 		cv.uniform.transform = Transform2::ortho(viewport.cast());
 		cv.uniform.texture = self.texture();
 
@@ -398,19 +398,20 @@ impl DemoInterface for PixelArt {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(g, color: Vec4(0.0, 0.0, 0.0, 1.0));
 
+		let texture = &**self.render_texture.as_ref().expect("render texture was not created");
 		match self.post_process_mode {
 			PostProcessMode::None => self.pp.draw(g,
-				self.pp_copy_shader,
+				&*self.pp_copy_shader,
 				shade::BlendMode::Solid,
 				&[&shade::shaders::PostProcessCopyUniforms {
-					texture: self.render_texture,
+					texture,
 				}],
 			),
 			PostProcessMode::Crt => self.pp.draw(g,
-				self.pp_crt_shader,
+				&*self.pp_crt_shader,
 				shade::BlendMode::Solid,
 				&[&shade::shaders::PostProcessCrtUniforms {
-					texture: self.render_texture,
+					texture,
 					scanline_count: viewport.height() as f32 * 0.25,
 					time: frame.time as f32,
 					..Default::default()

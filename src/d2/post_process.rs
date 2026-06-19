@@ -2,7 +2,7 @@ use super::*;
 
 /// A full-screen quad for post-processing effects.
 pub struct PostProcessQuad {
-	vertices: VertexBuffer,
+	vertices: Box<dyn VertexBuffer>,
 }
 
 impl PostProcessQuad {
@@ -36,7 +36,7 @@ impl PostProcessQuad {
 	///
 	/// The `uniforms` parameter allows you to pass additional uniform data to the shader.
 	/// This can include textures, colors, or any other data your shader requires.
-	pub fn draw(&self, g: &mut Graphics, shader: ShaderProgram, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
+	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
 		g.draw(&DrawArgs {
 			scissor: None,
 			blend_mode,
@@ -47,7 +47,7 @@ impl PostProcessQuad {
 			shader,
 			uniforms,
 			vertices: &[DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: VertexDivisor::PerVertex,
 			}],
 			vertex_start: 0,

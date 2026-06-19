@@ -4,33 +4,33 @@ type IndexT = u16;
 
 /// Pipeline state for a draw command.
 #[derive(Clone, Debug, PartialEq)]
-pub struct PipelineState {
+pub struct PipelineState<'a> {
 	pub prim_type: PrimType,
 	pub scissor: Option<Bounds2<i32>>,
 	pub blend_mode: BlendMode,
 	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 	pub mask: DrawMask,
-	pub shader: ShaderProgram,
+	pub shader: Option<&'a dyn ShaderProgram>,
 	pub uniform_index: u32,
 }
 
 /// Command for drawing a range of indexed vertices.
-pub struct DrawCommand {
-	pub pipeline_state: PipelineState,
+pub struct DrawCommand<'a> {
+	pub pipeline_state: PipelineState<'a>,
 	pub index_start: u32,
 	pub index_end: u32,
 }
 
 /// Buffer for drawing indexed geometry.
-pub struct DrawBuffer<U> {
-	pub vertices: VertexBuffer,
-	pub indices: IndexBuffer,
+pub struct DrawBuffer<'a, U> {
+	pub vertices: Box<dyn VertexBuffer>,
+	pub indices: Box<dyn IndexBuffer>,
 	pub uniforms: Vec<U>,
-	pub commands: Vec<DrawCommand>,
+	pub commands: Vec<DrawCommand<'a>>,
 }
 
-impl<U: UniformVisitor> DrawBuffer<U> {
+impl<'a, U: UniformVisitor> DrawBuffer<'a, U> {
 	pub fn draw(&self, g: &mut Graphics) {
 		for cmd in &self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
@@ -41,13 +41,13 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 				cull_mode: cmd.pipeline_state.cull_mode,
 				mask: cmd.pipeline_state.mask,
 				prim_type: cmd.pipeline_state.prim_type,
-				shader: cmd.pipeline_state.shader,
+				shader: cmd.pipeline_state.shader.expect("Draw command has no shader"),
 				uniforms: &[uniforms],
 				vertices: &[DrawVertexBuffer {
-					buffer: self.vertices,
+					buffer: &*self.vertices,
 					divisor: VertexDivisor::PerVertex,
 				}],
-				indices: self.indices,
+				indices: &*self.indices,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
@@ -64,13 +64,13 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 				cull_mode: cmd.pipeline_state.cull_mode,
 				mask: cmd.pipeline_state.mask,
 				prim_type: cmd.pipeline_state.prim_type,
-				shader: cmd.pipeline_state.shader,
+				shader: cmd.pipeline_state.shader.expect("Draw command has no shader"),
 				uniforms: &[uniforms],
 				vertices: &[DrawVertexBuffer {
-					buffer: self.vertices,
+					buffer: &*self.vertices,
 					divisor: VertexDivisor::PerVertex,
 				}],
-				indices: self.indices,
+				indices: &*self.indices,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
@@ -78,17 +78,13 @@ impl<U: UniformVisitor> DrawBuffer<U> {
 		}
 	}
 
-	pub fn release(self, g: &mut Graphics) {
-		g.release(self.indices);
-		g.release(self.vertices);
-	}
 }
 
 struct DrawBufferRef<'a, U> {
-	vertices: VertexBuffer,
-	indices: IndexBuffer,
+	vertices: Box<dyn VertexBuffer>,
+	indices: Box<dyn IndexBuffer>,
 	uniforms: &'a [U],
-	commands: &'a [DrawCommand],
+	commands: &'a [DrawCommand<'a>],
 }
 
 impl<'a, U: TUniform> DrawBufferRef<'a, U> {
@@ -102,13 +98,13 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 				cull_mode: cmd.pipeline_state.cull_mode,
 				mask: cmd.pipeline_state.mask,
 				prim_type: cmd.pipeline_state.prim_type,
-				shader: cmd.pipeline_state.shader,
+				shader: cmd.pipeline_state.shader.expect("Draw command has no shader"),
 				uniforms: &[uniforms],
 				vertices: &[DrawVertexBuffer {
-					buffer: self.vertices,
+					buffer: &*self.vertices,
 					divisor: VertexDivisor::PerVertex,
 				}],
-				indices: self.indices,
+				indices: &*self.indices,
 				index_start: cmd.index_start,
 				index_end: cmd.index_end,
 				instances: -1,
@@ -175,13 +171,13 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// ```
 /// use shade::{cvmath, d2, im};
 ///
-/// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: shade::ShaderProgram) {
+/// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: &dyn shade::ShaderProgram) {
 /// 	// Construct a new DrawBuilder instance
 /// 	let mut cv = im::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///
 /// 	// Adjust the shared properties
 /// 	cv.blend_mode = shade::BlendMode::Alpha;
-/// 	cv.shader = shader;
+/// 	cv.shader = Some(shader);
 ///
 /// 	// Setup shader uniforms
 /// 	cv.uniform.transform = cvmath::Transform2::ortho(viewport.cast());
@@ -202,11 +198,11 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// 	cv.draw(g);
 /// }
 /// ```
-pub struct DrawBuilder<V, U> {
+pub struct DrawBuilder<'a, V, U> {
 	pub(crate) vertices: Vec<V>,
 	pub(crate) indices: Vec<IndexT>,
 	pub(crate) uniforms: Vec<U>,
-	pub(crate) commands: Vec<DrawCommand>,
+	pub(crate) commands: Vec<DrawCommand<'a>>,
 	pub(crate) auto_state_tracking: bool,
 
 	pub scissor: Option<Bounds2<i32>>,
@@ -214,11 +210,11 @@ pub struct DrawBuilder<V, U> {
 	pub depth_test: Option<Compare>,
 	pub cull_mode: Option<CullMode>,
 
-	pub shader: ShaderProgram,
+	pub shader: Option<&'a dyn ShaderProgram>,
 	pub uniform: U,
 }
 
-impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
+impl<'a, V: TVertex, U: TUniform> DrawBuilder<'a, V, U> {
 	/// Creates a new DrawBuilder.
 	#[inline]
 	pub fn new() -> Self {
@@ -234,7 +230,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			depth_test: None,
 			cull_mode: None,
 
-			shader: ShaderProgram::INVALID,
+			shader: None,
 			uniform: Default::default(),
 		}
 	}
@@ -253,12 +249,12 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 		self.depth_test = None;
 		self.cull_mode = None;
 
-		self.shader = ShaderProgram::INVALID;
+		self.shader = None;
 		self.uniform = Default::default();
 	}
 
 	/// Commit the DrawBuilder to a DrawBuffer.
-	pub fn commit(self, g: &mut Graphics, usage: BufferUsage) -> DrawBuffer<U> {
+	pub fn commit(self, g: &mut Graphics, usage: BufferUsage) -> DrawBuffer<'a, U> {
 		let vertices = g.vertex_buffer(&self.vertices, usage);
 		let indices = g.index_buffer(&self.indices, self.vertices.len() as IndexT, usage);
 
@@ -282,8 +278,6 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 			commands: &self.commands,
 		}.draw(g);
 
-		g.release(indices);
-		g.release(vertices);
 	}
 
 	/// Checks if the uniforms have changed since last time.
@@ -301,7 +295,7 @@ impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
 	}
 
 	/// Begins adding a new geometry to the DrawBuilder.
-	pub fn begin<'a>(&'a mut self, prim_type: PrimType, nverts: usize, nprims: usize) -> PrimBuilder<'a, V> {
+	pub fn begin<'b>(&'b mut self, prim_type: PrimType, nverts: usize, nprims: usize) -> PrimBuilder<'b, V> {
 		self.update_uniforms_if_changed();
 
 		let nindices = nprims * match prim_type { PrimType::Triangles => 3, PrimType::Lines => 2, };

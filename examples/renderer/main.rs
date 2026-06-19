@@ -15,19 +15,19 @@ mod particles;
 
 trait IRenderable {
 	fn update(&mut self, globals: &Globals);
-	fn draw(&self, g: &mut shade::Graphics, globals: &Globals, camera: &shade::d3::Camera, light: &Light, shadow: bool);
+	fn draw(&self, g: &mut shade::Graphics, globals: &Globals, camera: &shade::d3::Camera, light: &Light<'_>, shadow: bool);
 	fn get_bounds(&self) -> (Bounds3f, Transform3f);
 }
 
-struct Light {
+struct Light<'a> {
 	light_pos: Vec3f,
 	light_view_proj: Mat4f,
-	shadow_map: shade::Texture2D,
+	shadow_map: &'a dyn shade::Texture2D,
 }
-impl shade::UniformVisitor for Light {
+impl<'a> shade::UniformVisitor for Light<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_lightPos", &self.light_pos);
-		set.value("u_shadowMap", &self.shadow_map);
+		set.value("u_shadowMap", self.shadow_map);
 	}
 }
 
@@ -55,7 +55,7 @@ fn animate_light_pos(t: f32) -> Vec3f {
 struct RendererDemo {
 	epoch: time::Instant,
 	camera: shade::d3::ArcballCamera,
-	shadow_map: shade::Texture2D,
+	shadow_map: Box<dyn shade::Texture2D>,
 	draw_bounds: bool,
 
 	axes: shade::d3::axes::AxesModel,
@@ -66,7 +66,7 @@ struct RendererDemo {
 	parallax: parallax::Renderable,
 	globe: globe::Renderable,
 	particles: particles::Renderable,
-	color3d_shader: shade::ShaderProgram,
+	color3d_shader: Box<dyn shade::ShaderProgram>,
 }
 impl RendererDemo {
 	fn create(g: &mut shade::Graphics) -> RendererDemo {
@@ -78,7 +78,18 @@ impl RendererDemo {
 			shade::d3::ArcballCamera::new(position, pivot, Vec3::Z)
 		};
 
-		let shadow_map = shade::Texture2D::INVALID;
+		let shadow_map = g.texture2d_create(&shade::Texture2DInfo {
+			width: SHADOW_MAP_SIZE,
+			height: SHADOW_MAP_SIZE,
+			format: shade::TextureFormat::Depth32F,
+			props: shade::TextureProps! {
+				usage: shade::TextureUsage!(SAMPLED | DEPTH_STENCIL_TARGET),
+				filter: shade::TextureFilter::Linear,
+				wrap: shade::TextureWrap::Border,
+				compare: Some(shade::Compare::LessEqual),
+				border_color: [1.0, 1.0, 1.0, 1.0],
+			},
+		});
 		let draw_bounds = false;
 		let mut shader_source = shade::shader_interface! {
 			files {
@@ -87,7 +98,7 @@ impl RendererDemo {
 		};
 		let color3d_shader = g.shader_compile(&mut shader_source, "color3d.glsl", &[]);
 
-		let axes = shade::d3::axes::AxesModel::create(g, color3d_shader);
+		let axes = shade::d3::axes::AxesModel::create(g);
 
 		let cube = cube::Renderable::create(g);
 		let bunny = bunny::Renderable::create(g);
@@ -130,7 +141,7 @@ impl RendererDemo {
 			&self.particles as &dyn IRenderable,
 		];
 
-		self.shadow_map = g.texture2d_update(self.shadow_map, &shade::Texture2DInfo {
+		g.texture2d_update(&mut *self.shadow_map, &shade::Texture2DInfo {
 			width: SHADOW_MAP_SIZE,
 			height: SHADOW_MAP_SIZE,
 			format: shade::TextureFormat::Depth32F,
@@ -146,7 +157,7 @@ impl RendererDemo {
 		let mut light = Light {
 			light_pos: animate_light_pos(time),
 			light_view_proj: Mat4::IDENTITY,
-			shadow_map: self.shadow_map,
+			shadow_map: &*self.shadow_map,
 		};
 
 		// Render shadow map
@@ -155,7 +166,7 @@ impl RendererDemo {
 			viewport: shadow_viewport,
 			color: &[],
 			levels: None,
-			depth: self.shadow_map,
+			depth: Some(&*self.shadow_map),
 		});
 
 		// Light camera setup
@@ -217,14 +228,14 @@ impl RendererDemo {
 		}
 		print!("\rDrawn {} objects  ", count);
 
-		self.axes.draw(g, &camera, &shade::d3::axes::AxesInstance {
+		self.axes.draw(g, &*self.color3d_shader, &camera, &shade::d3::axes::AxesInstance {
 			local: Transform3f::translation(self.camera.pivot) * Transform3f::scaling(Vec3::dup(self.camera.pivot.distance(self.camera.position()) * 0.25)),
 			depth_test: None,
 		});
 
 		if self.draw_bounds {
 			let mut buf = shade::im::DrawBuilder::<shade::d3::ColorVertex3, shade::d3::ColorUniform3>::new();
-			buf.shader = self.color3d_shader;
+			buf.shader = Some(&*self.color3d_shader);
 			buf.blend_mode = shade::BlendMode::Alpha;
 			buf.depth_test = None;//Some(shade::DepthTest::GreaterEqual);
 			buf.uniform.transform = camera.view_proj;
@@ -241,7 +252,7 @@ impl RendererDemo {
 }
 
 
-fn draw_box(buf: &mut shade::im::DrawBuilder::<shade::d3::ColorVertex3, shade::d3::ColorUniform3>, renderable: &dyn IRenderable) {
+fn draw_box(buf: &mut shade::im::DrawBuilder<'_, shade::d3::ColorVertex3, shade::d3::ColorUniform3>, renderable: &dyn IRenderable) {
 	let mut p = buf.begin(shade::PrimType::Lines, 8, 12);
 
 	static INDICES: [[bool; 3]; 8] = [

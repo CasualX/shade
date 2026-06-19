@@ -151,14 +151,27 @@ void main() {}
 //----------------------------------------------------------------
 // Cube renderable
 
+struct TransformUniforms {
+	model: Transform3f,
+	transform: Mat4f,
+	light_transform: Mat4f,
+}
+impl shade::UniformVisitor for TransformUniforms {
+	fn visit(&self, set: &mut dyn shade::UniformSetter) {
+		set.value("u_model", &self.model);
+		set.value("u_transform", &self.transform);
+		set.value("u_lightTransform", &self.light_transform);
+	}
+}
+
 pub struct Material {
-	shader: shade::ShaderProgram,
-	shadow_shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
+	shader: Box<dyn shade::ShaderProgram>,
+	shadow_shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
 }
 impl shade::UniformVisitor for Material {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", &*self.texture);
 	}
 }
 
@@ -226,6 +239,11 @@ impl Renderable {
 	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
+		let uniforms = TransformUniforms {
+			model: self.instance.model,
+			transform,
+			light_transform,
+		};
 
 		// Draw the cube
 		g.draw_indexed(&shade::DrawIndexedArgs {
@@ -235,22 +253,13 @@ impl Renderable {
 			cull_mode: None,
 			mask: if shadow { shade::DrawMask::DEPTH } else { shade::DrawMask::COLOR | shade::DrawMask::DEPTH },
 			prim_type: shade::PrimType::Triangles,
-			shader: if shadow { self.material.shadow_shader } else { self.material.shader },
+			shader: if shadow { &*self.material.shadow_shader } else { &*self.material.shader },
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
+				buffer: &*self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: self.mesh.indices,
-			uniforms: &[
-				camera,
-				light,
-				&self.material,
-				&shade::UniformFn(|set| {
-					set.value("u_model", &self.instance.model);
-					set.value("u_transform", &transform);
-					set.value("u_lightTransform", &light_transform);
-				}),
-			],
+			indices: &*self.mesh.indices,
+			uniforms: &[camera, light, &self.material, &uniforms],
 			index_start: 0,
 			index_end: self.mesh.indices_len,
 			instances: -1,
@@ -266,7 +275,7 @@ impl super::IRenderable for Renderable {
 		let model = local * rot_a * rot_b;
 		self.instance.model = model;
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, shadow: bool) {
+	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

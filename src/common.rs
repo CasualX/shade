@@ -1,7 +1,44 @@
-use std::{fmt, slice};
+use super::*;
 
-define_handle!(VertexBuffer);
-define_handle!(IndexBuffer);
+/// Vertex buffer resource.
+pub trait VertexBuffer: Resource {
+	fn layout(&self) -> &'static crate::vertex::VertexLayout;
+}
+
+impl Eq for dyn VertexBuffer + '_ {}
+
+impl PartialEq for dyn VertexBuffer + '_ {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		ptr::addr_eq(self, other)
+	}
+}
+
+impl fmt::Debug for dyn VertexBuffer + '_ {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.fmt(f)
+	}
+}
+
+/// Index buffer resource.
+pub trait IndexBuffer: Resource {
+	fn index_type(&self) -> IndexType;
+}
+
+impl Eq for dyn IndexBuffer + '_ {}
+
+impl PartialEq for dyn IndexBuffer + '_ {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		ptr::addr_eq(self, other)
+	}
+}
+
+impl fmt::Debug for dyn IndexBuffer + '_ {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.fmt(f)
+	}
+}
 
 /// Index type for index buffers.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]

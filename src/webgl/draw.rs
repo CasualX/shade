@@ -124,10 +124,10 @@ fn gl_attribute_uses_integer_input(ty: GLenum) -> bool {
 	)
 }
 
-fn gl_attributes(shader: &WebGLShaderProgram, data: &[crate::DrawVertexBuffer], objects: &ObjectMap) -> u32 {
+fn gl_attributes(shader: &WebGLShaderProgram, data: &[crate::DrawVertexBuffer<'_>]) -> u32 {
 	let mut enabled_attribs = 0u32;
 	for vb in data {
-		let Some(buf) = objects.get_vertex_buffer(vb.buffer) else { continue }; // Validated in draw calls
+		let buf = objects::vertex_buffer(vb.buffer);
 		unsafe { api::bindBuffer(api::ARRAY_BUFFER, buf.buffer) };
 
 		let layout = buf.layout;
@@ -292,7 +292,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 			}
 		}
 	}
-	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
+	fn sampler2d(&mut self, name: &str, textures: &[&dyn crate::Texture2D]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.size as usize, textures.len(), "Uniform {name:?} expected array size {} but got {}", u.size, textures.len());
 			if u.ty == api::SAMPLER_2D {
@@ -325,8 +325,8 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 			unsafe { api::uniform1iv(u.location, units.len() as i32, units.as_ptr()) };
 
 			// Bind textures to texture units
-			for (i, &id) in textures.iter().enumerate() {
-				let texture = get_texture2d(self.this, id, self.this.texture2d_default).expect("Invalid texture handle");
+			for (i, texture) in textures.iter().enumerate() {
+				let texture = objects::texture2d(self.this, *texture);
 				assert!(texture.info.props.usage.has(crate::TextureUsage::SAMPLED), "Texture was not created with SAMPLED usage");
 				let texture_unit = (base_unit + i as i32) as GLenum;
 				unsafe {
@@ -338,12 +338,7 @@ impl<'a> crate::UniformSetter for WebGLUniformSetter<'a> {
 	}
 }
 
-fn get_texture2d(this: &WebGLGraphics, handle: crate::Texture2D, default: crate::Texture2D) -> Option<&WebGLTexture2D> {
-	let handle = if handle == crate::Texture2D::INVALID { default } else { handle };
-	this.objects.get_texture2d(handle)
-}
-
-fn gl_immediate_fbo(this: &mut WebGLGraphics, color: &[crate::Texture2D], levels: Option<&[u8]>, depth: crate::Texture2D) {
+fn gl_immediate_fbo(this: &mut WebGLGraphics, color: &[&dyn crate::Texture2D], levels: Option<&[u8]>, depth: Option<&dyn crate::Texture2D>) {
 	// Create a temporary framebuffer
 	let fbo = unsafe { api::createFramebuffer() };
 	unsafe { api::bindFramebuffer(api::FRAMEBUFFER, fbo) };
@@ -363,8 +358,8 @@ fn gl_immediate_fbo(this: &mut WebGLGraphics, color: &[crate::Texture2D], levels
 
 	// Attach color textures
 	let mut draw_buffers: [GLenum; 16] = [api::NONE; 16];
-	for (i, &tex_id) in color.iter().enumerate() {
-		let texture = get_texture2d(this, tex_id, this.texture2d_default).expect("Invalid texture handle");
+	for (i, texture) in color.iter().enumerate() {
+		let texture = objects::texture2d(this, *texture);
 		assert!(texture.info.props.usage.has(crate::TextureUsage::COLOR_TARGET), "Texture was not created with COLOR_TARGET usage");
 		unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::COLOR_ATTACHMENT0 + i as u32, api::TEXTURE_2D, texture.texture, levels[i] as GLint) };
 		draw_buffers[i] = api::COLOR_ATTACHMENT0 + i as u32;
@@ -382,8 +377,8 @@ fn gl_immediate_fbo(this: &mut WebGLGraphics, color: &[crate::Texture2D], levels
 	}
 
 	// Attach depth texture if valid
-	if depth != crate::Texture2D::INVALID {
-		let depth_tex = get_texture2d(this, depth, this.texture2d_default).expect("Invalid texture handle");
+	if let Some(depth) = depth {
+		let depth_tex = objects::texture2d(this, depth);
 		assert!(depth_tex.info.props.usage.has(crate::TextureUsage::DEPTH_STENCIL_TARGET), "Texture was not created with DEPTH_STENCIL_TARGET usage");
 		let attachment = if depth_tex.info.format == crate::TextureFormat::Depth24Stencil8 {
 			api::DEPTH_STENCIL_ATTACHMENT
@@ -467,9 +462,9 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 	}
 
 	for (i, data) in args.vertices.iter().enumerate() {
-		assert!(this.objects.get_vertex_buffer(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
+		let _ = (i, objects::vertex_buffer(data.buffer));
 	}
-	let Some(shader) = this.objects.get_shader_program(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
+	let shader = objects::shader_program(args.shader);
 
 	assert!(args.vertex_end >= args.vertex_start, "{}: vertex_end ({}) < vertex_start ({})", name_of(&arrays), args.vertex_end, args.vertex_start);
 	if args.vertex_start == args.vertex_end {
@@ -483,7 +478,7 @@ pub fn arrays(this: &mut WebGLGraphics, args: &crate::DrawArgs) {
 	gl_scissor(&args.scissor);
 
 	unsafe { api::useProgram(shader.program) };
-	let enabled_attribs = gl_attributes(shader, args.vertices, &this.objects);
+	let enabled_attribs = gl_attributes(shader, args.vertices);
 
 	let ref mut set = WebGLUniformSetter { shader, this };
 	for uniforms in args.uniforms {
@@ -514,10 +509,10 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 	}
 
 	for (i, data) in args.vertices.iter().enumerate() {
-		assert!(this.objects.get_vertex_buffer(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
+		let _ = (i, objects::vertex_buffer(data.buffer));
 	}
-	let Some(ib) = this.objects.get_index_buffer(args.indices) else { panic!("{}: invalid index buffer handle: {:?}", name_of(&arrays), args.indices); };
-	let Some(shader) = this.objects.get_shader_program(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
+	let ib = objects::index_buffer(args.indices);
+	let shader = objects::shader_program(args.shader);
 
 	assert!(args.index_end >= args.index_start, "{}: index_end ({}) < index_start ({})", name_of(&indexed), args.index_end, args.index_start);
 	if args.index_start == args.index_end {
@@ -532,7 +527,7 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 
 	unsafe { api::useProgram(shader.program) };
 	unsafe { api::bindBuffer(api::ELEMENT_ARRAY_BUFFER, ib.buffer) };
-	let enabled_attribs = gl_attributes(shader, args.vertices, &this.objects);
+	let enabled_attribs = gl_attributes(shader, args.vertices);
 
 	let ref mut set = WebGLUniformSetter { shader, this };
 	for uniforms in args.uniforms {

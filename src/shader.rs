@@ -1,8 +1,26 @@
+use super::*;
 use std::{io, path};
 
 pub(crate) mod lang;
 
-define_handle!(ShaderProgram);
+/// Shader program resource.
+pub trait ShaderProgram: Resource {
+}
+
+impl Eq for dyn ShaderProgram + '_ {}
+
+impl PartialEq for dyn ShaderProgram + '_ {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		ptr::addr_eq(self, other)
+	}
+}
+
+impl fmt::Debug for dyn ShaderProgram + '_ {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.fmt(f)
+	}
+}
 
 /// Shader kind.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

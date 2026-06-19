@@ -85,13 +85,13 @@ void main() {
 #endif
 "#;
 
-struct StateUniforms {
-	state: shade::Texture2D,
+struct StateUniforms<'a> {
+	state: &'a dyn shade::Texture2D,
 }
 
-impl shade::UniformVisitor for StateUniforms {
+impl<'a> shade::UniformVisitor for StateUniforms<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.sampler2d("u_state", &[self.state]);
+		set.value("u_state", self.state);
 	}
 }
 
@@ -101,11 +101,11 @@ pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn Dem
 
 struct Conway {
 	pp: shade::d2::PostProcessQuad,
-	conway_shader: shade::ShaderProgram,
-	display_shader: shade::ShaderProgram,
+	conway_shader: Box<dyn shade::ShaderProgram>,
+	display_shader: Box<dyn shade::ShaderProgram>,
 	field_size: Vec2i,
 	ping: usize,
-	state: [shade::Texture2D; 2],
+	state: [Box<dyn shade::Texture2D>; 2],
 }
 
 impl Conway {
@@ -137,19 +137,17 @@ impl Conway {
 	}
 
 	fn step(&mut self, g: &mut shade::Graphics) {
-		let src = self.state[self.ping];
-		let dst = self.state[1 - self.ping];
+		let src = &*self.state[self.ping];
+		let dst = &*self.state[1 - self.ping];
 		let viewport = Bounds2!(0, 0, self.field_size.x, self.field_size.y);
 		g.begin(&shade::BeginArgs::Immediate {
 			viewport,
 			color: &[dst],
 			levels: None,
-			depth: shade::Texture2D::INVALID,
+			depth: None,
 		});
-		let uniforms = StateUniforms {
-			state: src,
-		};
-		self.pp.draw(g, self.conway_shader, shade::BlendMode::Solid, &[&uniforms]);
+		let uniforms = StateUniforms { state: src };
+		self.pp.draw(g, &*self.conway_shader, shade::BlendMode::Solid, &[&uniforms]);
 		g.end();
 		self.ping = 1 - self.ping;
 	}
@@ -160,10 +158,8 @@ impl DemoInterface for Conway {
 		self.step(g);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.0, 0.0, 0.0, 1.0));
-		let uniforms = StateUniforms {
-			state: self.state[self.ping],
-		};
-		self.pp.draw(g, self.display_shader, shade::BlendMode::Solid, &[&uniforms]);
+		let uniforms = StateUniforms { state: &*self.state[self.ping] };
+		self.pp.draw(g, &*self.display_shader, shade::BlendMode::Solid, &[&uniforms]);
 		g.end();
 	}
 }

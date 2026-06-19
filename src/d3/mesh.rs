@@ -1,10 +1,9 @@
 use super::*;
 
-#[derive(Clone, Debug)]
 pub struct VertexMesh {
 	pub origin: Vec3f,
 	pub bounds: Bounds3f,
-	pub vertices: VertexBuffer,
+	pub vertices: Box<dyn VertexBuffer>,
 	pub vertices_len: u32,
 }
 
@@ -22,12 +21,11 @@ impl VertexMesh {
 	}
 }
 
-#[derive(Clone, Debug)]
 pub struct VertexIndexedMesh {
 	pub origin: Vec3f,
 	pub bounds: Bounds3f,
-	pub vertices: VertexBuffer,
+	pub vertices: Box<dyn VertexBuffer>,
 	pub vertices_len: u32,
-	pub indices: IndexBuffer,
+	pub indices: Box<dyn IndexBuffer>,
 	pub indices_len: u32,
 }

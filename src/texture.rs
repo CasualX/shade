@@ -1,7 +1,7 @@
 use super::*;
 
 /// Texture format.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 pub enum TextureFormat {
 	// Srgb formats
@@ -177,7 +177,7 @@ impl TextureProps {
 	}
 }
 
-/// Creates a [`TextureProps`] using named fields plus shorthand aliases.
+/// Creates a [`struct@TextureProps`] using named fields plus shorthand aliases.
 ///
 /// Valid shorthand names:
 /// - `filter`: sets both `filter_min` and `filter_mag`.
@@ -208,10 +208,56 @@ macro_rules! __TextureProps {
 	};
 }
 
-//----------------------------------------------------------------
-// Texture2D handle.
+/// Texture2D resource.
+pub trait Texture2D: Resource {
+	fn info(&self) -> &Texture2DInfo;
+}
 
-define_handle!(Texture2D);
+impl Eq for dyn Texture2D + '_ {}
+
+impl PartialEq for dyn Texture2D + '_ {
+	#[inline]
+	fn eq(&self, other: &Self) -> bool {
+		ptr::addr_eq(self, other)
+	}
+}
+
+impl fmt::Debug for dyn Texture2D + '_ {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.fmt(f)
+	}
+}
+
+/// Default texture that is transparent black and 1x1 pixel in size.
+pub struct DefaultTexture2D;
+
+impl DefaultTexture2D {
+	pub const INFO: Texture2DInfo = Texture2DInfo {
+		format: TextureFormat::RGBA8,
+		width: 1,
+		height: 1,
+		props: TextureProps {
+			mip_levels: 1,
+			usage: TextureUsage::TEXTURE,
+			filter_min: TextureFilter::Nearest,
+			filter_mag: TextureFilter::Nearest,
+			wrap_u: TextureWrap::Edge,
+			wrap_v: TextureWrap::Edge,
+			compare: None,
+			border_color: [0.0, 0.0, 0.0, 0.0],
+		},
+	};
+}
+impl crate::Resource for DefaultTexture2D {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "DefaultTexture2D")
+	}
+}
+impl Texture2D for DefaultTexture2D {
+	fn info(&self) -> &Texture2DInfo {
+		&DefaultTexture2D::INFO
+	}
+}
 
 /// Texture2D information.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -239,14 +285,13 @@ impl Texture2DInfo {
 }
 
 /// Animated Texture2D structure.
-#[derive(Clone, Debug)]
 pub struct AnimatedTexture2D {
 	/// The width of the image.
 	pub width: i32,
 	/// The height of the image.
 	pub height: i32,
 	/// The frames of the image.
-	pub frames: Vec<Texture2D>,
+	pub frames: Vec<Box<dyn Texture2D>>,
 	/// The length of the animation in seconds.
 	pub length: f32,
 	/// If the animation should repeat.
@@ -254,12 +299,12 @@ pub struct AnimatedTexture2D {
 }
 
 impl AnimatedTexture2D {
-	pub fn get_frame(&self, time: f64) -> Texture2D {
+	pub fn get_frame(&self, time: f64) -> Option<&dyn Texture2D> {
 		if self.frames.is_empty() {
-			return Texture2D::INVALID;
+			return None;
 		}
 		if self.length <= 0.0 {
-			return self.frames[0];
+			return Some(&*self.frames[0]);
 		}
 		let fract = if self.repeat {
 			f64::fract(time / self.length as f64)
@@ -268,7 +313,7 @@ impl AnimatedTexture2D {
 			f64::min(time, self.length as f64) / self.length as f64
 		};
 		let index = usize::min(f64::floor(fract * self.frames.len() as i32 as f64) as i32 as usize, self.frames.len() - 1);
-		self.frames[index]
+		Some(&*self.frames[index])
 	}
 }
 

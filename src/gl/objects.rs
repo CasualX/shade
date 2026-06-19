@@ -1,51 +1,50 @@
 use super::*;
 
-pub trait GlObjectTrait {
-	type Handle;
-
-	fn create_handle(value: u32) -> Self::Handle;
-
-	fn stuff(self) -> GlObjectType;
-}
-
-
 pub struct GlVertexBuffer {
+	pub generation: u32,
 	pub buffer: GLuint,
 	pub size: usize,
 	pub _usage: crate::BufferUsage,
 	pub layout: &'static crate::VertexLayout,
 }
-impl GlObjectTrait for GlVertexBuffer {
-	type Handle = crate::VertexBuffer;
-	#[inline]
-	fn create_handle(value: u32) -> Self::Handle {
-		crate::VertexBuffer { value }
+impl crate::Resource for GlVertexBuffer {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "GlVertexBuffer({:p})", self)
 	}
-	#[inline]
-	fn stuff(self) -> GlObjectType {
-		GlObjectType::VertexBuffer(self)
+}
+impl crate::VertexBuffer for GlVertexBuffer {
+	fn layout(&self) -> &'static crate::VertexLayout { self.layout }
+}
+impl Drop for GlVertexBuffer {
+	fn drop(&mut self) {
+		if generation::is_current(self.generation) {
+			gl_check!(gl::DeleteBuffers(1, &self.buffer));
+		}
 	}
 }
 
-
 pub struct GlIndexBuffer {
+	pub generation: u32,
 	pub buffer: GLuint,
 	pub size: usize,
 	pub _usage: crate::BufferUsage,
 	pub ty: crate::IndexType,
 }
-impl GlObjectTrait for GlIndexBuffer {
-	type Handle = crate::IndexBuffer;
-	#[inline]
-	fn create_handle(value: u32) -> Self::Handle {
-		crate::IndexBuffer { value }
-	}
-	#[inline]
-	fn stuff(self) -> GlObjectType {
-		GlObjectType::IndexBuffer(self)
+impl crate::Resource for GlIndexBuffer {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "GlIndexBuffer({:p})", self)
 	}
 }
-
+impl crate::IndexBuffer for GlIndexBuffer {
+	fn index_type(&self) -> crate::IndexType { self.ty }
+}
+impl Drop for GlIndexBuffer {
+	fn drop(&mut self) {
+		if generation::is_current(self.generation) {
+			gl_check!(gl::DeleteBuffers(1, &self.buffer));
+		}
+	}
+}
 
 #[allow(dead_code)]
 pub struct GlActiveAttrib {
@@ -55,165 +54,107 @@ pub struct GlActiveAttrib {
 }
 pub struct GlActiveUniform {
 	pub location: GLint,
-	pub array_size: GLint, // Number of elements in array, 1 if not an array
+	pub array_size: GLint,
 	pub ty: GLenum,
-	pub texture_unit: i8, // Texture unit, -1 if not a sampler
+	pub texture_unit: i8,
 }
 pub struct GlShaderProgram {
+	pub generation: u32,
 	pub program: GLuint,
 	pub attribs: HashMap<NameBuf, GlActiveAttrib>,
 	pub uniforms: HashMap<NameBuf, GlActiveUniform>,
 }
-impl GlObjectTrait for GlShaderProgram {
-	type Handle = crate::ShaderProgram;
-	#[inline]
-	fn create_handle(value: u32) -> Self::Handle {
-		crate::ShaderProgram { value }
+impl crate::Resource for GlShaderProgram {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "GlShaderProgram({:p})", self)
 	}
-	#[inline]
-	fn stuff(self) -> GlObjectType {
-		GlObjectType::ShaderProgram(self)
+}
+impl crate::ShaderProgram for GlShaderProgram {
+}
+impl Drop for GlShaderProgram {
+	fn drop(&mut self) {
+		if generation::is_current(self.generation) {
+			gl_check!(gl::DeleteProgram(self.program));
+		}
 	}
 }
 
-
 pub struct GlTexture2D {
+	pub generation: u32,
 	pub texture: GLuint,
 	pub info: crate::Texture2DInfo,
 }
-impl GlObjectTrait for GlTexture2D {
-	type Handle = crate::Texture2D;
-	#[inline]
-	fn create_handle(value: u32) -> Self::Handle {
-		crate::Texture2D { value }
-	}
-	#[inline]
-	fn stuff(self) -> GlObjectType {
-		GlObjectType::Texture2D(self)
+impl crate::Resource for GlTexture2D {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "GlTexture2D({:p})", self)
 	}
 }
-
-
-pub struct GlObject {
-	pub ref_count: u32,
-	pub obj: GlObjectType,
+impl crate::Texture2D for GlTexture2D {
+	fn info(&self) -> &crate::Texture2DInfo { &self.info }
 }
-impl GlObject {
-	pub fn release(&self) {
-		match &self.obj {
-			GlObjectType::VertexBuffer(buf) => {
-				gl_check!(gl::DeleteBuffers(1, &buf.buffer));
-			}
-			GlObjectType::IndexBuffer(buf) => {
-				gl_check!(gl::DeleteBuffers(1, &buf.buffer));
-			}
-			GlObjectType::ShaderProgram(shader) => {
-				shader::release(&shader);
-			}
-			GlObjectType::Texture2D(texture) => {
-				texture2d::release(&texture);
-			}
+impl Drop for GlTexture2D {
+	fn drop(&mut self) {
+		if generation::is_current(self.generation) {
+			gl_check!(gl::DeleteTextures(1, &self.texture));
 		}
 	}
 }
 
-pub enum GlObjectType {
-	VertexBuffer(GlVertexBuffer),
-	IndexBuffer(GlIndexBuffer),
-	ShaderProgram(GlShaderProgram),
-	Texture2D(GlTexture2D),
+pub struct GlTextureRef<'a> {
+	pub texture: GLuint,
+	pub info: &'a crate::Texture2DInfo,
 }
 
-pub struct ObjectMap {
-	objects: HashMap<u32, GlObject>,
-	last: u32,
+#[track_caller]
+pub fn vertex_buffer(buffer: &dyn crate::VertexBuffer) -> &GlVertexBuffer {
+	let buffer: &dyn std::any::Any = buffer;
+	buffer.downcast_ref::<GlVertexBuffer>().expect("OpenGL backend received a foreign VertexBuffer")
 }
-impl ObjectMap {
-	pub fn new() -> ObjectMap {
-		ObjectMap {
-			objects: HashMap::new(),
-			last: 0,
-		}
-	}
-	pub fn get_type(&self, handle: crate::BaseObject) -> Option<crate::ObjectType> {
-		let Some(obj) = self.objects.get(&handle.value) else {
-			return None;
-		};
-		let obj_type = match obj.obj {
-			GlObjectType::VertexBuffer(_) => crate::ObjectType::VertexBuffer,
-			GlObjectType::IndexBuffer(_) => crate::ObjectType::IndexBuffer,
-			GlObjectType::ShaderProgram(_) => crate::ObjectType::ShaderProgram,
-			GlObjectType::Texture2D(_) => crate::ObjectType::Texture2D,
-		};
-		return Some(obj_type);
-	}
-	#[track_caller]
-	pub fn add_ref(&mut self, handle: crate::BaseObject) {
-		if handle == crate::BaseObject::INVALID {
-			return;
-		}
-		let Some(obj) = self.objects.get_mut(&handle.value) else {
-			panic!("Invalid object handle: {:?}", handle);
-		};
-		obj.ref_count += 1;
-	}
-	#[track_caller]
-	pub fn release(&mut self, handle: crate::BaseObject) -> u32 {
-		if handle == crate::BaseObject::INVALID {
-			return 0;
-		}
-		let hash_map::Entry::Occupied(mut entry) = self.objects.entry(handle.value) else {
-			panic!("Invalid object handle: {:?}", handle);
-		};
-		let obj = entry.get_mut();
-		if obj.ref_count == 0 {
-			panic!("Object released too many times: {:?}", handle);
-		}
-		obj.ref_count -= 1;
-		let ref_count = obj.ref_count;
-		if ref_count == 0 {
-			obj.release();
-			entry.remove();
-		}
-		ref_count
+
+#[track_caller]
+pub fn vertex_buffer_mut(buffer: &mut dyn crate::VertexBuffer) -> &mut GlVertexBuffer {
+	let buffer: &mut dyn std::any::Any = buffer;
+	buffer.downcast_mut::<GlVertexBuffer>().expect("OpenGL backend received a foreign VertexBuffer")
+}
+
+#[track_caller]
+pub fn index_buffer(buffer: &dyn crate::IndexBuffer) -> &GlIndexBuffer {
+	let buffer: &dyn std::any::Any = buffer;
+	buffer.downcast_ref::<GlIndexBuffer>().expect("OpenGL backend received a foreign IndexBuffer")
+}
+
+#[track_caller]
+pub fn index_buffer_mut(buffer: &mut dyn crate::IndexBuffer) -> &mut GlIndexBuffer {
+	let buffer: &mut dyn std::any::Any = buffer;
+	buffer.downcast_mut::<GlIndexBuffer>().expect("OpenGL backend received a foreign IndexBuffer")
+}
+
+#[track_caller]
+pub fn shader_program(shader: &dyn crate::ShaderProgram) -> &GlShaderProgram {
+	let shader: &dyn std::any::Any = shader;
+	shader.downcast_ref::<GlShaderProgram>().expect("OpenGL backend received a foreign ShaderProgram")
+}
+
+#[track_caller]
+pub fn texture2d<'a>(this: &'a GlGraphics, texture: &'a dyn crate::Texture2D) -> GlTextureRef<'a> {
+	let texture_any: &dyn std::any::Any = texture;
+	if let Some(texture) = texture_any.downcast_ref::<GlTexture2D>() {
+		return GlTextureRef { texture: texture.texture, info: &texture.info };
 	}
 
-	pub fn insert<T: GlObjectTrait>(&mut self, obj: T) -> T::Handle {
-		loop {
-			self.last = self.last.wrapping_add(1);
-			if !self.objects.contains_key(&self.last) {
-				break;
-			}
-		}
-		let value = self.last;
-		self.objects.insert(value, GlObject { ref_count: 1, obj: obj.stuff() });
-		T::create_handle(value)
+	if !texture_any.is::<crate::DefaultTexture2D>() {
+		panic!("OpenGL backend received a foreign Texture2D");
+	}
+
+	GlTextureRef {
+		texture: this.texture2d_default,
+		info: &crate::DefaultTexture2D::INFO,
 	}
 }
-impl ObjectMap {
-	pub fn get_vertex_buffer(&self, handle: crate::VertexBuffer) -> Option<&GlVertexBuffer> {
-		let Some(object) = self.objects.get(&handle.value) else { return None };
-		let GlObjectType::VertexBuffer(ref buf) = object.obj else { return None };
-		return Some(buf);
-	}
-	pub fn get_index_buffer(&self, handle: crate::IndexBuffer) -> Option<&GlIndexBuffer> {
-		let Some(object) = self.objects.get(&handle.value) else { return None };
-		let GlObjectType::IndexBuffer(ref buf) = object.obj else { return None };
-		return Some(buf);
-	}
-	pub fn get_shader_program(&self, handle: crate::ShaderProgram) -> Option<&GlShaderProgram> {
-		let Some(object) = self.objects.get(&handle.value) else { return None };
-		let GlObjectType::ShaderProgram(ref shader) = object.obj else { return None };
-		return Some(shader);
-	}
-	pub fn get_texture2d(&self, handle: crate::Texture2D) -> Option<&GlTexture2D> {
-		let Some(object) = self.objects.get(&handle.value) else { return None };
-		let GlObjectType::Texture2D(ref texture) = object.obj else { return None };
-		return Some(texture);
-	}
-	pub fn get_texture2d_mut(&mut self, handle: crate::Texture2D) -> Option<&mut GlTexture2D> {
-		let Some(object) = self.objects.get_mut(&handle.value) else { return None };
-		let GlObjectType::Texture2D(ref mut texture) = object.obj else { return None };
-		return Some(texture);
-	}
+
+#[track_caller]
+pub fn texture2d_mut(texture: &mut dyn crate::Texture2D) -> &mut GlTexture2D {
+	let texture: &mut dyn std::any::Any = texture;
+	assert!(!texture.is::<crate::DefaultTexture2D>(), "OpenGL backend cannot mutate the shared DefaultTexture2D");
+	texture.downcast_mut::<GlTexture2D>().expect("OpenGL backend received a foreign Texture2D")
 }

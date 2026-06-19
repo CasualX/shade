@@ -64,13 +64,13 @@ void main() {
 "#;
 
 struct GlobeMaterial {
-	shader: shade::ShaderProgram,
-	texture: shade::Texture2D,
+	shader: Box<dyn shade::ShaderProgram>,
+	texture: Box<dyn shade::Texture2D>,
 }
 
 impl shade::UniformVisitor for GlobeMaterial {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
-		set.sampler2d("u_texture", &[self.texture]);
+		set.value("u_texture", &*self.texture);
 	}
 }
 
@@ -124,10 +124,10 @@ impl GlobeRenderable {
 			cull_mode: Some(shade::CullMode::CW),
 			mask: shade::DrawMask::ALL,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.material.shader,
+			shader: &*self.material.shader,
 			uniforms: &[camera, &self.material, &self.instance],
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.mesh.vertices,
+				buffer: &*self.mesh.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			vertex_start: 0,

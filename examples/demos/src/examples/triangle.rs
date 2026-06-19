@@ -62,8 +62,8 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct Triangle {
-	vertices: shade::VertexBuffer,
-	shader: shade::ShaderProgram,
+	vertices: Box<dyn shade::VertexBuffer>,
+	shader: Box<dyn shade::ShaderProgram>,
 }
 
 impl Triangle {
@@ -98,9 +98,9 @@ impl DemoInterface for Triangle {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: &*self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[],

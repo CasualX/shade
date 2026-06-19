@@ -24,7 +24,7 @@ pub trait UniformSetter {
 	fn transform2(&mut self, name: &str, data: &[cvmath::Transform2f]);
 	fn transform3(&mut self, name: &str, data: &[cvmath::Transform3f]);
 
-	fn sampler2d(&mut self, name: &str, texture: &[crate::Texture2D]);
+	fn sampler2d(&mut self, name: &str, texture: &[&dyn crate::Texture2D]);
 }
 
 impl<'a> dyn UniformSetter + 'a {
@@ -91,7 +91,30 @@ impl_tuniform_value!(cvmath::Vec2<i32>, ivec2);
 impl_tuniform_value!(cvmath::Vec3<i32>, ivec3);
 impl_tuniform_value!(cvmath::Vec4<i32>, ivec4);
 
-impl_tuniform_value!(crate::Texture2D, sampler2d);
+impl TUniformValue for dyn crate::Texture2D + '_ {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, slice::from_ref(&self));
+	}
+}
+impl TUniformValue for &(dyn crate::Texture2D + '_) {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, slice::from_ref(self));
+	}
+}
+impl TUniformValue for [&(dyn crate::Texture2D + '_)] {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, self);
+	}
+}
+impl<const N: usize> TUniformValue for [&(dyn crate::Texture2D + '_); N] {
+	#[inline]
+	fn set(&self, name: &str, set: &mut dyn UniformSetter) {
+		set.sampler2d(name, self);
+	}
+}
 
 impl_tuniform_value!(cvmath::Mat2f, mat2);
 impl_tuniform_value!(cvmath::Mat3f, mat3);

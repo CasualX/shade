@@ -7,7 +7,7 @@ pub struct Panel<const NX: usize, const NY: usize = NX> {
 	pub y: [f32; NY],
 }
 
-impl<V: TVertex, U: TUniform> DrawBuilder<V, U> {
+impl<'a, V: TVertex, U: TUniform> DrawBuilder<'a, V, U> {
 	/// Draws a subdivided panel.
 	///
 	/// * `uv_x` and `uv_y` define source split lines.

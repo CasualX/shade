@@ -56,7 +56,7 @@ pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn Dem
 
 struct ShaderToy {
 	pp: shade::d2::PostProcessQuad,
-	shadertoy: shade::ShaderProgram,
+	shadertoy: Box<dyn shade::ShaderProgram>,
 }
 
 impl ShaderToy {
@@ -75,7 +75,7 @@ impl ShaderToy {
 impl DemoInterface for ShaderToy {
 	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
-		self.pp.draw(g, self.shadertoy, shade::BlendMode::Solid, &[&ShaderToyUniforms {
+		self.pp.draw(g, &*self.shadertoy, shade::BlendMode::Solid, &[&ShaderToyUniforms {
 			time: frame.time as f32,
 			aspect_ratio: frame.viewport.size().x as f32 / frame.viewport.size().y as f32,
 		}]);

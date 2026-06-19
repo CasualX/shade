@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn compile(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &str) -> crate::ShaderProgram {
+pub fn compile(_this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &str) -> Box<dyn crate::ShaderProgram> {
 	let mut success = true;
 
 	let vertex_shader = unsafe { api::createShader(api::VERTEX_SHADER) };
@@ -24,7 +24,7 @@ pub fn compile(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &
 	if !success {
 		unsafe { api::deleteShader(vertex_shader) };
 		unsafe { api::deleteShader(fragment_shader) };
-		return crate::ShaderProgram::INVALID;
+		panic!("WebGL shader compilation failed");
 	}
 
 	let program = unsafe { api::createProgram() };
@@ -39,7 +39,7 @@ pub fn compile(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &
 	if status == 0 {
 		unsafe { api::getProgramInfoLog(program) };
 		unsafe { api::deleteProgram(program) };
-		return crate::ShaderProgram::INVALID;
+		panic!("WebGL shader linking failed");
 	}
 
 	let nattribs = unsafe { api::getProgramParameter(program, api::ACTIVE_ATTRIBUTES) };
@@ -72,15 +72,11 @@ pub fn compile(this: &mut WebGLGraphics, vertex_source: &str, fragment_source: &
 		uniforms.insert(name.into(), WebGLActiveUniform { location, size, ty, texture_unit });
 	}
 
-	return this.objects.insert(WebGLShaderProgram { program, attribs, uniforms });
+	return Box::new(WebGLShaderProgram { program, attribs, uniforms });
 }
 
-pub fn compile2(this: &mut WebGLGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+pub fn compile2(this: &mut WebGLGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> Box<dyn crate::ShaderProgram> {
 	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, "300 es", "GLSL_ES", defines, interface);
 	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, "300 es", "GLSL_ES", defines, interface);
 	compile(this, &vertex_source, &fragment_source)
-}
-
-pub fn release(shader: &WebGLShaderProgram) {
-	unsafe { api::deleteProgram(shader.program) };
 }

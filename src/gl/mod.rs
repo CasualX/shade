@@ -2,9 +2,9 @@
 OpenGL graphics backend.
 */
 
-use std::{mem, ops, ptr, slice, time};
+use std::{fmt, mem, ops, ptr, slice, time};
 use std::any::type_name_of_val as name_of;
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 
 /// Re-exported OpenGL bindings.
 pub use gl as capi;
@@ -12,25 +12,11 @@ use gl::types::*;
 
 type NameBuf = crate::sstring::SmallString<64>;
 
-#[cfg(debug_assertions)]
-macro_rules! gl_check {
-	(gl::$f:ident($($e:expr),* $(,)?)) => {{
-		assert!(gl::$f::is_loaded(), "OpenGL function gl{} was not loaded.", stringify!($f));
-		check(|| {
-			// eprintln!(concat!("gl", stringify!($f), "(", $(stringify!($e),"={:?}, ",)* ")"), $($e),*);
-			unsafe { gl::$f($($e),*) }
-		})
-	}};
-}
-#[cfg(not(debug_assertions))]
-macro_rules! gl_check {
-	($e:expr) => {
-		unsafe { $e }
-	};
-}
+mod check;
 
 mod cvt;
 mod draw;
+mod generation;
 mod shader;
 mod texture2d;
 mod objects;
@@ -51,8 +37,8 @@ impl Default for GlConfig {
 }
 
 pub struct GlGraphics {
-	objects: ObjectMap,
-	texture2d_default: crate::Texture2D,
+	generation: u32,
+	texture2d_default: GLuint,
 	dynamic_vao: GLuint,
 	drawing: bool,
 	draw_begin: time::Instant,
@@ -64,8 +50,21 @@ pub struct GlGraphics {
 
 impl GlGraphics {
 	pub fn new(config: GlConfig) -> Self {
+		let generation = generation::next();
+
 		let mut dynamic_vao = 0;
 		gl_check!(gl::GenVertexArrays(1, &mut dynamic_vao));
+
+		let mut texture2d_default = 0;
+		gl_check!(gl::GenTextures(1, &mut texture2d_default));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, texture2d_default));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as GLint));
+		gl_check!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as GLint));
+		let color = [0u8; 4];
+		gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as GLint, 1, 1, 0, gl::RGBA, gl::UNSIGNED_BYTE, color.as_ptr() as *const GLvoid));
+		gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
 
 		if config.srgb {
 			gl_check!(gl::Enable(gl::FRAMEBUFFER_SRGB));
@@ -74,40 +73,9 @@ impl GlGraphics {
 			gl_check!(gl::Disable(gl::FRAMEBUFFER_SRGB));
 		}
 
-		let mut objects = ObjectMap::new();
-
-		let mut default_texture2d = 0;
-		{
-			gl_check!(gl::GenTextures(1, &mut default_texture2d));
-			gl_check!(gl::BindTexture(gl::TEXTURE_2D, default_texture2d));
-			let color = [0u8; 4];
-			gl_check!(gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as GLint, 1, 1, 0, gl::RGBA, gl::UNSIGNED_BYTE, color.as_ptr() as *const GLvoid));
-			gl_check!(gl::BindTexture(gl::TEXTURE_2D, 0));
-		}
-		let texture2d_default = GlTexture2D {
-			texture: default_texture2d,
-			info: crate::Texture2DInfo {
-				format: crate::TextureFormat::RGBA8,
-				width: 1,
-				height: 1,
-				props: crate::TextureProps {
-					mip_levels: 1,
-					usage: crate::TextureUsage::TEXTURE,
-					filter_min: crate::TextureFilter::Nearest,
-					filter_mag: crate::TextureFilter::Nearest,
-					wrap_u: crate::TextureWrap::Edge,
-					wrap_v: crate::TextureWrap::Edge,
-					compare: None,
-					border_color: [0.0, 0.0, 0.0, 0.0],
-				}
-			},
-		};
-		let default_texture2d_handle = objects.insert(texture2d_default);
-
-
 		GlGraphics {
-			objects,
-			texture2d_default: default_texture2d_handle,
+			generation,
+			texture2d_default,
 			dynamic_vao,
 			drawing: false,
 			draw_begin: time::Instant::now(),
@@ -123,17 +91,15 @@ impl GlGraphics {
 	}
 }
 
-impl crate::IGraphics for GlGraphics {
-	fn get_type(&self, object: crate::BaseObject) -> Option<crate::ObjectType> {
-		self.objects.get_type(object)
+impl Drop for GlGraphics {
+	fn drop(&mut self) {
+		gl_check!(gl::DeleteTextures(1, &self.texture2d_default));
+		gl_check!(gl::DeleteVertexArrays(1, &self.dynamic_vao));
+		generation::drop(self.generation);
 	}
-	fn add_ref(&mut self, object: crate::BaseObject) {
-		self.objects.add_ref(object);
-	}
-	fn release(&mut self, object: crate::BaseObject) -> u32 {
-		self.objects.release(object)
-	}
+}
 
+impl crate::IGraphics for GlGraphics {
 	fn begin(&mut self, args: &crate::BeginArgs) {
 		draw::begin(self, args)
 	}
@@ -163,7 +129,7 @@ impl crate::IGraphics for GlGraphics {
 		}
 	}
 
-	fn vertex_buffer_create(&mut self, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> crate::VertexBuffer {
+	fn vertex_buffer_create(&mut self, size: usize, layout: &'static crate::VertexLayout, usage: crate::BufferUsage) -> Box<dyn crate::VertexBuffer> {
 		// Ensure non-zero size? What to do with zero sized buffers?
 		let alloc_size = if size == 0 { 1 } else { size };
 
@@ -175,14 +141,14 @@ impl crate::IGraphics for GlGraphics {
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
-		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null(), gl_usage));
+		gl_check!(gl::BufferData(gl::ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null::<GLvoid>(), gl_usage));
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 
-		self.objects.insert(GlVertexBuffer { buffer, size, _usage: usage, layout })
+		Box::new(GlVertexBuffer { generation: self.generation, buffer, size, _usage: usage, layout })
 	}
 
-	fn vertex_buffer_write(&mut self, id: crate::VertexBuffer, offset: usize, data: &[u8]) {
-		let Some(buf) = self.objects.get_vertex_buffer(id) else { return };
+	fn vertex_buffer_write(&mut self, buffer: &mut dyn crate::VertexBuffer, offset: usize, data: &[u8]) {
+		let buf = objects::vertex_buffer_mut(buffer);
 		let size = mem::size_of_val(data);
 		debug_assert!(offset + size <= buf.size, "Vertex buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
@@ -191,7 +157,7 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, 0));
 	}
 
-	fn index_buffer_create(&mut self, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> crate::IndexBuffer {
+	fn index_buffer_create(&mut self, size: usize, ty: crate::IndexType, usage: crate::BufferUsage) -> Box<dyn crate::IndexBuffer> {
 		// Ensure non-zero size? What to do with zero sized buffers?
 		let alloc_size = if size == 0 { 1 } else { size };
 
@@ -203,14 +169,14 @@ impl crate::IGraphics for GlGraphics {
 			crate::BufferUsage::Dynamic => gl::DYNAMIC_DRAW,
 			crate::BufferUsage::Stream => gl::STREAM_DRAW,
 		};
-		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null(), gl_usage));
+		gl_check!(gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, alloc_size as GLsizeiptr, ptr::null::<GLvoid>(), gl_usage));
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 
-		self.objects.insert(GlIndexBuffer { buffer, size, _usage: usage, ty })
+		Box::new(GlIndexBuffer { generation: self.generation, buffer, size, _usage: usage, ty })
 	}
 
-	fn index_buffer_write(&mut self, id: crate::IndexBuffer, offset: usize, data: &[u8]) {
-		let Some(buf) = self.objects.get_index_buffer(id) else { return };
+	fn index_buffer_write(&mut self, buffer: &mut dyn crate::IndexBuffer, offset: usize, data: &[u8]) {
+		let buf = objects::index_buffer_mut(buffer);
 		let size = mem::size_of_val(data);
 		debug_assert!(offset + size <= buf.size, "Index buffer write out of bounds: {}..{} > {}", offset, offset + size, buf.size);
 		self.metrics.bytes_uploaded = usize::wrapping_add(self.metrics.bytes_uploaded, size);
@@ -219,32 +185,28 @@ impl crate::IGraphics for GlGraphics {
 		gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0));
 	}
 
-	fn shader_compile(&mut self, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> crate::ShaderProgram {
+	fn shader_compile(&mut self, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> Box<dyn crate::ShaderProgram> {
 		shader::compile2(self, interface, name, defines)
 	}
 
-	fn texture2d_create(&mut self, info: &crate::Texture2DInfo) -> crate::Texture2D {
+	fn texture2d_create(&mut self, info: &crate::Texture2DInfo) -> Box<dyn crate::Texture2D> {
 		texture2d::create(self, info)
 	}
 
-	fn texture2d_get_info(&self, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-		texture2d::get_info(self, id)
+	fn texture2d_generate_mipmap(&mut self, texture: &mut dyn crate::Texture2D) {
+		texture2d::generate_mipmap(self, texture)
 	}
 
-	fn texture2d_generate_mipmap(&mut self, id: crate::Texture2D) {
-		texture2d::generate_mipmap(self, id)
+	fn texture2d_update(&mut self, texture: &mut dyn crate::Texture2D, info: &crate::Texture2DInfo) {
+		texture2d::update(self, texture, info)
 	}
 
-	fn texture2d_update(&mut self, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-		texture2d::update(self, id, info)
+	fn texture2d_write(&mut self, texture: &mut dyn crate::Texture2D, level: u8, data: &[u8]) {
+		texture2d::write(self, texture, level, data)
 	}
 
-	fn texture2d_write(&mut self, id: crate::Texture2D, level: u8, data: &[u8]) {
-		texture2d::write(self, id, level, data)
-	}
-
-	fn texture2d_read_into(&mut self, id: crate::Texture2D, level: u8, data: &mut [u8]) {
-		texture2d::read_into(self, id, level, data)
+	fn texture2d_read_into(&mut self, texture: &dyn crate::Texture2D, level: u8, data: &mut [u8]) {
+		texture2d::read_into(self, texture, level, data)
 	}
 }
 
@@ -261,27 +223,4 @@ impl ops::DerefMut for GlGraphics {
 	fn deref_mut(&mut self) -> &mut crate::Graphics {
 		crate::Graphics(self)
 	}
-}
-
-#[cfg(debug_assertions)]
-#[inline]
-#[track_caller]
-fn check<T, F: FnOnce() -> T>(f: F) -> T {
-	let result = f();
-
-	let mut nerrors = 0;
-	loop {
-		let error = unsafe { gl::GetError() };
-		if error == gl::NO_ERROR {
-			break;
-		}
-		nerrors += 1;
-		eprintln!("OpenGL error: {:#X}", error);
-	}
-
-	if nerrors > 0 {
-		panic!("OpenGL check failed with {} error(s)", nerrors);
-	}
-
-	result
 }

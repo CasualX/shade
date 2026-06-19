@@ -13,11 +13,11 @@ pub enum BeginArgs<'a> {
 		/// Viewport rectangle.
 		viewport: cvmath::Bounds2<i32>,
 		/// Color attachment.
-		color: &'a [Texture2D],
+		color: &'a [&'a dyn Texture2D],
 		/// Optional mip levels for each color attachment.
 		levels: Option<&'a [u8]>,
 		/// Optional depth attachment.
-		depth: Texture2D,
+		depth: Option<&'a dyn Texture2D>,
 	},
 }
 
@@ -79,9 +79,9 @@ impl ops::BitOr<DrawMask> for DrawMask {
 }
 
 /// Arguments for drawing a vertex buffer and metadata.
-pub struct DrawVertexBuffer {
+pub struct DrawVertexBuffer<'a> {
 	/// Vertex buffer.
-	pub buffer: VertexBuffer,
+	pub buffer: &'a dyn VertexBuffer,
 	/// Divisor for instanced rendering.
 	pub divisor: VertexDivisor,
 }
@@ -101,11 +101,11 @@ pub struct DrawArgs<'a> {
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
-	pub shader: ShaderProgram,
+	pub shader: &'a dyn ShaderProgram,
 	/// Uniforms.
 	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Vertex buffers.
-	pub vertices: &'a [DrawVertexBuffer],
+	pub vertices: &'a [DrawVertexBuffer<'a>],
 	/// Index of the first vertex.
 	pub vertex_start: u32,
 	/// Index of one past the last vertex.
@@ -131,13 +131,13 @@ pub struct DrawIndexedArgs<'a> {
 	/// Primitive type.
 	pub prim_type: PrimType,
 	/// Shader used.
-	pub shader: ShaderProgram,
+	pub shader: &'a dyn ShaderProgram,
 	/// Uniforms.
 	pub uniforms: &'a [&'a dyn UniformVisitor],
 	/// Vertices.
-	pub vertices: &'a [DrawVertexBuffer],
+	pub vertices: &'a [DrawVertexBuffer<'a>],
 	/// Indices.
-	pub indices: IndexBuffer,
+	pub indices: &'a dyn IndexBuffer,
 	/// Index of the first index.
 	pub index_start: u32,
 	/// Index of one past the last index.
@@ -167,15 +167,6 @@ pub struct DrawMetrics {
 ///
 /// See [Graphics](struct@Graphics) for a type-erased version.
 pub trait IGraphics {
-	/// Returns the type of the object.
-	fn get_type(&self, object: BaseObject) -> Option<ObjectType>;
-	/// Increases the reference count of the object.
-	fn add_ref(&mut self, object: BaseObject);
-	/// Decreases the reference count of the object and returns the new count.
-	///
-	/// If the reference count reaches zero, the object is freed and its resources are released.
-	fn release(&mut self, object: BaseObject) -> u32;
-
 	/// Begin drawing.
 	fn begin(&mut self, args: &BeginArgs);
 	/// Clear the surface.
@@ -190,14 +181,14 @@ pub trait IGraphics {
 	fn get_draw_metrics(&mut self, reset: bool) -> DrawMetrics;
 
 	/// Creates a vertex buffer.
-	fn vertex_buffer_create(&mut self, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> VertexBuffer;
+	fn vertex_buffer_create(&mut self, size: usize, layout: &'static VertexLayout, usage: BufferUsage) -> Box<dyn VertexBuffer>;
 	/// Writes data to the vertex buffer.
-	fn vertex_buffer_write(&mut self, id: VertexBuffer, offset: usize, data: &[u8]);
+	fn vertex_buffer_write(&mut self, buffer: &mut dyn VertexBuffer, offset: usize, data: &[u8]);
 
 	/// Creates an index buffer.
-	fn index_buffer_create(&mut self, size: usize, index_ty: IndexType, usage: BufferUsage) -> IndexBuffer;
+	fn index_buffer_create(&mut self, size: usize, index_ty: IndexType, usage: BufferUsage) -> Box<dyn IndexBuffer>;
 	/// Writes data to the index buffer.
-	fn index_buffer_write(&mut self, id: IndexBuffer, offset: usize, data: &[u8]);
+	fn index_buffer_write(&mut self, buffer: &mut dyn IndexBuffer, offset: usize, data: &[u8]);
 
 	/// Creates and compiles a unified shader with preprocessor definitions and include support.
 	///
@@ -210,20 +201,18 @@ pub trait IGraphics {
 	/// - `#define FRAGMENT_SHADER` for fragment shader compilation.
 	/// - `#define VARYING in|out` for varying qualifier, depending on the shader kind.
 	/// - `#define GLSL_CORE` for desktop OpenGL and `#define GLSL_ES` for WebGL, depending on the graphics backend.
-	fn shader_compile(&mut self, interface: &mut dyn IShaderInterface, name: &str, defines: &[ShaderDefine<'_>]) -> ShaderProgram;
+	fn shader_compile(&mut self, interface: &mut dyn IShaderInterface, name: &str, defines: &[ShaderDefine<'_>]) -> Box<dyn ShaderProgram>;
 
 	/// Creates a 2D texture.
-	fn texture2d_create(&mut self, info: &Texture2DInfo) -> Texture2D;
-	/// Returns the info of the 2D texture.
-	fn texture2d_get_info(&self, id: Texture2D) -> Option<&Texture2DInfo>;
+	fn texture2d_create(&mut self, info: &Texture2DInfo) -> Box<dyn Texture2D>;
 	/// Generates mipmap for the 2D texture.
-	fn texture2d_generate_mipmap(&mut self, id: Texture2D);
+	fn texture2d_generate_mipmap(&mut self, texture: &mut dyn Texture2D);
 	/// Updates the properties of the 2D texture and reallocates the texture if necessary.
-	fn texture2d_update(&mut self, id: Texture2D, info: &Texture2DInfo) -> Texture2D;
+	fn texture2d_update(&mut self, texture: &mut dyn Texture2D, info: &Texture2DInfo);
 	/// Writes data to the 2D texture.
-	fn texture2d_write(&mut self, id: Texture2D, level: u8, data: &[u8]);
+	fn texture2d_write(&mut self, texture: &mut dyn Texture2D, level: u8, data: &[u8]);
 	/// Reads the data of the 2D texture into the buffer.
-	fn texture2d_read_into(&mut self, id: Texture2D, level: u8, data: &mut [u8]);
+	fn texture2d_read_into(&mut self, texture: &dyn Texture2D, level: u8, data: &mut [u8]);
 }
 
 /// Graphics interface.
@@ -257,32 +246,14 @@ impl ops::DerefMut for Graphics {
 }
 
 impl Graphics {
-	/// Attempts to cast the object to the specified type.
-	#[inline]
-	pub fn try_cast<T>(&self, object: impl Into<BaseObject>) -> Option<T> where BaseObject: ObjectCast<T> {
-		object.into().try_cast(self)
-	}
-	/// Increases the reference count of the object.
-	#[inline]
-	pub fn add_ref(&mut self, object: impl Into<BaseObject>) {
-		self.inner.add_ref(object.into())
-	}
-	/// Decreases the reference count of the object and returns the new count.
-	///
-	/// If the reference count reaches zero, the object is freed and its resources are released.
-	#[inline]
-	pub fn release(&mut self, object: impl Into<BaseObject>) -> u32 {
-		self.inner.release(object.into())
-	}
-
 	/// Creates a texture from an image.
 	#[inline]
-	pub fn image<F: ImageToTexture>(&mut self, image: &F) -> Texture2D {
+	pub fn image<F: ImageToTexture>(&mut self, image: &F) -> Box<dyn Texture2D> {
 		let info = image.info();
 		let data = image.data();
-		let tex = self.texture2d_create(&info);
-		self.texture2d_write(tex, 0, data);
-		self.texture2d_generate_mipmap(tex);
+		let mut tex = self.texture2d_create(&info);
+		self.texture2d_write(&mut *tex, 0, data);
+		self.texture2d_generate_mipmap(&mut *tex);
 		return tex;
 	}
 	/// Creates an animated texture from an animated image.
@@ -296,9 +267,9 @@ impl Graphics {
 					height: frame.height,
 					props: *props,
 				};
-				let tex = self.texture2d_create(&info);
-				self.texture2d_write(tex, 0, frame.as_bytes());
-				self.texture2d_generate_mipmap(tex);
+				let mut tex = self.texture2d_create(&info);
+				self.texture2d_write(&mut *tex, 0, frame.as_bytes());
+				self.texture2d_generate_mipmap(&mut *tex);
 				tex
 			};
 			frames.push(tex);
@@ -314,21 +285,21 @@ impl Graphics {
 	}
 	/// Creates and writes data to the 2D texture.
 	#[inline]
-	pub fn texture2d(&mut self, info: &Texture2DInfo, data: &[u8]) -> Texture2D {
-		let texture = self.texture2d_create(info);
-		self.texture2d_write(texture, 0, data);
-		self.texture2d_generate_mipmap(texture);
+	pub fn texture2d(&mut self, info: &Texture2DInfo, data: &[u8]) -> Box<dyn Texture2D> {
+		let mut texture = self.texture2d_create(info);
+		self.texture2d_write(&mut *texture, 0, data);
+		self.texture2d_generate_mipmap(&mut *texture);
 		return texture;
 	}
 	/// Reads the data of the 2D texture into an image.
-	pub fn texture2d_read<T: dataview::Pod>(&mut self, id: Texture2D, level: u8) -> image::Image<T> {
-		let info = self.texture2d_get_info(id).unwrap();
+	pub fn texture2d_read<T: dataview::Pod>(&mut self, texture: &dyn Texture2D, level: u8) -> image::Image<T> {
+		let info = texture.info();
 		let (mip_width, mip_height, byte_size) = info.mip_size(level);
 		assert!(byte_size % mem::size_of::<T>() == 0, "Texture2D level={level} byte_size={byte_size} is not a multiple of {}", mem::size_of::<T>());
 		let nelements = byte_size / mem::size_of::<T>();
 		let mut vec = Vec::with_capacity(nelements);
 		let data = unsafe { slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, byte_size) };
-		self.texture2d_read_into(id, level, data);
+		self.texture2d_read_into(texture, level, data);
 		unsafe { vec.set_len(nelements) };
 		return image::Image {
 			width: mip_width,
@@ -338,20 +309,20 @@ impl Graphics {
 	}
 	/// Creates and writes data to the vertex buffer.
 	#[inline]
-	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> VertexBuffer {
+	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> Box<dyn VertexBuffer> {
 		let this = &mut self.inner;
-		let id = this.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
-		this.vertex_buffer_write(id, 0, dataview::bytes(data));
-		return id;
+		let mut buffer = this.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
+		this.vertex_buffer_write(&mut *buffer, 0, dataview::bytes(data));
+		return buffer;
 	}
 	/// Writes data to the vertex buffer.
 	#[inline]
-	pub fn vertex_buffer_write<T: TVertex>(&mut self, id: VertexBuffer, offset: usize, data: &[T]) {
-		self.inner.vertex_buffer_write(id, offset, dataview::bytes(data))
+	pub fn vertex_buffer_write<T: TVertex>(&mut self, buffer: &mut dyn VertexBuffer, offset: usize, data: &[T]) {
+		self.inner.vertex_buffer_write(buffer, offset, dataview::bytes(data))
 	}
 	/// Creates and writes data to the index buffer.
 	#[inline]
-	pub fn index_buffer<T: TIndices + ?Sized>(&mut self, data: &T, _nverts: T::Index, usage: BufferUsage) -> IndexBuffer {
+	pub fn index_buffer<T: TIndices + ?Sized>(&mut self, data: &T, _nverts: T::Index, usage: BufferUsage) -> Box<dyn IndexBuffer> {
 		let data = data.as_indices();
 
 		#[cfg(debug_assertions)]
@@ -363,13 +334,13 @@ impl Graphics {
 			}
 		}
 		let this = &mut self.inner;
-		let id = this.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
-		this.index_buffer_write(id, 0, dataview::bytes(data));
-		return id;
+		let mut buffer = this.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
+		this.index_buffer_write(&mut *buffer, 0, dataview::bytes(data));
+		return buffer;
 	}
 	/// Writes data to the index buffer.
 	#[inline]
-	pub fn index_buffer_write<T: TIndex>(&mut self, id: IndexBuffer, offset: usize, data: &[T]) {
-		self.inner.index_buffer_write(id, offset, dataview::bytes(data))
+	pub fn index_buffer_write<T: TIndex>(&mut self, buffer: &mut dyn IndexBuffer, offset: usize, data: &[T]) {
+		self.inner.index_buffer_write(buffer, offset, dataview::bytes(data))
 	}
 }

@@ -32,7 +32,7 @@ impl WebGLTextureFormat {
 	}
 }
 
-pub fn create(this: &mut WebGLGraphics, info: &crate::Texture2DInfo) -> crate::Texture2D {
+pub fn create(_this: &mut WebGLGraphics, info: &crate::Texture2DInfo) -> Box<dyn crate::Texture2D> {
 	let texture = unsafe { api::createTexture() };
 	unsafe { api::bindTexture(api::TEXTURE_2D, texture) };
 	unsafe { api::texParameteri(api::TEXTURE_2D, api::TEXTURE_WRAP_S, gl_texture_wrap(info.props.wrap_u)) };
@@ -49,31 +49,22 @@ pub fn create(this: &mut WebGLGraphics, info: &crate::Texture2DInfo) -> crate::T
 	let WebGLTextureFormat { internalformat, .. } = WebGLTextureFormat::get(info.format);
 	unsafe { api::texStorage2D(api::TEXTURE_2D, info.props.mip_levels as GLsizei, internalformat, info.width, info.height) };
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
-	return this.objects.insert(WebGLTexture2D { texture, info: *info });
+	return Box::new(WebGLTexture2D { texture, info: *info });
 }
 
-pub fn get_info(this: &WebGLGraphics, id: crate::Texture2D) -> Option<&crate::Texture2DInfo> {
-	this.objects.get_texture2d(id).map(|texture| &texture.info)
-}
-
-pub fn generate_mipmap(this: &mut WebGLGraphics, id: crate::Texture2D) {
-	let Some(texture) = this.objects.get_texture2d(id) else { return };
+pub fn generate_mipmap(_this: &mut WebGLGraphics, texture: &mut dyn crate::Texture2D) {
+	let texture = objects::texture2d_mut(texture);
 	unsafe { api::bindTexture(api::TEXTURE_2D, texture.texture) };
 	unsafe { api::generateMipmap(api::TEXTURE_2D) };
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 }
 
-pub fn update(this: &mut WebGLGraphics, id: crate::Texture2D, info: &crate::Texture2DInfo) -> crate::Texture2D {
-	if id == crate::Texture2D::INVALID {
-		return create(this, info);
-	}
-	let Some(texture) = this.objects.get_texture2d_mut(id) else {
-		return crate::Texture2D::INVALID;
-	};
+pub fn update(_this: &mut WebGLGraphics, texture: &mut dyn crate::Texture2D, info: &crate::Texture2DInfo) {
+	let texture = objects::texture2d_mut(texture);
 
 	// Short-circuit if no changes.
 	if &texture.info == info {
-		return id;
+		return;
 	}
 
 	let realloc = texture.info.width != info.width ||
@@ -107,11 +98,10 @@ pub fn update(this: &mut WebGLGraphics, id: crate::Texture2D, info: &crate::Text
 
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 	texture.info = *info;
-	return id;
 }
 
-pub fn write(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &[u8]) {
-	let Some(texture) = this.objects.get_texture2d(id) else { return };
+pub fn write(this: &mut WebGLGraphics, texture: &mut dyn crate::Texture2D, level: u8, data: &[u8]) {
+	let texture = objects::texture2d_mut(texture);
 	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
 	assert!(texture.info.props.usage.has(crate::TextureUsage::WRITE), "Texture was not created with WRITE usage");
 	this.metrics.bytes_uploaded = usize::wrapping_add(this.metrics.bytes_uploaded, data.len());
@@ -124,29 +114,31 @@ pub fn write(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &[
 	unsafe { api::bindTexture(api::TEXTURE_2D, 0) };
 }
 
-pub fn read_into(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data: &mut [u8]) {
-	let Some(texture) = this.objects.get_texture2d(id) else { return };
-	assert!(level < texture.info.props.mip_levels, "Invalid mip level {}", level);
-	assert!(texture.info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
+pub fn read_into(this: &mut WebGLGraphics, texture: &dyn crate::Texture2D, level: u8, data: &mut [u8]) {
+	let texture = objects::texture2d(this, texture);
+	let texture_id = texture.texture;
+	let info = *texture.info;
+	assert!(level < info.props.mip_levels, "Invalid mip level {}", level);
+	assert!(info.props.usage.has(crate::TextureUsage::READBACK), "Texture was not created with READBACK usage");
 	this.metrics.bytes_downloaded = usize::wrapping_add(this.metrics.bytes_downloaded, data.len());
 
 	let fbo = unsafe { api::createFramebuffer() };
 	unsafe { api::bindFramebuffer(api::FRAMEBUFFER, fbo) };
 
-	let is_depth = texture.info.format.is_depth();
+	let is_depth = info.format.is_depth();
 	if is_depth {
-		if texture.info.format == crate::TextureFormat::Depth24Stencil8 {
-			unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::DEPTH_STENCIL_ATTACHMENT, api::TEXTURE_2D, texture.texture, level as GLint) };
+		if info.format == crate::TextureFormat::Depth24Stencil8 {
+			unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::DEPTH_STENCIL_ATTACHMENT, api::TEXTURE_2D, texture_id, level as GLint) };
 		}
 		else {
-			unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::DEPTH_ATTACHMENT, api::TEXTURE_2D, texture.texture, level as GLint) };
+			unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::DEPTH_ATTACHMENT, api::TEXTURE_2D, texture_id, level as GLint) };
 		}
 		let draw_none = [api::NONE as GLenum];
 		unsafe { api::drawBuffers(draw_none.len() as i32, draw_none.as_ptr()) };
 		unsafe { api::readBuffer(api::NONE) };
 	}
 	else {
-		unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::COLOR_ATTACHMENT0, api::TEXTURE_2D, texture.texture, level as GLint) };
+		unsafe { api::framebufferTexture2D(api::FRAMEBUFFER, api::COLOR_ATTACHMENT0, api::TEXTURE_2D, texture_id, level as GLint) };
 		let draw_buffers = [api::COLOR_ATTACHMENT0 as GLenum];
 		unsafe { api::drawBuffers(draw_buffers.len() as i32, draw_buffers.as_ptr()) };
 		unsafe { api::readBuffer(api::COLOR_ATTACHMENT0) };
@@ -159,16 +151,12 @@ pub fn read_into(this: &mut WebGLGraphics, id: crate::Texture2D, level: u8, data
 		}
 	}
 
-	let WebGLTextureFormat { format, type_, align, .. } = WebGLTextureFormat::get(texture.info.format);
-	let (w, h, expected_size) = texture.info.mip_size(level);
+	let WebGLTextureFormat { format, type_, align, .. } = WebGLTextureFormat::get(info.format);
+	let (w, h, expected_size) = info.mip_size(level);
 	assert_eq!(data.len(), expected_size, "Data size does not match texture mip dimensions");
 	unsafe { api::pixelStorei(api::PACK_ALIGNMENT, align) };
 	unsafe { api::readPixels(0, 0, w, h, format, type_, data.as_mut_ptr(), data.len()) };
 
 	unsafe { api::bindFramebuffer(api::FRAMEBUFFER, 0) };
 	unsafe { api::deleteFramebuffer(fbo) };
-}
-
-pub fn release(texture: &WebGLTexture2D) {
-	unsafe { api::deleteTexture(texture.texture) };
 }

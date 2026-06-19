@@ -70,15 +70,15 @@ static VERTICES: [Vertex; 6] = [
 	Vertex { position: Vec2f(-1.0, 1.0) },
 ];
 
-struct Uniforms {
+struct Uniforms<'a> {
 	transform: Transform2f,
-	gradient: shade::Texture2D,
+	gradient: &'a dyn shade::Texture2D,
 }
 
-impl shade::UniformVisitor for Uniforms {
+impl<'a> shade::UniformVisitor for Uniforms<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_transform", &self.transform);
-		set.value("u_gradient", &self.gradient);
+		set.value("u_gradient", self.gradient);
 	}
 }
 
@@ -226,10 +226,10 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct Mandelbrot {
-	vertices: shade::VertexBuffer,
-	shader: shade::ShaderProgram,
-	gradient: shade::Texture2D,
-	color_shader: shade::ShaderProgram,
+	vertices: Box<dyn shade::VertexBuffer>,
+	shader: Box<dyn shade::ShaderProgram>,
+	gradient: Box<dyn shade::Texture2D>,
+	color_shader: Box<dyn shade::ShaderProgram>,
 	cursor: Point2f,
 	drag_selection: Option<Bounds2f>,
 	panning: bool,
@@ -332,7 +332,7 @@ impl DemoInterface for Mandelbrot {
 		let view_bounds = self.stack.view(frame.time, aspect_ratio).to_bounds(aspect_ratio);
 		let uniforms = Uniforms {
 			transform: Transform2f::ortho(view_bounds).inverse(),
-			gradient: self.gradient,
+			gradient: &*self.gradient,
 		};
 		g.draw(&shade::DrawArgs {
 			scissor: None,
@@ -341,9 +341,9 @@ impl DemoInterface for Mandelbrot {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: &*self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
 			uniforms: &[&uniforms],
@@ -356,7 +356,7 @@ impl DemoInterface for Mandelbrot {
 			buf.blend_mode = shade::BlendMode::Alpha;
 			buf.cull_mode = None;
 			buf.uniform.transform = Transform2f::ortho(view_bounds);
-			buf.shader = self.color_shader;
+			buf.shader = Some(&*self.color_shader);
 			let color = Vec4(255, 255, 255, 230);
 			let pen = d2::Pen {
 				template: d2::ColorTemplate { color1: color, color2: color },

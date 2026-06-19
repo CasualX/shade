@@ -115,10 +115,10 @@ fn gl_attribute_uses_integer_input(ty: GLenum) -> bool {
 	)
 }
 
-fn gl_attributes(shader: &GlShaderProgram, data: &[crate::DrawVertexBuffer], objects: &ObjectMap) -> u32 {
+fn gl_attributes(shader: &GlShaderProgram, data: &[crate::DrawVertexBuffer<'_>]) -> u32 {
 	let mut enabled_attribs = 0u32;
 	for vb in data {
-		let Some(buf) = objects.get_vertex_buffer(vb.buffer) else { continue }; // Validated in draw calls
+		let buf = objects::vertex_buffer(vb.buffer);
 		gl_check!(gl::BindBuffer(gl::ARRAY_BUFFER, buf.buffer));
 
 		let layout = buf.layout;
@@ -273,7 +273,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 			});
 		}
 	}
-	fn sampler2d(&mut self, name: &str, textures: &[crate::Texture2D]) {
+	fn sampler2d(&mut self, name: &str, textures: &[&dyn crate::Texture2D]) {
 		if let Some(u) = self.shader.uniforms.get(name) {
 			debug_assert_eq!(u.array_size as usize, textures.len(), "Uniform {name:?} expected array size {} but got {}", u.array_size, textures.len());
 			if u.ty == gl::SAMPLER_2D {
@@ -306,9 +306,8 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 			gl_check!(gl::Uniform1iv(u.location, units.len() as i32, units.as_ptr()));
 
 			// Bind textures to texture units
-			for (i, &id) in textures.iter().enumerate() {
-				let id = id.unwrap_or(self.this.texture2d_default);
-				let texture = self.this.objects.get_texture2d(id).expect("Invalid texture handle");
+			for (i, texture) in textures.iter().enumerate() {
+				let texture = objects::texture2d(self.this, *texture);
 				assert!(texture.info.props.usage.has(crate::TextureUsage::SAMPLED), "Texture was not created with SAMPLED usage");
 				let texture_unit = (base_unit + i as i32) as u32;
 				gl_check!(gl::ActiveTexture(gl::TEXTURE0 + texture_unit));
@@ -318,7 +317,7 @@ impl<'a> crate::UniformSetter for GlUniformSetter<'a> {
 	}
 }
 
-fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], levels: Option<&[u8]>, depth: crate::Texture2D) {
+fn gl_immediate_fbo(this: &mut GlGraphics, color: &[&dyn crate::Texture2D], levels: Option<&[u8]>, depth: Option<&dyn crate::Texture2D>) {
 	// Create a temporary framebuffer
 	let mut fbo = 0;
 	gl_check!(gl::GenFramebuffers(1, &mut fbo));
@@ -339,8 +338,8 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], levels: O
 
 	// Attach color textures
 	let mut draw_buffers: [GLenum; 16] = [gl::NONE; 16];
-	for (i, &tex_id) in color.iter().enumerate() {
-		let texture = this.objects.get_texture2d(tex_id).expect("Invalid texture handle");
+	for (i, texture) in color.iter().enumerate() {
+		let texture = objects::texture2d(this, *texture);
 		assert!(texture.info.props.usage.has(crate::TextureUsage::COLOR_TARGET), "Texture was not created with COLOR_TARGET usage");
 		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0 + i as u32, gl::TEXTURE_2D, texture.texture, levels[i] as GLint));
 		draw_buffers[i] = gl::COLOR_ATTACHMENT0 + i as u32;
@@ -359,8 +358,8 @@ fn gl_immediate_fbo(this: &mut GlGraphics, color: &[crate::Texture2D], levels: O
 	}
 
 	// Attach depth texture if valid
-	if depth != crate::Texture2D::INVALID {
-		let depth_tex = this.objects.get_texture2d(depth).expect("Invalid texture handle");
+	if let Some(depth) = depth {
+		let depth_tex = objects::texture2d(this, depth);
 		assert!(depth_tex.info.props.usage.has(crate::TextureUsage::DEPTH_STENCIL_TARGET), "Texture was not created with DEPTH_STENCIL_TARGET usage");
 		gl_check!(gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, depth_tex.texture, 0));
 	}
@@ -432,9 +431,9 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) {
 	}
 
 	for (i, data) in args.vertices.iter().enumerate() {
-		assert!(this.objects.get_vertex_buffer(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
+		let _ = (i, objects::vertex_buffer(data.buffer));
 	}
-	let Some(shader) = this.objects.get_shader_program(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
+	let shader = objects::shader_program(args.shader);
 
 	assert!(args.vertex_end >= args.vertex_start, "{}: vertex_end ({}) < vertex_start ({})", name_of(&arrays), args.vertex_end, args.vertex_start);
 	if args.vertex_start == args.vertex_end {
@@ -449,7 +448,7 @@ pub fn arrays(this: &mut GlGraphics, args: &crate::DrawArgs) {
 
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
-	let enabled_attribs = gl_attributes(shader, args.vertices, &this.objects);
+	let enabled_attribs = gl_attributes(shader, args.vertices);
 
 	let ref mut set = GlUniformSetter { shader, this };
 	for uniforms in args.uniforms {
@@ -481,10 +480,10 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 	}
 
 	for (i, data) in args.vertices.iter().enumerate() {
-		assert!(this.objects.get_vertex_buffer(data.buffer).is_some(), "{}: vertex buffer at index {} is invalid (handle: {:?})", name_of(&arrays), i, data.buffer);
+		let _ = (i, objects::vertex_buffer(data.buffer));
 	}
-	let Some(ib) = this.objects.get_index_buffer(args.indices) else { panic!("{}: invalid index buffer handle: {:?}", name_of(&arrays), args.indices); };
-	let Some(shader) = this.objects.get_shader_program(args.shader) else { panic!("{}: invalid shader handle: {:?}", name_of(&arrays), args.shader); };
+	let ib = objects::index_buffer(args.indices);
+	let shader = objects::shader_program(args.shader);
 	assert!(args.index_end >= args.index_start, "{}: index_end ({}) < index_start ({})", name_of(&indexed), args.index_end, args.index_start);
 	if args.index_start == args.index_end {
 		return;
@@ -499,7 +498,7 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 	gl_check!(gl::UseProgram(shader.program));
 	gl_check!(gl::BindVertexArray(this.dynamic_vao));
 	gl_check!(gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ib.buffer));
-	gl_attributes(shader, args.vertices, &this.objects);
+	gl_attributes(shader, args.vertices);
 
 	let ref mut set = GlUniformSetter { shader, this };
 	for uniforms in args.uniforms {

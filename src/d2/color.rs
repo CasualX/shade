@@ -49,34 +49,34 @@ impl ToVertex<ColorVertex> for ColorTemplate {
 
 /// Color uniform.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ColorUniform {
+pub struct ColorUniform<'a> {
 	pub transform: Transform2f,
 	pub pattern: Transform2f,
 	pub colormod: Vec4f,
 	/// Gradient texture.
-	pub texture: Texture2D,
+	pub texture: &'a dyn Texture2D,
 }
 
-impl Default for ColorUniform {
+impl<'a> Default for ColorUniform<'a> {
 	#[inline]
 	fn default() -> Self {
 		ColorUniform {
 			transform: Transform2f::IDENTITY,
 			pattern: Transform2f::IDENTITY,
 			colormod: Vec4f::ONE,
-			texture: Texture2D::INVALID,
+			texture: &crate::DefaultTexture2D,
 		}
 	}
 }
 
-impl UniformVisitor for ColorUniform {
+impl<'a> UniformVisitor for ColorUniform<'a> {
 	fn visit(&self, set: &mut dyn UniformSetter) {
 		set.value("u_transform", &self.transform);
 		set.value("u_pattern", &self.pattern);
 		set.value("u_colorModulation", &self.colormod);
-		set.value("u_texture", &self.texture);
+		set.value("u_texture", self.texture);
 	}
 }
 
 /// DrawBuilder for color rendering.
-pub type ColorBuffer = DrawBuilder<ColorVertex, ColorUniform>;
+pub type ColorBuffer<'a> = DrawBuilder<'a, ColorVertex, ColorUniform<'a>>;

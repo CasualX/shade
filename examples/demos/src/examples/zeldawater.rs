@@ -76,21 +76,20 @@ void main() {
 #endif
 "#;
 
-#[derive(Clone, Debug)]
-struct Uniform {
+struct Uniform<'a> {
 	time: f32,
-	texture: shade::Texture2D,
-	distortion: shade::Texture2D,
+	texture: &'a dyn shade::Texture2D,
+	distortion: &'a dyn shade::Texture2D,
 	waterbase: Vec3f,
 	wavehighlight: Vec3f,
 	waveshadow: Vec3f,
 }
 
-impl shade::UniformVisitor for Uniform {
+impl<'a> shade::UniformVisitor for Uniform<'a> {
 	fn visit(&self, set: &mut dyn shade::UniformSetter) {
 		set.value("u_time", &self.time);
-		set.value("u_texture", &self.texture);
-		set.value("u_displacement", &self.distortion);
+		set.value("u_texture", self.texture);
+		set.value("u_displacement", self.distortion);
 		set.value("u_waterbase", &self.waterbase);
 		set.value("u_wavehighlight", &self.wavehighlight);
 		set.value("u_waveshadow", &self.waveshadow);
@@ -102,11 +101,11 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 }
 
 struct ZeldaWater {
-	vertices: shade::VertexBuffer,
-	indices: shade::IndexBuffer,
-	texture: shade::Texture2D,
-	distortion: shade::Texture2D,
-	shader: shade::ShaderProgram,
+	vertices: Box<dyn shade::VertexBuffer>,
+	indices: Box<dyn shade::IndexBuffer>,
+	texture: Box<dyn shade::Texture2D>,
+	distortion: Box<dyn shade::Texture2D>,
+	shader: Box<dyn shade::ShaderProgram>,
 }
 
 impl ZeldaWater {
@@ -131,7 +130,7 @@ impl ZeldaWater {
 		ZeldaWater { vertices, indices, texture, distortion, shader }
 	}
 
-	fn load_repeat_texture(g: &mut shade::Graphics, assets: &dyn AssetLoader, path: &str) -> shade::Texture2D {
+	fn load_repeat_texture(g: &mut shade::Graphics, assets: &dyn AssetLoader, path: &str) -> Box<dyn shade::Texture2D> {
 		let bytes = assets.read(path).unwrap();
 		let image = shade::image::DecodedImage::load_memory_png(&bytes).unwrap();
 		let props = shade::TextureProps! {
@@ -149,8 +148,8 @@ impl DemoInterface for ZeldaWater {
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 		let uniform = Uniform {
 			time: frame.time as f32,
-			texture: self.texture,
-			distortion: self.distortion,
+			texture: &*self.texture,
+			distortion: &*self.distortion,
 			waterbase: Vec3f(0.0, 0.0, 0.5),
 			wavehighlight: Vec3f(0.5, 0.8, 1.0),
 			waveshadow: Vec3f(0.1, 0.2, 0.3),
@@ -162,12 +161,12 @@ impl DemoInterface for ZeldaWater {
 			cull_mode: None,
 			mask: shade::DrawMask::COLOR,
 			prim_type: shade::PrimType::Triangles,
-			shader: self.shader,
+			shader: &*self.shader,
 			vertices: &[shade::DrawVertexBuffer {
-				buffer: self.vertices,
+				buffer: &*self.vertices,
 				divisor: shade::VertexDivisor::PerVertex,
 			}],
-			indices: self.indices,
+			indices: &*self.indices,
 			uniforms: &[&uniform],
 			index_start: 0,
 			index_end: 6,
