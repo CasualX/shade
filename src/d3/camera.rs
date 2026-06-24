@@ -128,5 +128,12 @@ impl UniformVisitor for Camera {
 	}
 }
 
+unsafe impl TUniformKey for Camera {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<Camera>()
+	}
+}
+
 #[cfg(test)]
 mod tests;

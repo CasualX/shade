@@ -80,15 +80,15 @@ impl Window {
 		let scribe = self.title_scribe();
 		let font = resx.get_font(SystemResources::FONT_KEY).unwrap();
 		let (text_height, text_width) = self.title.with(app, |title| {
-			let text_height = scribe.text_height(title).ceil() as i32;
-			let mut cursor = d2::Cursor(cvmath::Vec2::ZERO);
-			let text_width = scribe.text_width(&mut cursor, font.font, title).ceil() as i32;
+			let (text_width, text_height) = scribe.measure_text(font.font, title);
+			let text_height = text_height.ceil() as i32;
+			let text_width = text_width.ceil() as i32;
 			(text_height, text_width)
 		}).unwrap_or_else(|| {
 			let title = "<window>";
-			let text_height = scribe.text_height(title).ceil() as i32;
-			let mut cursor = d2::Cursor(cvmath::Vec2::ZERO);
-			let text_width = scribe.text_width(&mut cursor, font.font, title).ceil() as i32;
+			let (text_width, text_height) = scribe.measure_text(font.font, title);
+			let text_height = text_height.ceil() as i32;
+			let text_width = text_width.ceil() as i32;
 			(text_height, text_width)
 		});
 		let width_adjust = if text_width + HEADER_PAD_X * 2 > ctx.bounds.width() { 4 } else { 0 };

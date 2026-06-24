@@ -21,32 +21,6 @@ struct BufferTypeId {
 	uniform: any::TypeId,
 }
 
-#[doc(hidden)]
-pub trait BufferTypeKey {
-	fn key() -> any::TypeId;
-}
-
-impl<'a> BufferTypeKey for d2::ColorUniform<'a> {
-	#[inline]
-	fn key() -> any::TypeId {
-		any::TypeId::of::<d2::ColorUniform<'static>>()
-	}
-}
-
-impl<'a> BufferTypeKey for d2::TextUniform<'a> {
-	#[inline]
-	fn key() -> any::TypeId {
-		any::TypeId::of::<d2::TextUniform<'static>>()
-	}
-}
-
-impl<'a> BufferTypeKey for d2::TextUniform3<'a> {
-	#[inline]
-	fn key() -> any::TypeId {
-		any::TypeId::of::<d2::TextUniform3<'static>>()
-	}
-}
-
 trait IDrawBuffer<'a> {
 	fn buffer_type_id(&self) -> BufferTypeId;
 	fn buffer_ptr(&mut self) -> *mut ();
@@ -60,7 +34,7 @@ trait IDrawBuffer<'a> {
 
 impl<'a> dyn IDrawBuffer<'a> + 'a {
 	#[inline]
-	fn downcast_mut<V: TVertex, U: TUniform + BufferTypeKey + 'a>(&mut self) -> Option<&mut DrawBuilder<'a, V, U>> {
+	fn downcast_mut<V: TVertex, U: TUniform + TUniformKey + 'a>(&mut self) -> Option<&mut DrawBuilder<'a, V, U>> {
 		if self.buffer_type_id() == (BufferTypeId { vertex: any::TypeId::of::<V>(), uniform: U::key() }) {
 			Some(unsafe { &mut *(self.buffer_ptr() as *mut DrawBuilder<'a, V, U>) })
 		}
@@ -70,7 +44,7 @@ impl<'a> dyn IDrawBuffer<'a> + 'a {
 	}
 }
 
-impl<'a, T: TVertex, U: TUniform + BufferTypeKey + 'a> IDrawBuffer<'a> for DrawBuilder<'a, T, U> {
+impl<'a, T: TVertex, U: TUniform + TUniformKey + 'a> IDrawBuffer<'a> for DrawBuilder<'a, T, U> {
 	fn buffer_type_id(&self) -> BufferTypeId {
 		BufferTypeId {
 			vertex: any::TypeId::of::<T>(),
@@ -206,7 +180,7 @@ impl<'a> DrawPool<'a> {
 	/// is preserved from the previous buffer to maintain consistency.
 	///
 	/// Note that shader and shader uniforms are *not* carried over and must be set explicitly.
-	pub fn get<V: TVertex, U: TUniform + BufferTypeKey + 'a>(&mut self) -> &mut DrawBuilder<'a, V, U> {
+	pub fn get<V: TVertex, U: TUniform + TUniformKey + 'a>(&mut self) -> &mut DrawBuilder<'a, V, U> {
 		let mut shared_state = None;
 
 		// Check the last submission buffer

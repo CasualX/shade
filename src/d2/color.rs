@@ -78,5 +78,12 @@ impl<'a> UniformVisitor for ColorUniform<'a> {
 	}
 }
 
+unsafe impl<'a> TUniformKey for ColorUniform<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<ColorUniform<'static>>()
+	}
+}
+
 /// DrawBuilder for color rendering.
 pub type ColorBuffer<'a> = DrawBuilder<'a, ColorVertex, ColorUniform<'a>>;

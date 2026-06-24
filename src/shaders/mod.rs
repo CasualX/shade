@@ -22,6 +22,13 @@ impl<'a> crate::UniformVisitor for PostProcessCopyUniforms<'a> {
 	}
 }
 
+unsafe impl<'a> crate::TUniformKey for PostProcessCopyUniforms<'a> {
+	#[inline]
+	fn key() -> std::any::TypeId {
+		std::any::TypeId::of::<PostProcessCopyUniforms<'static>>()
+	}
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct PostProcessCrtUniforms<'a> {
 	pub texture: &'a dyn crate::Texture2D,
@@ -77,5 +84,12 @@ impl<'a> crate::UniformVisitor for PostProcessCrtUniforms<'a> {
 		set.value("u_curvature", &self.curvature);
 		set.value("u_flicker_strength", &self.flicker_strength);
 		set.value("u_time", &self.time);
+	}
+}
+
+unsafe impl<'a> crate::TUniformKey for PostProcessCrtUniforms<'a> {
+	#[inline]
+	fn key() -> std::any::TypeId {
+		std::any::TypeId::of::<PostProcessCrtUniforms<'static>>()
 	}
 }

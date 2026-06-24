@@ -108,6 +108,16 @@ impl Scribe {
 	pub fn text_height(&self, text: &str) -> f32 {
 		text.lines().count() as i32 as f32 * self.line_height
 	}
+
+	/// Measures the width and height of a text string.
+	#[inline]
+	pub fn measure_text(&self, font: &dyn IFont, text: &str) -> (f32, f32) {
+		let mut scribe_st = self.clone();
+		let mut cursor = Cursor(Vec2::ZERO);
+		let width = write_text_span(None, font, &mut scribe_st, &mut cursor, text);
+		cursor.pos.y += scribe_st.line_height;
+		(width, cursor.pos.y)
+	}
 }
 
 impl<'a> ITextTarget for TextBuffer<'a> {

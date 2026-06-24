@@ -1,4 +1,4 @@
-use std::slice;
+use std::{any, slice};
 
 /// Values that can be passed as shader uniforms.
 pub trait TUniformValue {
@@ -37,6 +37,23 @@ impl<'a> dyn UniformSetter + 'a {
 
 /// Marker trait for types containing uniform values.
 pub trait TUniform: Clone + PartialEq + Default + UniformVisitor {}
+
+/// Provides a stable type identifier for a uniform type.
+///
+/// Uniform types containing lifetimes should return the [`any::TypeId`] of an
+/// equivalent type with those lifetimes replaced by `'static`. Uniform types
+/// without lifetimes can return their own [`any::TypeId`].
+///
+/// # Safety
+///
+/// The returned identifier must uniquely identify the concrete layout and type
+/// of `Self`, ignoring lifetimes only. Unsafe code may use matching identifiers
+/// as proof that erased pointers have the same concrete type and transmute or
+/// cast between them. Returning the same identifier for incompatible types can
+/// therefore cause undefined behavior.
+pub unsafe trait TUniformKey {
+	fn key() -> any::TypeId;
+}
 
 impl<T: Clone + PartialEq + Default + UniformVisitor> TUniform for T {}
 

@@ -52,3 +52,10 @@ impl<'a> UniformVisitor for TexturedUniform3<'a> {
 		set.value("u_colorModulation", &self.colormod);
 	}
 }
+
+unsafe impl<'a> TUniformKey for TexturedUniform3<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<TexturedUniform3<'static>>()
+	}
+}

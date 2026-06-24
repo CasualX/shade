@@ -82,5 +82,12 @@ impl<'a> UniformVisitor for TexturedUniform<'a> {
 	}
 }
 
+unsafe impl<'a> TUniformKey for TexturedUniform<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<TexturedUniform<'static>>()
+	}
+}
+
 /// DrawBuilder for textured graphics.
 pub type TexturedBuffer<'a> = DrawBuilder<'a, TexturedVertex, TexturedUniform<'a>>;

@@ -64,3 +64,10 @@ impl UniformVisitor for ColorUniform3 {
 		set.value("u_colorModulation", &self.colormod);
 	}
 }
+
+unsafe impl TUniformKey for ColorUniform3 {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<ColorUniform3>()
+	}
+}

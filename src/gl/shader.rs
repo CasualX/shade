@@ -1,5 +1,16 @@
 use super::*;
 
+cfg_select! {
+	target_os = "android" => {
+		const GLSL_VERSION: &str = "300 es";
+		const GLSL_BACKEND: &str = "GLSL_ES";
+	}
+	_ => {
+		const GLSL_VERSION: &str = "330 core";
+		const GLSL_BACKEND: &str = "GLSL_CORE";
+	}
+}
+
 pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str) -> Box<dyn crate::ShaderProgram> {
 	let mut success = true;
 	let mut status = 0;
@@ -108,7 +119,7 @@ pub fn compile(this: &mut GlGraphics, vertex_source: &str, fragment_source: &str
 }
 
 pub fn compile2(this: &mut GlGraphics, interface: &mut dyn crate::IShaderInterface, name: &str, defines: &[crate::ShaderDefine<'_>]) -> Box<dyn crate::ShaderProgram> {
-	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, "330 core", "GLSL_CORE", defines, interface);
-	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, "330 core", "GLSL_CORE", defines, interface);
+	let vertex_source = crate::lang::compile(name, 0, crate::ShaderKind::Vertex, GLSL_VERSION, GLSL_BACKEND, defines, interface);
+	let fragment_source = crate::lang::compile(name, 0, crate::ShaderKind::Fragment, GLSL_VERSION, GLSL_BACKEND, defines, interface);
 	compile(this, &vertex_source, &fragment_source)
 }

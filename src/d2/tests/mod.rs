@@ -41,6 +41,12 @@ impl UniformVisitor for MockUniform {
 	fn visit(&self, _set: &mut dyn UniformSetter) {}
 }
 
+unsafe impl TUniformKey for MockUniform {
+	fn key() -> any::TypeId {
+		any::TypeId::of::<MockUniform>()
+	}
+}
+
 mod pen;
 mod panel;
 mod paint;

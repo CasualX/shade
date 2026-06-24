@@ -119,6 +119,13 @@ impl<'a> UniformVisitor for TextUniform<'a> {
 	}
 }
 
+unsafe impl<'a> TUniformKey for TextUniform<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<TextUniform<'static>>()
+	}
+}
+
 /// Text uniform for drawing 2D text vertices on a 3D plane.
 #[derive(Clone, Default, PartialEq)]
 pub struct TextUniform3<'a> {
@@ -132,5 +139,12 @@ impl<'a> UniformVisitor for TextUniform3<'a> {
 		self.text.visit(set);
 		set.value("u_cameraTransform", &self.camera_transform);
 		set.value("u_planeTransform", &self.plane_transform);
+	}
+}
+
+unsafe impl<'a> TUniformKey for TextUniform3<'a> {
+	#[inline]
+	fn key() -> any::TypeId {
+		any::TypeId::of::<TextUniform3<'static>>()
 	}
 }
