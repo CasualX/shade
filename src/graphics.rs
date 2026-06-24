@@ -307,6 +307,16 @@ impl Graphics {
 			data: vec,
 		};
 	}
+	/// Ensures that the texture is created and updated with the given info.
+	#[inline]
+	pub fn texture2d_ensure(&mut self, texture: &mut Option<Box<dyn Texture2D + '_>>, info: &Texture2DInfo) {
+		if let Some(texture) = texture {
+			self.texture2d_update(&mut **texture, info);
+		}
+		else {
+			*texture = Some(self.texture2d_create(info));
+		}
+	}
 	/// Creates and writes data to the vertex buffer.
 	#[inline]
 	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> Box<dyn VertexBuffer> {

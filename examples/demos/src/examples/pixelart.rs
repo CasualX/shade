@@ -150,12 +150,7 @@ impl PixelArt {
 				wrap: shade::TextureWrap::Edge,
 			},
 		};
-		if let Some(texture) = &mut self.render_texture {
-			g.texture2d_update(&mut **texture, &info);
-		}
-		else {
-			self.render_texture = Some(g.texture2d_create(&info));
-		}
+		g.texture2d_ensure(&mut self.render_texture, &info);
 	}
 
 	fn load_image_bytes(&mut self, g: &mut shade::Graphics, path: Option<String>, bytes: &[u8]) -> Result<(), String> {
