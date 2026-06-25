@@ -68,7 +68,7 @@ fn draggable(child: &ChildWidget, scene: &Scene) -> bool {
 	let Some(widget) = scene.get_widget(child.key) else {
 		return false;
 	};
-	widget.hittable()
+	widget.draggable()
 }
 
 fn contain_bounds(child: cvmath::Bounds2i, container: cvmath::Bounds2i) -> cvmath::Bounds2i {

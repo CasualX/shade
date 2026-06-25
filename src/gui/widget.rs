@@ -40,6 +40,9 @@ pub trait Widget: any::Any {
 	/// Returns whether this widget is interactive.
 	fn hittable(&self) -> bool { true }
 
+	/// Returns whether this top-level widget can be dragged by the root panel.
+	fn draggable(&self) -> bool { false }
+
 	/// Handles an event.
 	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, app: &mut dyn AppState) {}
 

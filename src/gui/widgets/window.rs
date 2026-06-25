@@ -23,6 +23,10 @@ impl Widget for Window {
 		}
 	}
 
+	fn draggable(&self) -> bool {
+		true
+	}
+
 	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, _app: &mut dyn AppState) {
 		if let Some(mouse) = event.mouse() {
 			if ctx.target == self.key {
