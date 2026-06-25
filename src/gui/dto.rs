@@ -66,10 +66,15 @@ pub enum Widget {
 	ColorSwatch(ColorSwatch),
 	DrawGrid(DrawGrid),
 	Label(Label),
+	Menu(Menu),
+	MenuBar(MenuBar),
+	MenuBarItem(MenuBarItem),
+	MenuItem(MenuItem),
 	Panel(Panel),
 	ProgressBar(ProgressBar),
 	RadioButton(RadioButton),
 	ScrollPanel(ScrollPanel),
+	Separator(Separator),
 	Slider(Slider),
 	Window(Window),
 }
@@ -139,6 +144,49 @@ pub struct Label {
 	pub align: Option<d2::TextAlign>,
 }
 
+/// Declarative vertical menu.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Menu {
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub name: Option<String>,
+	pub children: Vec<Widget>,
+}
+
+/// Declarative horizontal menu bar.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MenuBar {
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub name: Option<String>,
+	pub children: Vec<MenuBarItem>,
+}
+
+/// Declarative item that opens a menu from a menu bar.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MenuBarItem {
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub name: Option<String>,
+	pub label: Property<String>,
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub enabled: Option<Property<bool>>,
+	pub menu: Box<Menu>,
+}
+
+/// Declarative menu item.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MenuItem {
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub name: Option<String>,
+	pub label: Property<String>,
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub enabled: Option<Property<bool>>,
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub submenu: Option<Box<Menu>>,
+}
+
 /// Declarative container.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -181,6 +229,14 @@ pub struct ScrollPanel {
 	pub name: Option<String>,
 	pub content_height: i32,
 	pub content: Box<Widget>,
+}
+
+/// Declarative menu separator.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Separator {
+	#[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+	pub name: Option<String>,
 }
 
 /// Declarative slider.

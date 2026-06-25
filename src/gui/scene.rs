@@ -1,15 +1,26 @@
 use super::*;
 
+#[derive(Copy, Clone, Debug)]
+enum PopupRequest {
+	Open {
+		anchor_widget: SlotKey,
+		menu: SlotKey,
+		anchor_bounds: cvmath::Bounds2i,
+	},
+	Truncate { after: Option<SlotKey> },
+}
+
 /// Retained GUI scene containing all widgets and root ordering.
 pub struct Scene {
 	slots: SlotMap<Box<dyn Widget>>,
 	parents: Vec<Option<SlotKey>>,
 	size: cvmath::Vec2i,
 	content: Option<SlotKey>,
-	// Future idea: focused widget / keyboard routing.
-	// focused: Option<SlotKey>,
 	pointed: Option<SlotKey>,
 	captured: Option<SlotKey>,
+	popup_owner: Option<SlotKey>,
+	popup_chain: Vec<SlotKey>,
+	popup_request: Option<PopupRequest>,
 }
 
 impl Scene {
@@ -20,9 +31,11 @@ impl Scene {
 			parents: Vec::new(),
 			size,
 			content: None,
-			// focused: None,
 			pointed: None,
 			captured: None,
+			popup_owner: None,
+			popup_chain: Vec::new(),
+			popup_request: None,
 		};
 		scene.content = Some(scene.create_widget(widgets::RootPanel::empty));
 		scene
@@ -48,9 +61,14 @@ impl Scene {
 	///
 	/// This clears the parent metadata for the whole subtree and frees every occupied slot.
 	pub fn destroy_widget(&mut self, key: SlotKey) {
-		// if self.focused == Some(key) {
-		// 	self.focused = None;
-		// }
+		if self.popup_chain.contains(&key) {
+			self.popup_owner = None;
+			self.popup_chain.clear();
+			self.popup_request = None;
+		}
+		if self.popup_owner == Some(key) {
+			self.hide_popup();
+		}
 		if self.pointed == Some(key) {
 			self.pointed = None;
 		}
@@ -114,6 +132,11 @@ impl Scene {
 		self.size = size;
 	}
 
+	/// Returns the scene size.
+	pub fn size(&self) -> cvmath::Vec2i {
+		self.size
+	}
+
 	/// Temporarily takes ownership of the root panel, runs `f` given the root panel and scene, and then puts it back.
 	fn with<R>(&mut self, f: impl FnOnce(&mut widgets::RootPanel, &mut Scene) -> R) -> R {
 		let content = self.content.expect("scene root panel is not initialized");
@@ -151,9 +174,17 @@ impl Scene {
 		if parent != self.content {
 			panic!("Cannot hide widget {key:?} with parent {parent:?} other than the root panel");
 		}
+		if self.pointed.is_some_and(|pointed| self.is_descendant_of(pointed, key)) {
+			self.pointed = None;
+		}
 		self.with(|root, scene| {
 			root.detach(key, scene);
 		});
+	}
+
+	/// Returns whether a widget is currently attached directly to the root panel.
+	pub fn is_shown(&self, key: SlotKey) -> bool {
+		self.parent(key) == self.content
 	}
 
 	/// Returns the bounds clipped in the scene of the given widget.
@@ -179,6 +210,58 @@ impl Scene {
 		cursor
 	}
 
+	/// Shows a menu as the root of a popup chain.
+	pub fn show_popup(&mut self, menu: SlotKey, bounds: cvmath::Bounds2i) {
+		self.hide_popup();
+		self.show(menu, bounds);
+		self.bring_to_front(menu);
+		self.popup_owner = None;
+		self.popup_chain.push(menu);
+	}
+
+	/// Queues a menu to open from an arbitrary anchor widget after event routing.
+	///
+	/// If the anchor belongs to a menu in the active popup chain, `menu` is
+	/// opened beside it. Otherwise `menu` replaces the chain and opens below it.
+	pub fn open_popup(&mut self, anchor_widget: SlotKey, menu: SlotKey, anchor_bounds: cvmath::Bounds2i) {
+		self.popup_request = Some(PopupRequest::Open { anchor_widget, menu, anchor_bounds });
+	}
+
+	/// Returns whether the active popup was opened by a sibling of `widget`.
+	///
+	/// This is useful for controls that switch popup menus while the pointer moves
+	/// between their children, without assigning any special meaning to the parent.
+	pub fn popup_owned_by_sibling(&self, widget: SlotKey) -> bool {
+		let Some(owner) = self.popup_owner else {
+			return false;
+		};
+		self.parent(owner).is_some() && self.parent(owner) == self.parent(widget)
+	}
+
+	/// Returns whether `widget` owns the active popup chain.
+	pub fn popup_owned_by(&self, widget: SlotKey) -> bool {
+		self.popup_owner == Some(widget) && !self.popup_chain.is_empty()
+	}
+
+	/// Hides the active popup chain without destroying its menus.
+	pub fn hide_popup(&mut self) {
+		self.popup_request = None;
+		self.popup_owner = None;
+		while let Some(menu) = self.popup_chain.pop() {
+			if self.is_shown(menu) {
+				self.hide(menu);
+			}
+		}
+	}
+
+	/// Queues the popup chain to be truncated after event routing.
+	///
+	/// `Some(menu)` keeps the chain through that menu and closes everything
+	/// opened from it. `None` closes the entire chain.
+	pub fn close_popup(&mut self, after: Option<SlotKey>) {
+		self.popup_request = Some(PopupRequest::Truncate { after });
+	}
+
 	/// Captures mouse routing to `target` until it is released again.
 	pub fn capture_pointer(&mut self, target: SlotKey) {
 		self.captured = Some(target);
@@ -193,6 +276,14 @@ impl Scene {
 	pub fn mouse_event(&mut self, event: &MouseEvent, time: time::Instant, app: &mut dyn AppState) {
 		let input = InputEvent::Mouse(event.clone());
 		let hovered = self.hit_test(event.pointer);
+		if matches!(event.kind, MouseEventKind::ButtonDown { .. }) {
+			let over_popup = hovered.is_some_and(|target| self.popup_chain.iter().any(|&popup| self.is_descendant_of(target, popup)));
+			let over_popup_peer = hovered.is_some_and(|target| self.popup_owned_by_sibling(target));
+			if !self.popup_chain.is_empty() && !over_popup && !over_popup_peer {
+				self.update_pointed(hovered, event.pointer, time, app);
+				self.hide_popup();
+			}
+		}
 
 		if let Some(captured) = self.captured {
 			self.update_pointed(Some(captured), event.pointer, time, app);
@@ -200,6 +291,7 @@ impl Scene {
 			if self.captured.is_none() {
 				self.update_pointed(hovered, event.pointer, time, app);
 			}
+			self.apply_popup_request();
 			return;
 		}
 
@@ -207,6 +299,7 @@ impl Scene {
 		if let Some(target) = hovered {
 			self.event(target, time, &input, app);
 		}
+		self.apply_popup_request();
 	}
 
 	fn update_pointed(&mut self, new: Option<SlotKey>, pointer: cvmath::Vec2i, time: time::Instant, app: &mut dyn AppState) {
@@ -280,6 +373,92 @@ impl Scene {
 			*parent = None;
 		}
 	}
+
+	fn is_descendant_of(&self, mut widget: SlotKey, ancestor: SlotKey) -> bool {
+		loop {
+			if widget == ancestor {
+				return true;
+			}
+			let Some(parent) = self.parent(widget) else {
+				return false;
+			};
+			widget = parent;
+		}
+	}
+
+	fn apply_popup_request(&mut self) {
+		let Some(request) = self.popup_request.take() else {
+			return;
+		};
+		match request {
+			PopupRequest::Open { anchor_widget, menu, anchor_bounds } => {
+				let parent_index = self.parent(anchor_widget)
+					.and_then(|parent| self.popup_chain.iter().position(|&popup| popup == parent));
+				let Some(height) = self.menu_height(menu) else {
+					return;
+				};
+				if let Some(parent_index) = parent_index {
+					if self.popup_chain.get(parent_index + 1) == Some(&menu) {
+						return;
+					}
+					self.hide_popup_tail(parent_index + 1);
+					let mut left = anchor_bounds.maxs.x - 1;
+					if left + widgets::MENU_WIDTH > self.size.x {
+						left = anchor_bounds.mins.x - widgets::MENU_WIDTH + 1;
+					}
+					left = left.clamp(0, (self.size.x - widgets::MENU_WIDTH).max(0));
+					let top = anchor_bounds.mins.y.clamp(0, (self.size.y - height).max(0));
+					let bounds = cvmath::Bounds2!(left, top, left + widgets::MENU_WIDTH, top + height);
+					self.show(menu, bounds);
+					self.bring_to_front(menu);
+					self.popup_chain.push(menu);
+				}
+				else {
+					if self.popup_owner == Some(anchor_widget) && self.popup_chain.first() == Some(&menu) {
+						return;
+					}
+					self.hide_popup();
+					let left = anchor_bounds.mins.x.clamp(0, (self.size.x - widgets::MENU_WIDTH).max(0));
+					let mut top = anchor_bounds.maxs.y - 1;
+					if top + height > self.size.y {
+						top = anchor_bounds.mins.y - height + 1;
+					}
+					top = top.clamp(0, (self.size.y - height).max(0));
+					let bounds = cvmath::Bounds2!(left, top, left + widgets::MENU_WIDTH, top + height);
+					self.show(menu, bounds);
+					self.bring_to_front(menu);
+					self.popup_owner = Some(anchor_widget);
+					self.popup_chain.push(menu);
+				}
+			},
+			PopupRequest::Truncate { after } => {
+				if let Some(menu) = after {
+					if let Some(index) = self.popup_chain.iter().position(|&key| key == menu) {
+						self.hide_popup_tail(index + 1);
+					}
+				}
+				else {
+					self.hide_popup();
+				}
+			},
+		}
+	}
+
+	fn hide_popup_tail(&mut self, keep: usize) {
+		while self.popup_chain.len() > keep {
+			let menu = self.popup_chain.pop().unwrap();
+			if self.is_shown(menu) {
+				self.hide(menu);
+			}
+		}
+	}
+
+	fn menu_height(&self, menu: SlotKey) -> Option<i32> {
+		self.get_widget(menu)
+			.and_then(|widget| widget.downcast_ref::<widgets::Menu>())
+			.map(widgets::Menu::height)
+	}
+
 }
 
 impl dto::Scene {
@@ -425,4 +604,111 @@ fn draw_tree<'a>(g: &mut Graphics, im: &mut im::DrawPool<'a>, key: SlotKey, ctx:
 			draw_tree(g, im, child.key, &child_ctx, resx, app, scene);
 		}
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	struct TestWidget {
+		key: SlotKey,
+		children: Vec<widgets::ChildWidget>,
+	}
+
+	impl Widget for TestWidget {
+		fn key(&self) -> SlotKey {
+			self.key
+		}
+
+		fn children(&self) -> &[widgets::ChildWidget] {
+			&self.children
+		}
+	}
+
+	#[test]
+	fn popup_chain_shows_and_hides_retained_submenus() {
+		let mut scene = Scene::new(cvmath::Vec2i::new(640, 480));
+		let mut ctx = dto::BuildContext::new();
+		let root = dto::Menu {
+			name: Some("root".to_owned()),
+			children: vec![dto::Widget::MenuItem(dto::MenuItem {
+				name: Some("parent_item".to_owned()),
+				label: dto::Property::Value("Parent".to_owned()),
+				enabled: None,
+				submenu: Some(Box::new(dto::Menu {
+					name: Some("submenu".to_owned()),
+					children: vec![dto::Widget::MenuItem(dto::MenuItem {
+						name: Some("leaf".to_owned()),
+						label: dto::Property::Value("Leaf".to_owned()),
+						enabled: None,
+						submenu: None,
+					})],
+				})),
+			})],
+		}.construct(&mut scene, &mut ctx);
+		let item = ctx.key("parent_item").unwrap();
+		let submenu = ctx.key("submenu").unwrap();
+
+		scene.show_popup(root, cvmath::Bounds2!(20, 20, 260, 52));
+		assert!(scene.is_shown(root));
+		assert!(!scene.is_shown(submenu));
+
+		scene.open_popup(item, submenu, cvmath::Bounds2!(20, 20, 260, 52));
+		scene.apply_popup_request();
+		assert!(scene.is_shown(root));
+		assert!(scene.is_shown(submenu));
+		assert_eq!(scene.popup_chain, vec![root, submenu]);
+
+		scene.close_popup(Some(root));
+		scene.apply_popup_request();
+		assert!(scene.is_shown(root));
+		assert!(!scene.is_shown(submenu));
+		assert!(scene.get_widget(submenu).is_some());
+
+		scene.close_popup(None);
+		scene.apply_popup_request();
+		assert!(!scene.is_shown(root));
+		assert!(scene.get_widget(root).is_some());
+		assert!(scene.get_widget(submenu).is_some());
+	}
+
+	#[test]
+	fn popup_owner_can_be_nested_in_an_arbitrary_widget() {
+		let mut scene = Scene::new(cvmath::Vec2i::new(640, 480));
+		let mut ctx = dto::BuildContext::new();
+		let bar = dto::MenuBar {
+			name: Some("bar".to_owned()),
+			children: vec![dto::MenuBarItem {
+				name: Some("heading".to_owned()),
+				label: dto::Property::Value("File".to_owned()),
+				enabled: None,
+				menu: Box::new(dto::Menu {
+					name: Some("popup".to_owned()),
+					children: vec![dto::Widget::MenuItem(dto::MenuItem {
+						name: Some("action".to_owned()),
+						label: dto::Property::Value("New".to_owned()),
+						enabled: None,
+						submenu: None,
+					})],
+				}),
+			}],
+		}.construct(&mut scene, &mut ctx);
+		let container = scene.create_widget(|key| TestWidget {
+			key,
+			children: vec![widgets::ChildWidget::new(cvmath::Bounds2!(0, 0, 300, widgets::MENU_BAR_HEIGHT), bar)],
+		});
+		scene.show(container, cvmath::Bounds2!(50, 60, 350, 160));
+
+		let heading = ctx.key("heading").unwrap();
+		let popup = ctx.key("popup").unwrap();
+		scene.open_popup(heading, popup, cvmath::Bounds2!(50, 60, 138, 92));
+		scene.apply_popup_request();
+
+		assert!(scene.is_shown(popup));
+		assert!(scene.popup_owned_by(heading));
+
+		scene.hide_popup();
+		assert!(!scene.is_shown(popup));
+		assert!(scene.get_widget(popup).is_some());
+	}
 }

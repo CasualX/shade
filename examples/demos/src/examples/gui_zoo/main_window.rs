@@ -68,7 +68,7 @@ impl State {
 		self.shared.borrow().radio_selected
 	}
 
-	fn set_status(&self, status: impl Into<String>) {
+	pub(super) fn set_status(&self, status: impl Into<String>) {
 		self.shared.borrow_mut().status = status.into();
 	}
 

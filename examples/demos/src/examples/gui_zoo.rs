@@ -16,6 +16,7 @@ const BACKGROUND_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(
 const DRAWING_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(shade::cvmath::Point2(520, 48), shade::cvmath::Point2(980, 424));
 const MAIN_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(shade::cvmath::Point2(24, 24), shade::cvmath::Point2(494, 664));
 const FLOATING_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(shade::cvmath::Point2(790, 98), shade::cvmath::Point2(1060, 288));
+const CONTEXT_MENU_HEIGHT: i32 = gui::widgets::MENU_ITEM_HEIGHT * 4 + gui::widgets::SEPARATOR_HEIGHT;
 
 pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(GuiZoo::new(g, assets))
@@ -27,6 +28,8 @@ struct GuiZoo {
 	font: d2::FontResource<shade::atlas::Font>,
 	color_shader: Box<dyn shade::ShaderProgram>,
 	background: gui::SlotKey,
+	menu_bar: gui::SlotKey,
+	context_menu: gui::SlotKey,
 	start: Instant,
 }
 
@@ -34,6 +37,14 @@ struct ZooState {
 	drawing: drawing_window::State,
 	main: main_window::State,
 	floating: floating_window::State,
+	context_copy: gui::SlotKey,
+	context_reset: gui::SlotKey,
+	context_submenu_first: gui::SlotKey,
+	context_submenu_second: gui::SlotKey,
+	context_disabled: gui::SlotKey,
+	menu_file_new: gui::SlotKey,
+	menu_file_recent_first: gui::SlotKey,
+	menu_edit_copy: gui::SlotKey,
 }
 
 impl ZooState {
@@ -75,6 +86,40 @@ impl gui::AppState for ZooState {
 	}
 
 	fn prop(&self, _key: gui::PropKey, _f: &mut dyn FnMut(&dyn std::any::Any)) {}
+
+	fn emit(&mut self, event: &dyn gui::UserEvent) {
+		let Some(event) = event.downcast_ref::<gui::widgets::MenuItemClicked>() else {
+			return;
+		};
+		let status = if event.key == self.context_copy {
+			"Context menu: first action selected."
+		}
+		else if event.key == self.context_reset {
+			"Context menu: second action selected."
+		}
+		else if event.key == self.context_submenu_first {
+			"Context submenu: first nested action selected."
+		}
+		else if event.key == self.context_submenu_second {
+			"Context submenu: second nested action selected."
+		}
+		else if event.key == self.context_disabled {
+			"Context menu: disabled item selected."
+		}
+		else if event.key == self.menu_file_new {
+			"Menu bar: File → New selected."
+		}
+		else if event.key == self.menu_file_recent_first {
+			"Menu bar: File → Recent → First project selected."
+		}
+		else if event.key == self.menu_edit_copy {
+			"Menu bar: Edit → Copy selected."
+		}
+		else {
+			return;
+		};
+		self.main.set_status(status);
+	}
 }
 
 fn lerp_color(a: shade::cvmath::Vec4<u8>, b: shade::cvmath::Vec4<u8>, t: f32) -> shade::cvmath::Vec4<u8> {
@@ -122,15 +167,150 @@ impl GuiZoo {
 		let drawing_window = drawing_window::load(&mut scene, &mut build_ctx);
 		let main_window = main_window::load(&mut scene, &mut build_ctx);
 		let floating_window = floating_window::load(&mut scene, &mut build_ctx);
+		let menu_bar = gui::dto::MenuBar {
+			name: Some("menu_bar".to_owned()),
+			children: vec![
+				gui::dto::MenuBarItem {
+					name: Some("menu_file".to_owned()),
+					label: gui::dto::Property::Value("File".to_owned()),
+					enabled: None,
+					menu: Box::new(gui::dto::Menu {
+						name: Some("menu_file_popup".to_owned()),
+						children: vec![
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("menu_file_new".to_owned()),
+								label: gui::dto::Property::Value("New".to_owned()),
+								enabled: None,
+								submenu: None,
+							}),
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("menu_file_recent".to_owned()),
+								label: gui::dto::Property::Value("Recent".to_owned()),
+								enabled: None,
+								submenu: Some(Box::new(gui::dto::Menu {
+									name: Some("menu_file_recent_popup".to_owned()),
+									children: vec![
+										gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+											name: Some("menu_file_recent_first".to_owned()),
+											label: gui::dto::Property::Value("First project".to_owned()),
+											enabled: None,
+											submenu: None,
+										}),
+										gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+											name: Some("menu_file_recent_second".to_owned()),
+											label: gui::dto::Property::Value("Second project".to_owned()),
+											enabled: None,
+											submenu: None,
+										}),
+									],
+								})),
+							}),
+							gui::dto::Widget::Separator(gui::dto::Separator { name: None }),
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("menu_file_disabled".to_owned()),
+								label: gui::dto::Property::Value("Unavailable".to_owned()),
+								enabled: Some(gui::dto::Property::Value(false)),
+								submenu: None,
+							}),
+						],
+					}),
+				},
+				gui::dto::MenuBarItem {
+					name: Some("menu_edit".to_owned()),
+					label: gui::dto::Property::Value("Edit".to_owned()),
+					enabled: None,
+					menu: Box::new(gui::dto::Menu {
+						name: Some("menu_edit_popup".to_owned()),
+						children: vec![
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("menu_edit_copy".to_owned()),
+								label: gui::dto::Property::Value("Copy".to_owned()),
+								enabled: None,
+								submenu: None,
+							}),
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("menu_edit_paste".to_owned()),
+								label: gui::dto::Property::Value("Paste".to_owned()),
+								enabled: None,
+								submenu: None,
+							}),
+						],
+					}),
+				},
+			],
+		}.construct(&mut scene, &mut build_ctx);
+		let context_menu = gui::dto::Menu {
+			name: Some("context_menu".to_owned()),
+			children: vec![
+				gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+					name: Some("context_copy".to_owned()),
+					label: gui::dto::Property::Value("First context action".to_owned()),
+					enabled: None,
+					submenu: None,
+				}),
+				gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+					name: Some("context_reset".to_owned()),
+					label: gui::dto::Property::Value("Second context action".to_owned()),
+					enabled: None,
+					submenu: None,
+				}),
+				gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+					name: Some("context_more".to_owned()),
+					label: gui::dto::Property::Value("More actions".to_owned()),
+					enabled: None,
+					submenu: Some(Box::new(gui::dto::Menu {
+						name: Some("context_more_menu".to_owned()),
+						children: vec![
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("context_submenu_first".to_owned()),
+								label: gui::dto::Property::Value("First nested action".to_owned()),
+								enabled: None,
+								submenu: None,
+							}),
+							gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+								name: Some("context_submenu_second".to_owned()),
+								label: gui::dto::Property::Value("Second nested action".to_owned()),
+								enabled: None,
+								submenu: None,
+							}),
+						],
+					})),
+				}),
+				gui::dto::Widget::Separator(gui::dto::Separator { name: None }),
+				gui::dto::Widget::MenuItem(gui::dto::MenuItem {
+					name: Some("context_disabled".to_owned()),
+					label: gui::dto::Property::Value("Unavailable action".to_owned()),
+					enabled: Some(gui::dto::Property::Value(false)),
+					submenu: None,
+				}),
+			],
+		}.construct(&mut scene, &mut build_ctx);
 		scene.show(background, BACKGROUND_BOUNDS);
 		scene.show(drawing_window, DRAWING_WINDOW_BOUNDS);
 		scene.show(main_window, MAIN_WINDOW_BOUNDS);
 		scene.show(floating_window, FLOATING_WINDOW_BOUNDS);
+		scene.show(menu_bar, shade::cvmath::Bounds2!(0, 0, GUI_ZOO_SIZE.x, gui::widgets::MENU_BAR_HEIGHT));
+		let context_copy = build_ctx.key("context_copy").expect("context_copy");
+		let context_reset = build_ctx.key("context_reset").expect("context_reset");
+		let context_submenu_first = build_ctx.key("context_submenu_first").expect("context_submenu_first");
+		let context_submenu_second = build_ctx.key("context_submenu_second").expect("context_submenu_second");
+		let context_disabled = build_ctx.key("context_disabled").expect("context_disabled");
+		let menu_file_new = build_ctx.key("menu_file_new").expect("menu_file_new");
+		let menu_file_recent_first = build_ctx.key("menu_file_recent_first").expect("menu_file_recent_first");
+		let menu_edit_copy = build_ctx.key("menu_edit_copy").expect("menu_edit_copy");
 		let shared = Rc::new(RefCell::new(shared_state::State::new()));
 		let mut state = ZooState {
 			drawing: drawing_window::State::new(shared.clone(), drawing_window),
 			main: main_window::State::new(shared.clone(), main_window),
 			floating: floating_window::State::new(shared, floating_window),
+			context_copy,
+			context_reset,
+			context_submenu_first,
+			context_submenu_second,
+			context_disabled,
+			menu_file_new,
+			menu_file_recent_first,
+			menu_edit_copy,
 		};
 		state.bind_names(&build_ctx);
 		let background = build_ctx.key("background").expect("background");
@@ -141,6 +321,8 @@ impl GuiZoo {
 			font,
 			color_shader,
 			background,
+			menu_bar,
+			context_menu,
 			start: Instant::now(),
 		}
 	}
@@ -148,12 +330,27 @@ impl GuiZoo {
 	fn send_mouse(&mut self, event: &gui::MouseEvent) {
 		self.scene.mouse_event(event, self.start, &mut self.state);
 	}
+
+	fn show_context_menu(&mut self, pointer: shade::cvmath::Vec2i) {
+		let size = self.scene.size();
+		let left = pointer.x.clamp(0, (size.x - gui::widgets::MENU_WIDTH).max(0));
+		let top = pointer.y.clamp(0, (size.y - CONTEXT_MENU_HEIGHT).max(0));
+		let bounds = shade::cvmath::Bounds2!(
+			left,
+			top,
+			left + gui::widgets::MENU_WIDTH,
+			top + CONTEXT_MENU_HEIGHT,
+		);
+		self.scene.show_popup(self.context_menu, bounds);
+	}
+
 }
 
 impl DemoInterface for GuiZoo {
 	fn resize(&mut self, size: shade::cvmath::Vec2i) {
 		self.scene.resize(size);
 		self.scene.show(self.background, shade::cvmath::Bounds2i::vec(size));
+		self.scene.show(self.menu_bar, shade::cvmath::Bounds2!(0, 0, size.x, gui::widgets::MENU_BAR_HEIGHT));
 	}
 
 	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
@@ -173,6 +370,21 @@ impl DemoInterface for GuiZoo {
 				};
 				let pointer = position.cast();
 				self.send_mouse(&gui::MouseEvent { kind, pointer });
+				shell.set_cursor(self.cursor(pointer));
+				shell.request_redraw();
+			},
+			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed, position } => {
+				let pointer = position.cast();
+				let kind = if pressed {
+					gui::MouseEventKind::ButtonDown { button: gui::MouseButton::RIGHT }
+				}
+				else {
+					gui::MouseEventKind::ButtonUp { button: gui::MouseButton::RIGHT }
+				};
+				self.send_mouse(&gui::MouseEvent { kind, pointer });
+				if pressed {
+					self.show_context_menu(pointer);
+				}
 				shell.set_cursor(self.cursor(pointer));
 				shell.request_redraw();
 			},
