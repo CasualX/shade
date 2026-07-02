@@ -14,7 +14,7 @@ struct SpriteRegion {
 	name: String,
 	frame: usize,
 	frame_count: usize,
-	rect: shade::atlas::Rect,
+	rect: Recti,
 	margin: i32,
 	transform: shade::atlas::Transform,
 	origin: Vec2i,
@@ -213,13 +213,13 @@ impl SpriteAtlas {
 		))
 	}
 
-	fn region_atlas_rect(&self, region: &SpriteRegion) -> shade::atlas::Rect {
+	fn region_atlas_rect(&self, region: &SpriteRegion) -> Recti {
 		let margin = region.margin.max(0);
 		let left = (region.rect.left() - margin).max(0);
 		let top = (region.rect.top() - margin).max(0);
 		let right = (region.rect.right() + margin).min(self.atlas.meta.width);
 		let bottom = (region.rect.bottom() + margin).min(self.atlas.meta.height);
-		shade::atlas::Rect(left, top, right - left, bottom - top)
+		Recti(left, top, right - left, bottom - top)
 	}
 
 	fn region_screen_rect(&self, region: &SpriteRegion, atlas_rect: Bounds2f) -> Bounds2f {

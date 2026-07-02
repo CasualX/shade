@@ -151,12 +151,12 @@ impl Default for YOrigin {
 }
 
 impl YOrigin {
-	fn normalize_atlas_bounds(&self, bounds: Bounds, atlas_height: f32) -> atlas::Rect {
+	fn normalize_atlas_bounds(&self, bounds: Bounds, atlas_height: f32) -> cvmath::Recti {
 		let (left, top, right, bottom) = match self {
 			YOrigin::Bottom => (bounds.left, atlas_height - bounds.top, bounds.right, atlas_height - bounds.bottom),
 			YOrigin::Top => (bounds.left, bounds.top, bounds.right, bounds.bottom),
 		};
-		atlas::Rect {
+		cvmath::Recti {
 			x: left.floor() as i32,
 			y: top.floor() as i32,
 			width: (right.ceil() - left.floor()) as i32,

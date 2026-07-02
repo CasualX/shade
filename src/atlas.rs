@@ -40,6 +40,24 @@ mod ordered_hashmap {
 }
 
 #[cfg(feature = "serde")]
+mod rect_array {
+	pub fn serialize<S>(rect: &super::Recti, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		<[i32; 4] as serde::Serialize>::serialize(&[rect.x, rect.y, rect.width, rect.height], serializer)
+	}
+
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<super::Recti, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let [x, y, width, height] = <[i32; 4] as serde::Deserialize>::deserialize(deserializer)?;
+		Ok(super::Recti { x, y, width, height })
+	}
+}
+
+#[cfg(feature = "serde")]
 mod ordered_kerning {
 	use std::collections::HashMap;
 
@@ -79,68 +97,13 @@ mod ordered_kerning {
 	}
 }
 
-/// Integer rectangle in atlas texels.
-///
-/// The serialized form is `[x, y, width, height]`, measured from the top-left corner of the atlas.
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(from = "[i32; 4]", into = "[i32; 4]"))]
-#[repr(C)]
-pub struct Rect {
-	pub x: i32,
-	pub y: i32,
-	pub width: i32,
-	pub height: i32,
-}
-
-#[inline]
-#[allow(non_snake_case)]
-pub const fn Rect(x: i32, y: i32, width: i32, height: i32) -> Rect {
-	Rect { x, y, width, height }
-}
-
-impl Rect {
-	#[inline]
-	pub const fn left(self) -> i32 {
-		self.x
-	}
-
-	#[inline]
-	pub const fn top(self) -> i32 {
-		self.y
-	}
-
-	#[inline]
-	pub const fn right(self) -> i32 {
-		self.x + self.width
-	}
-
-	#[inline]
-	pub const fn bottom(self) -> i32 {
-		self.y + self.height
-	}
-}
-
-impl From<[i32; 4]> for Rect {
-	#[inline]
-	fn from([x, y, width, height]: [i32; 4]) -> Self {
-		Rect { x, y, width, height }
-	}
-}
-
-impl From<Rect> for [i32; 4] {
-	#[inline]
-	fn from(rect: Rect) -> Self {
-		[rect.x, rect.y, rect.width, rect.height]
-	}
-}
-
 /// A single sprite frame in the atlas.
 #[derive(Clone, Default, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Frame {
 	/// The tight drawable bounds of the sprite in the atlas image.
-	pub rect: Rect,
+	#[cfg_attr(feature = "serde", serde(with = "rect_array"))]
+	pub rect: Recti,
 	/// Extra atlas pixels around [`Frame::rect`] used by editing and repacking tools.
 	///
 	/// The margin is outside the drawable rect and is not sampled during normal sprite drawing.
@@ -430,7 +393,8 @@ pub struct GlyphBounds {
 	/// The glyph quad in font-plane coordinates.
 	pub plane_bounds: PlaneBounds,
 	/// The bounds of the glyph in the atlas image.
-	pub atlas_bounds: Rect,
+	#[cfg_attr(feature = "serde", serde(with = "rect_array"))]
+	pub atlas_bounds: Recti,
 }
 
 /// Font-wide metrics for a set of glyphs that share the same em size.
