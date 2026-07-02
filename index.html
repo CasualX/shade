@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shade WebGL</title>
+<link rel="stylesheet" href="./index.css" />
+<script type="module" src="./index.js"></script>
+</head>
+<body>
+<div class="container" x-data="shadeWebglApp">
+	<div class="topbar">
+		<div class="brand">
+			<h1>Shade WebGL</h1>
+			<p>Pick a demo. Press <span class="kbd">F</span> to toggle fullscreen.</p>
+		</div>
+	</div>
+
+	<div class="gallery" x-cloak x-show="!activeDemo">
+		<div class="list" aria-label="Demo list">
+			<template x-for="demo in demos" :key="demo.id">
+				<div class="row">
+					<div class="row-main">
+						<button class="row-title" type="button" x-text="demo.title" x-on:click="openDemo(demo)"></button>
+						<p class="row-hint" x-text="demo.hint"></p>
+					</div>
+					<div class="row-side">
+						<a x-bind:href="demo.source" target="_blank" rel="noreferrer">Source</a>
+					</div>
+				</div>
+			</template>
+		</div>
+	</div>
+
+	<template x-if="activeDemo">
+		<div class="player">
+			<div class="row player-header">
+				<div class="row-main player-meta">
+					<h2 class="row-title row-title-static" x-text="activeDemo.title"></h2>
+					<p class="row-hint" x-text="activeDemo.hint"></p>
+				</div>
+				<div class="row-side player-actions">
+					<a x-bind:href="activeDemo.source" target="_blank" rel="noreferrer">Source</a>
+				</div>
+			</div>
+			<div class="player-stage">
+				<div class="stage-container" x-bind:class="{ 'is-loading': isLoading }" x-ref="playerStage" aria-label="Demo stage">
+					<div class="touch-controls" x-cloak x-show="touchModeEnabled" aria-label="Touch controls">
+						<div class="touch-button-picker" role="toolbar" aria-label="Touch interaction mode">
+							<button
+								class="touch-button touch-button-icon"
+								type="button"
+								x-on:click="toggleFullscreen()"
+								aria-label="Toggle fullscreen"
+							>⛶</button>
+							<template x-for="mode in touchButtonModes" :key="mode.button">
+								<button
+									class="touch-button"
+									type="button"
+									x-bind:class="{ 'is-active': touchButton === mode.button }"
+									x-bind:aria-pressed="touchButton === mode.button"
+									x-text="mode.label"
+									x-on:click="setTouchButton(mode.button)"
+								></button>
+							</template>
+						</div>
+					</div>
+					<canvas
+						x-ref="canvas"
+						tabindex="0"
+						x-bind:aria-label="`Demo: ${activeDemo.title}`"
+						x-on:pointermove="handlePointermove($event)"
+						x-on:pointerdown="handlePointerdown($event)"
+						x-on:pointerup="handlePointerup($event)"
+						x-on:pointercancel="handlePointercancel($event)"
+						x-on:wheel="handleWheel($event)"
+						x-on:keydown="handleKeydown($event)"
+						x-on:keyup="handleKeyup($event)"
+						x-on:contextmenu.prevent
+					></canvas>
+				</div>
+			</div>
+		</div>
+	</template>
+</div>
+
+</body>
+</html>
