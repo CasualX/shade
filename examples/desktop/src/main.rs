@@ -1,14 +1,12 @@
-use std::ffi::CString;
-use std::fs;
-use std::mem;
+use std::{ffi, fs, mem, path, time};
 use std::num::NonZeroU32;
-use std::path::PathBuf;
-use std::time::Instant;
 
 use glutin::prelude::*;
 use shade::cvmath::*;
 use shade::gui;
-use demos::*;
+
+//----------------------------------------------------------------
+// Winit and Glutin state.
 
 struct GlWindow {
 	size: winit::dpi::PhysicalSize<u32>,
@@ -52,13 +50,11 @@ impl GlWindow {
 		let gl_display = gl_config.display();
 		let not_current = unsafe { gl_display.create_context(&gl_config, &context_attributes) }
 			.expect("Failed Display.create_context");
+		let width = NonZeroU32::new(size.width.max(1)).unwrap();
+		let height = NonZeroU32::new(size.height.max(1)).unwrap();
 		let surface_attributes = SurfaceAttributesBuilder::<WindowSurface>::new()
 			.with_srgb(Some(true))
-			.build(
-				raw_window_handle,
-				NonZeroU32::new(size.width.max(1)).unwrap(),
-				NonZeroU32::new(size.height.max(1)).unwrap(),
-			);
+			.build(raw_window_handle, width, height);
 		let surface = unsafe { gl_display.create_window_surface(&gl_config, &surface_attributes) }
 			.expect("Failed Display.create_window_surface");
 		let context = not_current
@@ -66,7 +62,7 @@ impl GlWindow {
 			.expect("Failed NotCurrentContext.make_current");
 
 		shade::gl::capi::load_with(|s| {
-			let c = CString::new(s).unwrap();
+			let c = ffi::CString::new(s).unwrap();
 			gl_display.get_proc_address(&c)
 		});
 
@@ -78,37 +74,37 @@ impl GlWindow {
 		let height = NonZeroU32::new(new_size.height.max(1)).unwrap();
 		self.size = new_size;
 		self.surface.resize(&self.context, width, height);
+		self.window.request_redraw();
 	}
 }
 
+//----------------------------------------------------------------
+// Assets discovery and loader.
+
 struct DiskAssets {
-	root: PathBuf,
+	root: path::PathBuf,
 }
 
 impl DiskAssets {
 	fn new() -> DiskAssets {
 		DiskAssets {
-			root: PathBuf::from("assets"),
+			root: path::PathBuf::from("assets"),
 		}
 	}
 }
 
-impl AssetLoader for DiskAssets {
-	fn read(&self, path: &str) -> Result<Vec<u8>, AssetError> {
+impl demos::AssetLoader for DiskAssets {
+	fn read(&self, path: &str) -> Result<Vec<u8>, demos::AssetError> {
 		let full_path = self.root.join(path);
-		fs::read(&full_path).map_err(|source| AssetError {
+		fs::read(&full_path).map_err(|source| demos::AssetError {
 			path: full_path.display().to_string(),
 			message: source.to_string(),
 		})
 	}
 }
 
-struct DesktopServices<'a> {
-	window: &'a winit::window::Window,
-	start: Instant,
-	pending_file_open: Vec<OpenedFile>,
-	redraw: bool,
-}
+//----------------------------------------------------------------
+// Shell state and services.
 
 struct OpenedFile {
 	request_id: u32,
@@ -116,27 +112,35 @@ struct OpenedFile {
 	bytes: Option<Vec<u8>>,
 }
 
-impl<'a> DesktopServices<'a> {
-	fn new(window: &'a winit::window::Window, start: Instant) -> DesktopServices<'a> {
-		DesktopServices {
-			window,
+struct ShellState {
+	start: time::Instant,
+	pending_file_open: Vec<OpenedFile>,
+}
+
+impl ShellState {
+	fn new(start: time::Instant) -> ShellState {
+		ShellState {
 			start,
 			pending_file_open: Vec::new(),
-			redraw: false,
 		}
 	}
 }
 
-impl ShellServices for DesktopServices<'_> {
+struct DesktopShell<'a> {
+	window: &'a winit::window::Window,
+	state: &'a mut ShellState,
+}
+
+impl demos::ShellServices for DesktopShell<'_> {
 	fn get_time(&mut self) -> f64 {
-		Instant::now().duration_since(self.start).as_secs_f64()
+		time::Instant::now().duration_since(self.state.start).as_secs_f64()
 	}
 
 	fn request_redraw(&mut self) {
-		self.redraw = true;
+		self.window.request_redraw();
 	}
 
-	fn open_file(&mut self, request: FileRequest) {
+	fn open_file(&mut self, request: demos::FileRequest) {
 		let patterns: Vec<String> = request.extensions.iter().map(|ext| format!("*.{ext}")).collect();
 		let patterns: Vec<&str> = patterns.iter().map(String::as_str).collect();
 		let filter = rustydialogs::FileFilter {
@@ -149,7 +153,7 @@ impl ShellServices for DesktopServices<'_> {
 			filter: Some(&[filter]),
 			owner: Some(self.window),
 		}).pick_file() else {
-			self.pending_file_open.push(OpenedFile {
+			self.state.pending_file_open.push(OpenedFile {
 				request_id: request.id,
 				path: None,
 				bytes: None,
@@ -157,7 +161,7 @@ impl ShellServices for DesktopServices<'_> {
 			return;
 		};
 		let bytes = fs::read(&path).ok();
-		self.pending_file_open.push(OpenedFile {
+		self.state.pending_file_open.push(OpenedFile {
 			request_id: request.id,
 			path: Some(path.display().to_string()),
 			bytes,
@@ -186,63 +190,118 @@ impl ShellServices for DesktopServices<'_> {
 	}
 }
 
+//----------------------------------------------------------------
+// Application state.
+
 struct App {
+	demo: Box<dyn demos::DemoInterface>,
+	graphics: shade::gl::GlGraphics,
 	window: GlWindow,
-	opengl: shade::gl::GlGraphics,
-	demo: Box<dyn DemoInterface>,
-	start: Instant,
-	last_frame: Instant,
+	shell: ShellState,
+	last_frame: time::Instant,
 	cursor: Vec2f,
 }
 
 impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>, demo_id: &str, assets: &DiskAssets) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
-		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
-		let mut demo = create_demo(demo_id, opengl.as_graphics(), assets);
+		let mut graphics = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
+		let mut demo = {
+			let g: &mut shade::Graphics = graphics.as_graphics();
+			if let Some(demo) = demos::examples::find(demo_id) {
+				(demo.create)(g, assets)
+			}
+			else {
+				eprintln!("Unknown demo '{demo_id}'. Available demos: {}", demos::examples::names_csv());
+				std::process::exit(2);
+			}
+		};
 		demo.resize(Vec2(size.width as i32, size.height as i32));
-		let now = Instant::now();
-		Box::new(App { window, opengl, demo, start: now, last_frame: now, cursor: Vec2::ZERO })
+		let now = time::Instant::now();
+		let shell = ShellState::new(now);
+		Box::new(App { window, graphics, demo, shell, last_frame: now, cursor: Vec2::ZERO })
+	}
+
+	fn request_redraw(&self) {
+		self.window.window.request_redraw();
 	}
 
 	fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
 		self.window.resize(new_size);
 		self.demo.resize(Vec2(new_size.width as i32, new_size.height as i32));
-		self.window.window.request_redraw();
 	}
 
-	fn input(&mut self, input: Input) {
-		let mut services = DesktopServices::new(&self.window.window, self.start);
-		self.demo.input(input, self.opengl.as_graphics(), &mut services);
-		for file in mem::take(&mut services.pending_file_open) {
-			self.demo.file_opened(file.request_id, file.path, file.bytes, self.opengl.as_graphics(), &mut services);
+	fn input(&mut self, input: demos::Input) {
+		let mut shell = DesktopShell {
+			window: &self.window.window,
+			state: &mut self.shell,
+		};
+		self.demo.input(input, self.graphics.as_graphics(), &mut shell);
+
+		loop {
+			let pending_file_open = mem::take(&mut self.shell.pending_file_open);
+			if pending_file_open.is_empty() {
+				break;
+			}
+			for file in pending_file_open {
+				let mut shell = DesktopShell {
+					window: &self.window.window,
+					state: &mut self.shell,
+				};
+				self.demo.file_opened(
+					file.request_id,
+					file.path,
+					file.bytes,
+					self.graphics.as_graphics(),
+					&mut shell,
+				);
+			}
 		}
-		if services.redraw {
-			self.window.window.request_redraw();
-		}
+	}
+
+	fn mouse_move(&mut self, position: Vec2f) {
+		self.cursor = position;
+		self.input(demos::Input::MouseMove { position });
+	}
+
+	fn mouse_button(&mut self, button: gui::MouseButton, pressed: bool) {
+		self.input(demos::Input::MouseButton {
+			button,
+			pressed,
+			position: self.cursor,
+		});
+	}
+
+	fn mouse_wheel(&mut self, delta: Vec2f) {
+		self.input(demos::Input::MouseWheel {
+			delta,
+			position: self.cursor,
+		});
 	}
 
 	fn draw(&mut self) {
-		let now = Instant::now();
+		let now = time::Instant::now();
 		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
-		let frame = Frame {
+		let frame = demos::Frame {
 			viewport,
-			time: now.duration_since(self.start).as_secs_f64(),
+			time: now.duration_since(self.shell.start).as_secs_f64(),
 			dt: now.duration_since(self.last_frame).as_secs_f32(),
 		};
 		self.last_frame = now;
-		self.demo.draw(frame, self.opengl.as_graphics());
+		self.demo.draw(frame, self.graphics.as_graphics());
+	}
+
+	fn swap_buffers(&self) {
+		self.window.surface.swap_buffers(&self.window.context).unwrap();
+	}
+
+	fn redraw_mode(&self) -> demos::RedrawMode {
+		self.demo.redraw_mode()
 	}
 }
 
-fn create_demo(demo_id: &str, g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
-	if let Some(demo) = demos::examples::find(demo_id) {
-		return (demo.create)(g, assets);
-	}
-
-	eprintln!("Unknown demo '{demo_id}'. Available demos: {}", demos::examples::names_csv());
-	std::process::exit(2);
-}
+//----------------------------------------------------------------
+// Main loop.
 
 fn mouse_button(button: winit::event::MouseButton) -> gui::MouseButton {
 	match button {
@@ -255,21 +314,21 @@ fn mouse_button(button: winit::event::MouseButton) -> gui::MouseButton {
 	}
 }
 
-fn key(physical_key: winit::keyboard::PhysicalKey) -> Key {
+fn key(physical_key: winit::keyboard::PhysicalKey) -> demos::Key {
 	use winit::keyboard::{KeyCode, PhysicalKey};
 	match physical_key {
-		PhysicalKey::Code(KeyCode::Digit1) | PhysicalKey::Code(KeyCode::Numpad1) => Key::Digit1,
-		PhysicalKey::Code(KeyCode::Digit2) | PhysicalKey::Code(KeyCode::Numpad2) => Key::Digit2,
-		PhysicalKey::Code(KeyCode::Digit3) | PhysicalKey::Code(KeyCode::Numpad3) => Key::Digit3,
-		PhysicalKey::Code(KeyCode::ArrowLeft) => Key::ArrowLeft,
-		PhysicalKey::Code(KeyCode::ArrowRight) => Key::ArrowRight,
-		PhysicalKey::Code(KeyCode::ArrowUp) => Key::ArrowUp,
-		PhysicalKey::Code(KeyCode::ArrowDown) => Key::ArrowDown,
-		PhysicalKey::Code(KeyCode::F2) => Key::F2,
-		PhysicalKey::Code(KeyCode::KeyP) => Key::P,
-		PhysicalKey::Code(KeyCode::ShiftLeft) | PhysicalKey::Code(KeyCode::ShiftRight) => Key::Shift,
-		PhysicalKey::Code(KeyCode::Escape) => Key::Escape,
-		_ => Key::Other,
+		PhysicalKey::Code(KeyCode::Digit1) | PhysicalKey::Code(KeyCode::Numpad1) => demos::Key::Digit1,
+		PhysicalKey::Code(KeyCode::Digit2) | PhysicalKey::Code(KeyCode::Numpad2) => demos::Key::Digit2,
+		PhysicalKey::Code(KeyCode::Digit3) | PhysicalKey::Code(KeyCode::Numpad3) => demos::Key::Digit3,
+		PhysicalKey::Code(KeyCode::ArrowLeft) => demos::Key::ArrowLeft,
+		PhysicalKey::Code(KeyCode::ArrowRight) => demos::Key::ArrowRight,
+		PhysicalKey::Code(KeyCode::ArrowUp) => demos::Key::ArrowUp,
+		PhysicalKey::Code(KeyCode::ArrowDown) => demos::Key::ArrowDown,
+		PhysicalKey::Code(KeyCode::F2) => demos::Key::F2,
+		PhysicalKey::Code(KeyCode::KeyP) => demos::Key::P,
+		PhysicalKey::Code(KeyCode::ShiftLeft) | PhysicalKey::Code(KeyCode::ShiftRight) => demos::Key::Shift,
+		PhysicalKey::Code(KeyCode::Escape) => demos::Key::Escape,
+		_ => demos::Key::Other,
 	}
 }
 
@@ -293,9 +352,9 @@ fn main() {
 		match event {
 			Event::Resumed => {
 				if app.is_none() {
-					let app_new = App::new(event_loop, size, &demo_id, &assets);
-					app_new.window.window.request_redraw();
-					app = Some(app_new);
+					let new_app = App::new(event_loop, size, &demo_id, &assets);
+					new_app.request_redraw();
+					app = Some(new_app);
 				}
 			}
 			Event::WindowEvent { event, .. } => match event {
@@ -307,17 +366,12 @@ fn main() {
 				WindowEvent::CursorMoved { position, .. } => {
 					if let Some(app) = app.as_deref_mut() {
 						let position = Vec2(position.x as f32, position.y as f32);
-						app.cursor = position;
-						app.input(Input::MouseMove { position });
+						app.mouse_move(position);
 					}
 				}
 				WindowEvent::MouseInput { state, button, .. } => {
 					if let Some(app) = app.as_deref_mut() {
-						app.input(Input::MouseButton {
-							button: mouse_button(button),
-							pressed: state == ElementState::Pressed,
-							position: app.cursor,
-						});
+						app.mouse_button(mouse_button(button), state == ElementState::Pressed);
 					}
 				}
 				WindowEvent::MouseWheel { delta, .. } => {
@@ -326,21 +380,18 @@ fn main() {
 							MouseScrollDelta::LineDelta(_, y) => y * 16.0,
 							MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
 						};
-						app.input(Input::MouseWheel {
-							delta: Vec2(0.0, y),
-							position: app.cursor,
-						});
+						app.mouse_wheel(Vec2(0.0, y));
 					}
 				}
 				WindowEvent::KeyboardInput { event, .. } => {
 					if let Some(app) = app.as_deref_mut() {
 						let key = key(event.physical_key);
 						let input = match event.state {
-							ElementState::Pressed if !event.repeat => Some(Input::KeyDown(key)),
-							ElementState::Released => Some(Input::KeyUp(key)),
+							ElementState::Pressed if !event.repeat => Some(demos::Input::KeyDown(key)),
+							ElementState::Released => Some(demos::Input::KeyUp(key)),
 							_ => None,
 						};
-						if key == Key::Escape && event.state == ElementState::Pressed {
+						if key == demos::Key::Escape && event.state == ElementState::Pressed {
 							event_loop.exit();
 						}
 						if let Some(input) = input {
@@ -352,15 +403,15 @@ fn main() {
 				WindowEvent::RedrawRequested => {
 					if let Some(app) = app.as_deref_mut() {
 						app.draw();
-						app.window.surface.swap_buffers(&app.window.context).unwrap();
+						app.swap_buffers();
 					}
 				}
 				_ => {}
 			},
 			Event::AboutToWait => {
 				if let Some(app) = app.as_deref() {
-					if app.demo.redraw_mode() == RedrawMode::Continuous {
-						app.window.window.request_redraw();
+					if app.redraw_mode() == demos::RedrawMode::Continuous {
+						app.request_redraw();
 					}
 				}
 			}
