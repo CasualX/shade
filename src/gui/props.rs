@@ -34,12 +34,12 @@ pub enum Property<T> {
 impl<T: any::Any> Property<T> {
 	/// Resolves the property inside `f`.
 	#[inline]
-	pub fn with<R>(&self, app: &dyn AppState, f: impl FnOnce(&T) -> R) -> Option<R> {
+	pub fn with<R>(&self, app: &dyn AppState, app_ctx: &dyn AppContext, f: impl FnOnce(&T) -> R) -> Option<R> {
 		match self {
 			&Property::Key(key) => {
 				let mut f = Some(f);
 				let mut result = None;
-				app.prop(key, &mut |value| {
+				app.prop(key, app_ctx, &mut |value| {
 					let Some(value) = value.downcast_ref::<T>() else {
 						#[cfg(debug_assertions)]
 						panic!("property callback type mismatch");
@@ -61,13 +61,13 @@ impl<T: any::Any> Property<T> {
 	}
 
 	/// Resolves the property by copying the value.
-	pub fn copied(&self, app: &dyn AppState) -> Option<T> where T: Copy {
-		self.with(app, |value| *value)
+	pub fn copied(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<T> where T: Copy {
+		self.with(app, app_ctx, |value| *value)
 	}
 
 	/// Resolves the property by copying the value, or returns `default` if unavailable.
-	pub fn copied_or(&self, app: &dyn AppState, default: T) -> T where T: Copy {
-		self.copied(app).unwrap_or(default)
+	pub fn copied_or(&self, app: &dyn AppState, app_ctx: &dyn AppContext, default: T) -> T where T: Copy {
+		self.copied(app, app_ctx).unwrap_or(default)
 	}
 }
 
@@ -94,12 +94,12 @@ pub enum OwnedProp<T: 'static + borrow::ToOwned + ?Sized> {
 
 impl<T: borrow::ToOwned + ?Sized> OwnedProp<T> {
 	/// Resolves the property inside `f`.
-	pub fn with<R>(&self, app: &dyn AppState, f: impl FnOnce(&T) -> R) -> Option<R> {
+	pub fn with<R>(&self, app: &dyn AppState, app_ctx: &dyn AppContext, f: impl FnOnce(&T) -> R) -> Option<R> {
 		match self {
 			&OwnedProp::Key(key) => {
 				let mut f = Some(f);
 				let mut result = None;
-				app.prop(key, &mut |value| {
+				app.prop(key, app_ctx, &mut |value| {
 					let value = if let Some(value) = value.downcast_ref::<T::Owned>() {
 						<T::Owned as borrow::Borrow<T>>::borrow(value)
 					}

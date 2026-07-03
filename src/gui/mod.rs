@@ -7,7 +7,7 @@ use super::*;
 pub mod dto;
 pub mod widgets;
 
-mod appstate;
+mod app;
 mod cursor;
 mod draw;
 mod event;
@@ -17,7 +17,7 @@ mod scene;
 mod slotmap;
 mod widget;
 
-pub use self::appstate::*;
+pub use self::app::*;
 pub use self::cursor::*;
 pub use self::draw::*;
 pub use self::event::*;

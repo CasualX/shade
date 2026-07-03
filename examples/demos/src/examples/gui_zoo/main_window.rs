@@ -93,15 +93,15 @@ impl State {
 }
 
 impl gui::AppState for State {
-	fn scope<'a>(&'a self, _key: gui::SlotKey) -> &'a dyn gui::AppState {
+	fn scope<'a>(&'a self, _key: gui::SlotKey, _ctx: &dyn gui::AppContext) -> &'a dyn gui::AppState {
 		self
 	}
 
-	fn scope_mut<'a>(&'a mut self, _key: gui::SlotKey) -> &'a mut dyn gui::AppState {
+	fn scope_mut<'a>(&'a mut self, _key: gui::SlotKey, _ctx: &mut dyn gui::AppContext) -> &'a mut dyn gui::AppState {
 		self
 	}
 
-	fn prop(&self, key: gui::PropKey, f: &mut dyn FnMut(&dyn std::any::Any)) {
+	fn prop(&self, key: gui::PropKey, _ctx: &dyn gui::AppContext, f: &mut dyn FnMut(&dyn std::any::Any)) {
 		match key {
 			PROP_STATUS => {
 				let shared = self.shared.borrow();
@@ -132,7 +132,7 @@ impl gui::AppState for State {
 		}
 	}
 
-	fn emit(&mut self, event: &dyn gui::UserEvent) {
+	fn emit(&mut self, event: &dyn gui::AppEvent, _ctx: &mut dyn gui::AppContext) {
 		if let Some(event) = event.downcast_ref::<gui::widgets::ButtonClicked>() {
 			if Some(event.key) == self.button {
 				self.set_status("Button clicked.");

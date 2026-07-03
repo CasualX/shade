@@ -11,7 +11,7 @@ impl Widget for Panel {
 		self.key
 	}
 
-	fn cursor(&self, _app: &dyn AppState) -> Option<Cursor> {
+	fn cursor(&self, _app: &dyn AppState, _app_ctx: &dyn AppContext) -> Option<Cursor> {
 		Some(Cursor::Default)
 	}
 

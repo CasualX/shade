@@ -22,7 +22,7 @@ impl Widget for DrawGrid {
 		false
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, _app: &dyn AppState) {
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, _app: &dyn AppState, _app_ctx: &dyn AppContext) {
 		let bounds = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let shader = resx.get_shader(SystemResources::COLOR_SHADER_KEY).unwrap();
 		im.fill_rect(ctx, bounds, self.background, shader);

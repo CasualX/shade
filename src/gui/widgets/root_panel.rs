@@ -11,11 +11,11 @@ impl Widget for RootPanel {
 		self.panel.key()
 	}
 
-	fn cursor(&self, app: &dyn AppState) -> Option<Cursor> {
-		self.panel.cursor(app)
+	fn cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> {
+		self.panel.cursor(app, app_ctx)
 	}
 
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, _app: &mut dyn AppState) {
+	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, _app: &mut dyn AppState, _app_ctx: &mut dyn AppContext) {
 		let Some(mouse) = event.mouse() else {
 			return;
 		};
@@ -51,7 +51,7 @@ impl Widget for RootPanel {
 		}
 	}
 
-	fn layout(&mut self, ctx: &DrawContext, _resx: &dyn Resources, _scene: &mut Scene, _app: &dyn AppState) {
+	fn layout(&mut self, ctx: &DrawContext, _resx: &dyn Resources, _scene: &mut Scene, _app: &dyn AppState, _app_ctx: &dyn AppContext) {
 		// Keep the children within the bounds of the root panel
 		let container = cvmath::Bounds2i::vec(ctx.bounds.size());
 		for child in self.panel.children_mut() {

@@ -24,7 +24,7 @@ impl Widget for Label {
 		false
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let mut scribe = d2::Scribe {
 			font_size: self.font_size,
 			line_height: self.font_size * DEFAULT_LINE_HEIGHT_SCALE,
@@ -35,7 +35,7 @@ impl Widget for Label {
 		scribe.set_baseline_relative(0.5);
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let font = resx.get_font(SystemResources::FONT_KEY).unwrap();
-		if self.text.with(app, |text| {
+		if self.text.with(app, app_ctx, |text| {
 			im.draw_text_box(ctx, &font, &scribe, &rc, self.align, text);
 		}).is_none() {
 			im.draw_text_box(ctx, &font, &scribe, &rc, self.align, "<label>");

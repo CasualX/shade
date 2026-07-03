@@ -24,11 +24,16 @@ pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn Demo
 struct GuiZoo {
 	scene: gui::Scene,
 	state: ZooState,
+	ctx: ZooAppContext,
 	font: d2::FontResource<shade::atlas::Font>,
 	color_shader: Box<dyn shade::ShaderProgram>,
 	background: gui::SlotKey,
 	start: Instant,
 }
+
+struct ZooAppContext;
+
+impl gui::AppContext for ZooAppContext {}
 
 struct ZooState {
 	drawing: drawing_window::State,
@@ -44,7 +49,7 @@ impl ZooState {
 }
 
 impl gui::AppState for ZooState {
-	fn scope<'a>(&'a self, key: gui::SlotKey) -> &'a dyn gui::AppState {
+	fn scope<'a>(&'a self, key: gui::SlotKey, _ctx: &dyn gui::AppContext) -> &'a dyn gui::AppState {
 		if key == self.drawing.window {
 			&self.drawing
 		}
@@ -59,7 +64,7 @@ impl gui::AppState for ZooState {
 		}
 	}
 
-	fn scope_mut<'a>(&'a mut self, key: gui::SlotKey) -> &'a mut dyn gui::AppState {
+	fn scope_mut<'a>(&'a mut self, key: gui::SlotKey, _ctx: &mut dyn gui::AppContext) -> &'a mut dyn gui::AppState {
 		if key == self.drawing.window {
 			&mut self.drawing
 		}
@@ -74,7 +79,7 @@ impl gui::AppState for ZooState {
 		}
 	}
 
-	fn prop(&self, _key: gui::PropKey, _f: &mut dyn FnMut(&dyn std::any::Any)) {}
+	fn prop(&self, _key: gui::PropKey, _ctx: &dyn gui::AppContext, _f: &mut dyn FnMut(&dyn std::any::Any)) {}
 }
 
 fn lerp_color(a: shade::cvmath::Vec4<u8>, b: shade::cvmath::Vec4<u8>, t: f32) -> shade::cvmath::Vec4<u8> {
@@ -99,7 +104,7 @@ fn high_fill_color(value: f32) -> shade::cvmath::Vec4<u8> {
 
 impl GuiZoo {
 	fn cursor(&self, _point: shade::cvmath::Vec2i) -> Cursor {
-		self.scene.get_cursor(&self.state).unwrap_or(Cursor::Default)
+		self.scene.get_cursor(&self.state, &self.ctx).unwrap_or(Cursor::Default)
 	}
 
 	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> GuiZoo {
@@ -138,6 +143,7 @@ impl GuiZoo {
 		GuiZoo {
 			scene,
 			state,
+			ctx: ZooAppContext,
 			font,
 			color_shader,
 			background,
@@ -146,7 +152,7 @@ impl GuiZoo {
 	}
 
 	fn send_mouse(&mut self, event: &gui::MouseEvent) {
-		self.scene.mouse_event(event, self.start, &mut self.state);
+		self.scene.mouse_event(event, self.start, &mut self.state, &mut self.ctx);
 	}
 }
 
@@ -197,8 +203,8 @@ impl DemoInterface for GuiZoo {
 			color_shader: &*self.color_shader,
 		};
 		let mut draw_pool = shade::im::DrawPool::new();
-		self.scene.layout(self.start, &resources, &mut self.state);
-		self.scene.draw(g, &mut draw_pool, self.start, &resources, &self.state);
+		self.scene.layout(self.start, &resources, &self.state, &self.ctx);
+		self.scene.draw(g, &mut draw_pool, self.start, &resources, &self.state, &self.ctx);
 		draw_pool.draw(g);
 		g.end();
 	}

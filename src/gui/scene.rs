@@ -173,9 +173,9 @@ impl Scene {
 	}
 
 	/// Returns the cursor to show, if any.
-	pub fn get_cursor(&self, app: &dyn AppState) -> Option<Cursor> {
+	pub fn get_cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> {
 		let pointed = self.pointed?;
-		let (cursor, _) = get_cursor_scoped(pointed, app, self)?;
+		let (cursor, _) = get_cursor_scoped(pointed, app, app_ctx, self)?;
 		cursor
 	}
 
@@ -190,67 +190,67 @@ impl Scene {
 	}
 
 	/// Handles mouse input, including hover tracking and pointer capture routing.
-	pub fn mouse_event(&mut self, event: &MouseEvent, time: time::Instant, app: &mut dyn AppState) {
+	pub fn mouse_event(&mut self, event: &MouseEvent, time: time::Instant, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let input = InputEvent::Mouse(event.clone());
 		let hovered = self.hit_test(event.pointer);
 
 		if let Some(captured) = self.captured {
-			self.update_pointed(Some(captured), event.pointer, time, app);
-			self.event(captured, time, &input, app);
+			self.update_pointed(Some(captured), event.pointer, time, app, app_ctx);
+			self.event(captured, time, &input, app, app_ctx);
 			if self.captured.is_none() {
-				self.update_pointed(hovered, event.pointer, time, app);
+				self.update_pointed(hovered, event.pointer, time, app, app_ctx);
 			}
 			return;
 		}
 
-		self.update_pointed(hovered, event.pointer, time, app);
+		self.update_pointed(hovered, event.pointer, time, app, app_ctx);
 		if let Some(target) = hovered {
-			self.event(target, time, &input, app);
+			self.event(target, time, &input, app, app_ctx);
 		}
 	}
 
-	fn update_pointed(&mut self, new: Option<SlotKey>, pointer: cvmath::Vec2i, time: time::Instant, app: &mut dyn AppState) {
+	fn update_pointed(&mut self, new: Option<SlotKey>, pointer: cvmath::Vec2i, time: time::Instant, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let old = self.pointed;
 		if old == new {
 			return;
 		}
 		self.pointed = new;
 		if let Some(old) = old {
-			self.event(old, time, &InputEvent::Mouse(MouseEvent { kind: MouseEventKind::Leave, pointer }), app);
+			self.event(old, time, &InputEvent::Mouse(MouseEvent { kind: MouseEventKind::Leave, pointer }), app, app_ctx);
 		}
 		if let Some(new) = new {
-			self.event(new, time, &InputEvent::Mouse(MouseEvent { kind: MouseEventKind::Enter, pointer }), app);
+			self.event(new, time, &InputEvent::Mouse(MouseEvent { kind: MouseEventKind::Enter, pointer }), app, app_ctx);
 		}
 	}
 
 	/// Delivers an input event to the target widget.
-	pub fn event(&mut self, target: SlotKey, time: time::Instant, event: &InputEvent, app: &mut dyn AppState) {
+	pub fn event(&mut self, target: SlotKey, time: time::Instant, event: &InputEvent, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let mut route_buf = [const { mem::MaybeUninit::uninit() }; 120];
 		let route = route_to(target, self, &mut route_buf);
-		let mut ctx = RouteEventContext { time, target, bounds: cvmath::Bounds2i::vec(self.size), event };
-		route_event(&mut ctx, route, app, self);
+		let mut route_ctx = RouteEventContext { time, target, bounds: cvmath::Bounds2i::vec(self.size), event };
+		route_event(&mut route_ctx, route, app, app_ctx, self);
 	}
 
 	/// Layouts the scene and all widgets recursively.
-	pub fn layout(&mut self, time: time::Instant, resx: &dyn Resources, app: &dyn AppState) {
-		let ctx = DrawContext {
+	pub fn layout(&mut self, time: time::Instant, resx: &dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+		let draw_ctx = DrawContext {
 			viewport: cvmath::Bounds2i::vec(self.size),
 			clip: cvmath::Bounds2i::vec(self.size),
 			time,
 			bounds: cvmath::Bounds2i::vec(self.size),
 		};
-		layout_tree(self.content.expect("scene root panel is not initialized"), &ctx, resx, app, self);
+		layout_tree(self.content.expect("scene root panel is not initialized"), &draw_ctx, resx, app, app_ctx, self);
 	}
 
 	/// Draws the scene.
-	pub fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, time: time::Instant, resx: &'a dyn Resources, app: &dyn AppState) {
-		let ctx = DrawContext {
+	pub fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, time: time::Instant, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+		let draw_ctx = DrawContext {
 			viewport: cvmath::Bounds2i::vec(self.size),
 			clip: cvmath::Bounds2i::vec(self.size),
 			time,
 			bounds: cvmath::Bounds2i::vec(self.size),
 		};
-		draw_tree(g, im, self.content.expect("scene root panel is not initialized"), &ctx, resx, app, self);
+		draw_tree(g, im, self.content.expect("scene root panel is not initialized"), &draw_ctx, resx, app, app_ctx, self);
 	}
 
 	/// Brings the top level widget with the given key to the front of the root panel.
@@ -357,72 +357,72 @@ fn route_to<'a>(target: SlotKey, scene: &Scene, buf: &'a mut [mem::MaybeUninit<S
 }
 
 /// Routes an event to the target widget, starting from the root to the target.
-fn route_event(ctx: &mut RouteEventContext, route: &[SlotKey], app: &mut dyn AppState, scene: &mut Scene) {
+fn route_event(route_ctx: &mut RouteEventContext, route: &[SlotKey], app: &mut dyn AppState, app_ctx: &mut dyn AppContext, scene: &mut Scene) {
 	let Some((&current, rest)) = route.split_last() else {
 		return;
 	};
 	scene.with_widget(current, |widget, scene| {
-		let scoped_app = app.scope_mut(current);
+		let scoped_app = app.scope_mut(current, app_ctx);
 		let event_ctx = EventContext {
-			time: ctx.time,
-			target: ctx.target,
-			bounds: ctx.bounds,
+			time: route_ctx.time,
+			target: route_ctx.target,
+			bounds: route_ctx.bounds,
 		};
-		widget.event(ctx.event, &event_ctx, scene, scoped_app);
+		widget.event(route_ctx.event, &event_ctx, scene, scoped_app, app_ctx);
 		if let Some(&child) = rest.last() {
-			// Update the bounds for the child widget, ctx.bounds contains the bounds of the current widget.
+			// Update the bounds for the child widget; route_ctx.bounds contains the bounds of the current widget.
 			let local_bounds = widget.children().iter().find(|&slot| slot.key == child).unwrap().bounds;
-			ctx.bounds = local_bounds + ctx.bounds.mins;
-			route_event(ctx, rest, scoped_app, scene);
+			route_ctx.bounds = local_bounds + route_ctx.bounds.mins;
+			route_event(route_ctx, rest, scoped_app, app_ctx, scene);
 		}
-		app.scope_exit(current);
+		app.scope_exit(current, app_ctx);
 	});
 }
 
-fn get_cursor_scoped<'a>(key: SlotKey, app: &'a dyn AppState, scene: &Scene) -> Option<(Option<Cursor>, &'a dyn AppState)> {
+fn get_cursor_scoped<'a>(key: SlotKey, app: &'a dyn AppState, app_ctx: &dyn AppContext, scene: &Scene) -> Option<(Option<Cursor>, &'a dyn AppState)> {
 	let widget = scene.get_widget(key)?;
 	let (parent_cursor, app) = if let Some(parent) = scene.parent(key) {
-		get_cursor_scoped(parent, app, scene)?
+		get_cursor_scoped(parent, app, app_ctx, scene)?
 	}
 	else {
 		(None, app)
 	};
-	let app = app.scope(key);
-	Some((widget.cursor(app).or(parent_cursor), app))
+	let app = app.scope(key, app_ctx);
+	Some((widget.cursor(app, app_ctx).or(parent_cursor), app))
 }
 
-fn layout_tree(key: SlotKey, ctx: &DrawContext, resx: &dyn Resources, mut app: &dyn AppState, scene: &mut Scene) {
-	app = app.scope(key);
+fn layout_tree(key: SlotKey, draw_ctx: &DrawContext, resx: &dyn Resources, mut app: &dyn AppState, app_ctx: &dyn AppContext, scene: &mut Scene) {
+	app = app.scope(key, app_ctx);
 	scene.with_widget(key, |widget, scene| {
-		widget.layout(ctx, resx, scene, app);
+		widget.layout(draw_ctx, resx, scene, app, app_ctx);
 
 		for child in widget.children() {
-			let child_bounds = child.bounds + ctx.bounds.mins;
+			let child_bounds = child.bounds + draw_ctx.bounds.mins;
 			let child_ctx = DrawContext {
-				viewport: ctx.viewport,
-				clip: ctx.clip.intersect(child_bounds).unwrap_or_default(),
-				time: ctx.time,
+				viewport: draw_ctx.viewport,
+				clip: draw_ctx.clip.intersect(child_bounds).unwrap_or_default(),
+				time: draw_ctx.time,
 				bounds: child_bounds,
 			};
-			layout_tree(child.key, &child_ctx, resx, app, scene);
+			layout_tree(child.key, &child_ctx, resx, app, app_ctx, scene);
 		}
 	})
 }
 
-fn draw_tree<'a>(g: &mut Graphics, im: &mut im::DrawPool<'a>, key: SlotKey, ctx: &DrawContext, resx: &'a dyn Resources, mut app: &dyn AppState, scene: &mut Scene) {
-	app = app.scope(key);
+fn draw_tree<'a>(g: &mut Graphics, im: &mut im::DrawPool<'a>, key: SlotKey, draw_ctx: &DrawContext, resx: &'a dyn Resources, mut app: &dyn AppState, app_ctx: &dyn AppContext, scene: &mut Scene) {
+	app = app.scope(key, app_ctx);
 	scene.with_widget(key, |widget, scene| {
-		widget.draw(g, im, ctx, resx, app);
+		widget.draw(g, im, draw_ctx, resx, app, app_ctx);
 
 		for child in widget.children() {
-			let child_bounds = child.bounds + ctx.bounds.mins;
+			let child_bounds = child.bounds + draw_ctx.bounds.mins;
 			let child_ctx = DrawContext {
-				viewport: ctx.viewport,
-				clip: ctx.clip.intersect(child_bounds).unwrap_or_default(),
-				time: ctx.time,
+				viewport: draw_ctx.viewport,
+				clip: draw_ctx.clip.intersect(child_bounds).unwrap_or_default(),
+				time: draw_ctx.time,
 				bounds: child_bounds,
 			};
-			draw_tree(g, im, child.key, &child_ctx, resx, app, scene);
+			draw_tree(g, im, child.key, &child_ctx, resx, app, app_ctx, scene);
 		}
 	})
 }

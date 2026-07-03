@@ -14,7 +14,7 @@ impl Widget for Window {
 		self.key
 	}
 
-	fn cursor(&self, _app: &dyn AppState) -> Option<Cursor> {
+	fn cursor(&self, _app: &dyn AppState, _app_ctx: &dyn AppContext) -> Option<Cursor> {
 		if self.drag_offset.is_some() {
 			Some(Cursor::Grabbing)
 		}
@@ -27,7 +27,7 @@ impl Widget for Window {
 		true
 	}
 
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, _app: &mut dyn AppState) {
+	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, _app: &mut dyn AppState, _app_ctx: &mut dyn AppContext) {
 		if let Some(mouse) = event.mouse() {
 			if ctx.target == self.key {
 				match mouse.kind {
@@ -49,14 +49,14 @@ impl Widget for Window {
 		}
 	}
 
-	fn layout(&mut self, ctx: &DrawContext, resx: &dyn Resources, _scene: &mut Scene, app: &dyn AppState) {
-		self.header_height = self.measure_header_height(ctx, resx, app);
+	fn layout(&mut self, ctx: &DrawContext, resx: &dyn Resources, _scene: &mut Scene, app: &dyn AppState, app_ctx: &dyn AppContext) {
+		self.header_height = self.measure_header_height(ctx, resx, app, app_ctx);
 		let size = ctx.bounds.size();
 		self.content.bounds = cvmath::Bounds2!(0, self.header_height, size.x, size.y);
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
-		self.draw_chrome(im, ctx, resx, app);
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+		self.draw_chrome(im, ctx, resx, app, app_ctx);
 	}
 
 	fn children(&self) -> &[ChildWidget] {
@@ -80,10 +80,10 @@ impl Window {
 		scribe
 	}
 
-	fn measure_header_height(&self, ctx: &DrawContext, resx: &dyn Resources, app: &dyn AppState) -> i32 {
+	fn measure_header_height(&self, ctx: &DrawContext, resx: &dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) -> i32 {
 		let scribe = self.title_scribe();
 		let font = resx.get_font(SystemResources::FONT_KEY).unwrap();
-		let (text_height, text_width) = self.title.with(app, |title| {
+		let (text_height, text_width) = self.title.with(app, app_ctx, |title| {
 			let (text_width, text_height) = scribe.measure_text(font.font, title);
 			let text_height = text_height.ceil() as i32;
 			let text_width = text_width.ceil() as i32;
@@ -99,16 +99,16 @@ impl Window {
 		(text_height + HEADER_PAD_Y * 2 + width_adjust).max(40)
 	}
 
-	fn draw_title<'a>(&self, im: &mut im::DrawPool<'a>, ctx: &DrawContext, font: &d2::FontResource<&'a dyn d2::IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, rc: cvmath::Bounds2i, app: &dyn AppState) {
+	fn draw_title<'a>(&self, im: &mut im::DrawPool<'a>, ctx: &DrawContext, font: &d2::FontResource<&'a dyn d2::IFont, &'a dyn Texture2D, &'a dyn ShaderProgram>, rc: cvmath::Bounds2i, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let scribe = self.title_scribe();
-		if self.title.with(app, |title| {
+		if self.title.with(app, app_ctx, |title| {
 			im.draw_text_box(ctx, font, &scribe, &rc, d2::TextAlign::MiddleLeft, title);
 		}).is_none() {
 			im.draw_text_box(ctx, font, &scribe, &rc, d2::TextAlign::MiddleLeft, "<window>");
 		}
 	}
 
-	fn draw_chrome<'a>(&self, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) -> i32 {
+	fn draw_chrome<'a>(&self, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) -> i32 {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let header_height = self.header_height;
 		let header = cvmath::Bounds2!(rc.left(), rc.top(), rc.right(), rc.top() + header_height);
@@ -123,7 +123,7 @@ impl Window {
 		im.fill_rect(ctx, header, cvmath::Vec4!(rgb(48, 52, 62)), shader);
 		im.fill_edge_rect(ctx, rc, cvmath::Vec4!(rgb(83, 88, 101)), 1.0, shader);
 		let font = resx.get_font(SystemResources::FONT_KEY).unwrap();
-		self.draw_title(im, ctx, &font, header_text, app);
+		self.draw_title(im, ctx, &font, header_text, app, app_ctx);
 		header_height
 	}
 }

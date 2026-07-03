@@ -35,15 +35,15 @@ impl State {
 }
 
 impl gui::AppState for State {
-	fn scope<'a>(&'a self, _key: gui::SlotKey) -> &'a dyn gui::AppState {
+	fn scope<'a>(&'a self, _key: gui::SlotKey, _ctx: &dyn gui::AppContext) -> &'a dyn gui::AppState {
 		self
 	}
 
-	fn scope_mut<'a>(&'a mut self, _key: gui::SlotKey) -> &'a mut dyn gui::AppState {
+	fn scope_mut<'a>(&'a mut self, _key: gui::SlotKey, _ctx: &mut dyn gui::AppContext) -> &'a mut dyn gui::AppState {
 		self
 	}
 
-	fn prop(&self, key: gui::PropKey, f: &mut dyn FnMut(&dyn std::any::Any)) {
+	fn prop(&self, key: gui::PropKey, _ctx: &dyn gui::AppContext, f: &mut dyn FnMut(&dyn std::any::Any)) {
 		match key {
 			PROP_FLOATING_TITLE => f(&self.floating_title),
 			PROP_TOP_HIT_VALUE => f(&self.top_hit_value),
@@ -51,7 +51,7 @@ impl gui::AppState for State {
 		}
 	}
 
-	fn emit(&mut self, event: &dyn gui::UserEvent) {
+	fn emit(&mut self, event: &dyn gui::AppEvent, _ctx: &mut dyn gui::AppContext) {
 		if let Some(event) = event.downcast_ref::<gui::widgets::ButtonClicked>() {
 			if Some(event.key) == self.front {
 				self.floating_title = "Floating Window\n\x1b[font_size=13.0]\x1b[color=#ACB2BC]Front button clicked.".to_owned();

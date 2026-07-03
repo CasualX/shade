@@ -7,7 +7,7 @@ pub struct ButtonClicked {
 	pub key: SlotKey,
 }
 
-impl UserEvent for ButtonClicked {}
+impl AppEvent for ButtonClicked {}
 
 const DEFAULT_ENABLED: bool = true;
 const DEFAULT_FILL: cvmath::Vec4<u8> = cvmath::Vec4!(rgb(54, 58, 68));
@@ -36,8 +36,8 @@ pub struct Button {
 }
 
 impl Button {
-	fn is_enabled(&self, app: &dyn AppState) -> bool {
-		self.enabled.copied_or(app, true)
+	fn is_enabled(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> bool {
+		self.enabled.copied_or(app, app_ctx, true)
 	}
 }
 
@@ -46,8 +46,8 @@ impl Widget for Button {
 		self.key
 	}
 
-	fn cursor(&self, app: &dyn AppState) -> Option<Cursor> {
-		if self.is_enabled(app) {
+	fn cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> {
+		if self.is_enabled(app, app_ctx) {
 			Some(Cursor::Pointer)
 		}
 		else {
@@ -55,18 +55,18 @@ impl Widget for Button {
 		}
 	}
 
-	fn layout(&mut self, ctx: &DrawContext, _resx: &dyn Resources, _scene: &mut Scene, _app: &dyn AppState) {
+	fn layout(&mut self, ctx: &DrawContext, _resx: &dyn Resources, _scene: &mut Scene, _app: &dyn AppState, _app_ctx: &dyn AppContext) {
 		self.content.bounds = cvmath::Bounds2i::vec(ctx.bounds.size());
 	}
 
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, _scene: &mut Scene, app: &mut dyn AppState) {
+	fn event(&mut self, event: &InputEvent, ctx: &EventContext, _scene: &mut Scene, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let Some(mouse) = event.mouse() else {
 			return;
 		};
 
 		let hover = matches!(ctx.target, target if target == self.key || target == self.content.key);
 		let was_pressed = self.state == ButtonState::Pressed;
-		if !self.is_enabled(app) {
+		if !self.is_enabled(app, app_ctx) {
 			self.state = ButtonState::Normal;
 			return;
 		}
@@ -84,7 +84,7 @@ impl Widget for Button {
 			MouseEventKind::ButtonUp { button: MouseButton::LEFT } => {
 				if was_pressed && hover {
 					let clicked = ButtonClicked { key: self.key };
-					app.emit(&clicked);
+					app.emit(&clicked, app_ctx);
 				}
 				self.state = if hover { ButtonState::Hover } else { ButtonState::Normal };
 			},
@@ -103,8 +103,8 @@ impl Widget for Button {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
-		let enabled = self.is_enabled(app);
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+		let enabled = self.is_enabled(app, app_ctx);
 		let fill = if !enabled { DISABLED_FILL }
 		else if self.state == ButtonState::Pressed { PRESSED_FILL }
 		else if self.state == ButtonState::Hover { HOVER_FILL }

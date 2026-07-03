@@ -32,7 +32,7 @@ pub trait Widget: any::Any {
 
 	/// Gets the preferred cursor when the widget is the current target.
 	/// Returning `None` inherits the nearest ancestor cursor.
-	fn cursor(&self, app: &dyn AppState) -> Option<Cursor> { None }
+	fn cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> { None }
 
 	/// Gets the direct children of this widget.
 	fn children(&self) -> &[widgets::ChildWidget] { &[] }
@@ -44,13 +44,13 @@ pub trait Widget: any::Any {
 	fn draggable(&self) -> bool { false }
 
 	/// Handles an event.
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, app: &mut dyn AppState) {}
+	fn event(&mut self, event: &InputEvent, event_ctx: &EventContext, scene: &mut Scene, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {}
 
 	/// Run layout before drawing.
-	fn layout(&mut self, ctx: &DrawContext, resx: &dyn Resources, scene: &mut Scene, app: &dyn AppState) {}
+	fn layout(&mut self, ctx: &DrawContext, resx: &dyn Resources, scene: &mut Scene, app: &dyn AppState, app_ctx: &dyn AppContext) {}
 
 	/// Draws the widget itself.
-	fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {}
+	fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {}
 }
 
 impl dyn Widget {

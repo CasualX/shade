@@ -37,15 +37,15 @@ pub struct RadioButtonChanged {
 	pub selected: usize,
 }
 
-impl UserEvent for RadioButtonChanged {}
+impl AppEvent for RadioButtonChanged {}
 
 impl RadioButton {
-	fn checked(&self, app: &dyn AppState) -> bool {
-		self.property.copied(app) == Some(self.index)
+	fn checked(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> bool {
+		self.property.copied(app, app_ctx) == Some(self.index)
 	}
 
-	fn is_enabled(&self, app: &dyn AppState) -> bool {
-		self.enabled.copied_or(app, true)
+	fn is_enabled(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> bool {
+		self.enabled.copied_or(app, app_ctx, true)
 	}
 }
 
@@ -54,8 +54,8 @@ impl Widget for RadioButton {
 		self.key
 	}
 
-	fn cursor(&self, app: &dyn AppState) -> Option<Cursor> {
-		if self.is_enabled(app) {
+	fn cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> {
+		if self.is_enabled(app, app_ctx) {
 			Some(Cursor::Pointer)
 		}
 		else {
@@ -63,12 +63,12 @@ impl Widget for RadioButton {
 		}
 	}
 
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, _scene: &mut Scene, app: &mut dyn AppState) {
+	fn event(&mut self, event: &InputEvent, ctx: &EventContext, _scene: &mut Scene, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let Some(mouse) = event.mouse() else {
 			return;
 		};
 
-		if !self.is_enabled(app) {
+		if !self.is_enabled(app, app_ctx) {
 			self.hover = false;
 			return;
 		}
@@ -78,22 +78,22 @@ impl Widget for RadioButton {
 			MouseEventKind::Leave => self.hover = false,
 			_ => self.hover = ctx.target == self.key,
 		}
-		if self.hover && matches!(mouse.kind, MouseEventKind::ButtonUp { button: MouseButton::LEFT }) && !self.checked(app) {
+		if self.hover && matches!(mouse.kind, MouseEventKind::ButtonUp { button: MouseButton::LEFT }) && !self.checked(app, app_ctx) {
 			let changed = RadioButtonChanged {
 				key: self.key,
 				property: self.property,
 				selected: self.index,
 			};
-			app.emit(&changed);
+			app.emit(&changed, app_ctx);
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let outer_top = rc.top() + (rc.height() - OUTER_SIZE) / 2;
 		let outer = cvmath::Bounds2!(rc.left(), outer_top, rc.left() + OUTER_SIZE, outer_top + OUTER_SIZE);
-		let enabled = self.is_enabled(app);
-		let checked = self.checked(app);
+		let enabled = self.is_enabled(app, app_ctx);
+		let checked = self.checked(app, app_ctx);
 		let ring = if !enabled { DISABLED_RING }
 		else if checked { CHECKED_RING }
 		else if self.hover { HOVER_RING }
@@ -115,7 +115,7 @@ impl Widget for RadioButton {
 		scribe.set_baseline_relative(0.5);
 		let rc = cvmath::Bounds2!(rc.left() + LABEL_OFFSET_X, rc.top(), rc.right(), rc.bottom());
 		let font = resx.get_font(SystemResources::FONT_KEY).unwrap();
-		if self.label.with(app, |text| {
+		if self.label.with(app, app_ctx, |text| {
 			im.draw_text_box(ctx, &font, &scribe, &rc, d2::TextAlign::MiddleLeft, text);
 		}).is_none() {
 			im.draw_text_box(ctx, &font, &scribe, &rc, d2::TextAlign::MiddleLeft, "<radio>");

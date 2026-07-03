@@ -27,11 +27,11 @@ impl Widget for ProgressBar {
 		self.key
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
-		let value = self.value.copied_or(app, 0.0).clamp(0.0, 1.0);
-		let fill = self.fill.copied_or(app, DEFAULT_FILL);
-		let background = self.background.copied_or(app, DEFAULT_BACKGROUND);
+		let value = self.value.copied_or(app, app_ctx, 0.0).clamp(0.0, 1.0);
+		let fill = self.fill.copied_or(app, app_ctx, DEFAULT_FILL);
+		let background = self.background.copied_or(app, app_ctx, DEFAULT_BACKGROUND);
 		let shader = resx.get_shader(SystemResources::COLOR_SHADER_KEY).unwrap();
 
 		let track = self.track_rect(rc);

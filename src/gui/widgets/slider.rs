@@ -19,7 +19,7 @@ pub struct SliderChanged {
 	pub value: f32,
 }
 
-impl UserEvent for SliderChanged {}
+impl AppEvent for SliderChanged {}
 
 /// Horizontal slider widget.
 pub struct Slider {
@@ -61,8 +61,8 @@ impl Slider {
 		(knob_left - track.left()) as f32 / travel as f32
 	}
 
-	fn is_enabled(&self, app: &dyn AppState) -> bool {
-		self.enabled.copied_or(app, true)
+	fn is_enabled(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> bool {
+		self.enabled.copied_or(app, app_ctx, true)
 	}
 }
 
@@ -71,8 +71,8 @@ impl Widget for Slider {
 		self.key
 	}
 
-	fn cursor(&self, app: &dyn AppState) -> Option<Cursor> {
-		if self.is_enabled(app) {
+	fn cursor(&self, app: &dyn AppState, app_ctx: &dyn AppContext) -> Option<Cursor> {
+		if self.is_enabled(app, app_ctx) {
 			Some(Cursor::Pointer)
 		}
 		else {
@@ -80,12 +80,12 @@ impl Widget for Slider {
 		}
 	}
 
-	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, app: &mut dyn AppState) {
+	fn event(&mut self, event: &InputEvent, ctx: &EventContext, scene: &mut Scene, app: &mut dyn AppState, app_ctx: &mut dyn AppContext) {
 		let Some(mouse) = event.mouse() else {
 			return;
 		};
 
-		if !self.is_enabled(app) {
+		if !self.is_enabled(app, app_ctx) {
 			self.dragging = false;
 			self.hover = false;
 			scene.release_pointer();
@@ -106,14 +106,14 @@ impl Widget for Slider {
 						key: self.key,
 						value: self.value_from_point(mouse.pointer, ctx.bounds),
 					};
-					app.emit(&changed);
+					app.emit(&changed, app_ctx);
 				},
 				MouseEventKind::ButtonUp { button: MouseButton::LEFT } => {
 					let changed = SliderChanged {
 						key: self.key,
 						value: self.value_from_point(mouse.pointer, ctx.bounds),
 					};
-					app.emit(&changed);
+					app.emit(&changed, app_ctx);
 					self.dragging = false;
 					scene.release_pointer();
 				},
@@ -122,7 +122,7 @@ impl Widget for Slider {
 						key: self.key,
 						value: self.value_from_point(mouse.pointer, ctx.bounds),
 					};
-					app.emit(&changed);
+					app.emit(&changed, app_ctx);
 				},
 				_ => {},
 			}
@@ -133,13 +133,13 @@ impl Widget for Slider {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState) {
+	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
-		let enabled = self.is_enabled(app);
+		let enabled = self.is_enabled(app, app_ctx);
 		let shader = resx.get_shader(SystemResources::COLOR_SHADER_KEY).unwrap();
 
 		let track = self.track_rect(rc);
-		let value = self.value.copied_or(app, 0.0).clamp(0.0, 1.0);
+		let value = self.value.copied_or(app, app_ctx, 0.0).clamp(0.0, 1.0);
 		im.fill_rect(ctx, track, if enabled { TRACK_COLOR } else { DISABLED_TRACK_COLOR }, shader);
 		let fill_right = track.left() + (value * track.width() as f32) as i32;
 		let fill_rc = cvmath::Bounds2!(track.left(), track.top(), fill_right, track.bottom());
