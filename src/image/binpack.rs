@@ -1,4 +1,6 @@
 
+use cvmath::Recti;
+
 /// Simple grid-based bin packer.
 pub struct GridBinPacker {
 	cell_width: i32,
@@ -37,6 +39,35 @@ impl GridBinPacker {
 		let wc = ceil_div(width, self.cell_width);
 		let hc = ceil_div(height, self.cell_height);
 		self._insert(wc, hc)
+	}
+
+	/// Marks a rectangle of pixel size `(width, height)` as occupied.
+	///
+	/// Rectangles extending outside the packer bounds are clipped.
+	#[inline]
+	pub fn occupy(&mut self, rect: Recti) {
+		if rect.width <= 0 || rect.height <= 0 {
+			return;
+		}
+		let x0 = i32::max(0, rect.x);
+		let y0 = i32::max(0, rect.y);
+		let x1 = i32::min(rect.x + rect.width, self.width_in_cells * self.cell_width);
+		let y1 = i32::min(rect.y + rect.height, self.height_in_cells * self.cell_height);
+		if x0 >= x1 || y0 >= y1 {
+			return;
+		}
+		let cx0 = x0 / self.cell_width;
+		let cy0 = y0 / self.cell_height;
+		let cx1 = ceil_div(x1, self.cell_width);
+		let cy1 = ceil_div(y1, self.cell_height);
+		for yy in cy0..cy1 {
+			for xx in cx0..cx1 {
+				let index = (yy * self.width_in_cells + xx) as usize;
+				if let Some(occupied) = self.occupied.get_mut(index) {
+					*occupied = true;
+				}
+			}
+		}
 	}
 
 	// Find the next free cell in row-major order starting from the
@@ -121,4 +152,15 @@ fn test_grid_bin_packer() {
 	assert_eq!(packer.insert(10, 10), Some((0, 20)));
 	assert_eq!(packer.insert(90, 90), None);
 	assert_eq!(packer.insert(10, 10), Some((10, 20)));
+}
+
+#[test]
+fn test_grid_bin_packer_occupy() {
+	let mut packer = GridBinPacker::new(100, 100, 10, 10);
+	packer.occupy(Recti(0, 0, 20, 20));
+	assert_eq!(packer.insert(10, 10), Some((20, 0)));
+	assert_eq!(packer.insert(10, 20), Some((30, 0)));
+	packer.occupy(Recti(-1, 0, 10, 10));
+	packer.occupy(Recti(-20, 0, 10, 10));
+	packer.occupy(Recti(0, 0, 0, 10));
 }

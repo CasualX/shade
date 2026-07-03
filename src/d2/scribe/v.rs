@@ -80,6 +80,13 @@ impl ToVertex<TextVertex> for TextTemplate {
 	}
 }
 
+impl ToVertexUV<TextVertex> for TextTemplate {
+	#[inline]
+	fn to_vertex_uv(&self, pos: Vec2f, uv: Vec2f, _index: usize) -> TextVertex {
+		TextVertex { pos, uv, color: self.color, outline: self.outline, data: TextVertexData::NONE }
+	}
+}
+
 /// Text uniform.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextUniform<'a> {

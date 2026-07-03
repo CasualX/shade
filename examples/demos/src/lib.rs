@@ -117,6 +117,31 @@ pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, font_desc: &
 		let font: shade::msdfgen::FontDto = serde_json::from_str(&text).expect("failed to parse font metadata");
 		font.into()
 	};
+	load_font_resource(g, assets, font, font_texture, text_3d)
+}
+
+pub fn load_atlas_font(
+	g: &mut shade::Graphics,
+	assets: &dyn AssetLoader,
+	atlas_desc: &str,
+	font_texture: &str,
+	font_name: &str,
+	text_3d: bool,
+) -> (shade::atlas::Atlas<String, String>, shade::d2::FontResource<shade::atlas::Font>) {
+	let text = assets.read_to_string(atlas_desc).expect("failed to load atlas metadata");
+	let atlas: shade::atlas::Atlas<String, String> = serde_json::from_str(&text).expect("failed to parse atlas metadata");
+	let font = atlas.fonts.get(font_name).unwrap_or_else(|| panic!("atlas font '{font_name}' not found")).clone();
+	let font = load_font_resource(g, assets, font, font_texture, text_3d);
+	(atlas, font)
+}
+
+fn load_font_resource(
+	g: &mut shade::Graphics,
+	assets: &dyn AssetLoader,
+	font: shade::atlas::Font,
+	font_texture: &str,
+	text_3d: bool,
+) -> shade::d2::FontResource<shade::atlas::Font> {
 	// Load the font texture
 	let texture = {
 		let data = assets.read(font_texture).expect("failed to load font texture");

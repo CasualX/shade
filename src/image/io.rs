@@ -1,5 +1,7 @@
 //! Reading and writing image files.
 
+use std::{error, fmt};
+
 use super::*;
 
 #[cfg(feature = "png")]
@@ -33,6 +35,36 @@ impl From<std::io::Error> for LoadImageError {
 	#[inline]
 	fn from(e: std::io::Error) -> Self {
 		LoadImageError::Io(e)
+	}
+}
+
+impl fmt::Display for LoadImageError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			LoadImageError::Io(e) => e.fmt(f),
+			#[cfg(feature = "png")]
+			LoadImageError::PNG(e) => e.fmt(f),
+			#[cfg(feature = "gif")]
+			LoadImageError::GIF(e) => e.fmt(f),
+			#[cfg(feature = "jpeg")]
+			LoadImageError::JPEG(e) => write!(f, "{e:?}"),
+			LoadImageError::UnsupportedFormat => f.write_str("unsupported image format"),
+		}
+	}
+}
+
+impl error::Error for LoadImageError {
+	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+		match self {
+			LoadImageError::Io(e) => Some(e),
+			#[cfg(feature = "png")]
+			LoadImageError::PNG(e) => Some(e),
+			#[cfg(feature = "gif")]
+			LoadImageError::GIF(e) => Some(e),
+			#[cfg(feature = "jpeg")]
+			LoadImageError::JPEG(_e) => None,
+			LoadImageError::UnsupportedFormat => None,
+		}
 	}
 }
 

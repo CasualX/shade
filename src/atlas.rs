@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::hash::Hash;
+use std::{error, fmt, hash, str};
 use cvmath::*;
 
 #[cfg(feature = "serde")]
@@ -309,6 +309,54 @@ impl Transform {
 	}
 }
 
+impl fmt::Display for Transform {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let s = match self {
+			Transform::None => "None",
+			Transform::Rotate90 => "Rotate90",
+			Transform::Rotate180 => "Rotate180",
+			Transform::Rotate270 => "Rotate270",
+			Transform::FlipX => "FlipX",
+			Transform::FlipSlash => "FlipSlash",
+			Transform::FlipY => "FlipY",
+			Transform::FlipBackslash => "FlipBackslash",
+		};
+		f.write_str(s)
+	}
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParseTransformError {
+	value: (),
+}
+
+impl fmt::Display for ParseTransformError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str("unknown transform")
+	}
+}
+
+impl error::Error for ParseTransformError {}
+
+impl str::FromStr for Transform {
+	type Err = ParseTransformError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		let transform = match s {
+			"None" | "none" => Transform::None,
+			"Rotate90" | "rotate90" => Transform::Rotate90,
+			"Rotate180" | "rotate180" => Transform::Rotate180,
+			"Rotate270" | "rotate270" => Transform::Rotate270,
+			"FlipX" | "flipx" => Transform::FlipX,
+			"FlipSlash" | "flipslash" => Transform::FlipSlash,
+			"FlipY" | "flipy" => Transform::FlipY,
+			"FlipBackslash" | "flipbackslash" => Transform::FlipBackslash,
+			_ => return Err(ParseTransformError { value: () }),
+		};
+		Ok(transform)
+	}
+}
+
 /// Encoding used by the atlas texture.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -358,7 +406,7 @@ pub struct Metadata {
 	serialize = "K: Ord + serde::Serialize, F: Ord + serde::Serialize",
 	deserialize = "K: serde::Deserialize<'de>, F: serde::Deserialize<'de>"
 )))]
-pub struct Atlas<K: Eq + Hash = String, F: Eq + Hash = String> {
+pub struct Atlas<K: Eq + hash::Hash = String, F: Eq + hash::Hash = String> {
 	/// Atlas format version.
 	///
 	/// Version `0` is the default in-memory layout.
