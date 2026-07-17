@@ -55,7 +55,7 @@ impl Widget for Window {
 		self.content.bounds = cvmath::Bounds2!(0, self.header_height, size.x, size.y);
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		self.draw_chrome(im, ctx, resx, app, app_ctx);
 	}
 

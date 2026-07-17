@@ -7,7 +7,7 @@ pub struct PostProcessQuad {
 
 impl PostProcessQuad {
 	/// Creates a new instance.
-	pub fn create(g: &mut Graphics) -> PostProcessQuad {
+	pub fn create(g: &mut dyn IGraphics) -> PostProcessQuad {
 		let vertices = g.vertex_buffer(&VERTICES, BufferUsage::Static);
 		PostProcessQuad { vertices }
 	}
@@ -15,7 +15,7 @@ impl PostProcessQuad {
 	/// Creates a full-screen quad with vertically flipped UVs.
 	///
 	/// This is useful when sampling file-backed textures that use a top-left image origin.
-	pub fn create_flipped(g: &mut Graphics) -> PostProcessQuad {
+	pub fn create_flipped(g: &mut dyn IGraphics) -> PostProcessQuad {
 		let vertices = g.vertex_buffer(&VERTICES_FLIPPED, BufferUsage::Static);
 		PostProcessQuad { vertices }
 	}
@@ -36,7 +36,7 @@ impl PostProcessQuad {
 	///
 	/// The `uniforms` parameter allows you to pass additional uniform data to the shader.
 	/// This can include textures, colors, or any other data your shader requires.
-	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
+	pub fn draw(&self, g: &mut dyn IGraphics, shader: &dyn ShaderProgram, blend_mode: BlendMode, uniforms: &[&dyn UniformVisitor]) {
 		g.draw(&DrawArgs {
 			scissor: None,
 			blend_mode,

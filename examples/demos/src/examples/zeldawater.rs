@@ -96,7 +96,7 @@ impl<'a> shade::UniformVisitor for Uniform<'a> {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(ZeldaWater::new(g, assets))
 }
 
@@ -109,7 +109,7 @@ struct ZeldaWater {
 }
 
 impl ZeldaWater {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> ZeldaWater {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> ZeldaWater {
 		let vertices = g.vertex_buffer(&[
 				Vertex { position: Vec2f(-1.0, -1.0), uv: Vec2f(0.0, 0.0) },
 				Vertex { position: Vec2f(1.0, -1.0), uv: Vec2f(1.0, 0.0) },
@@ -130,7 +130,7 @@ impl ZeldaWater {
 		ZeldaWater { vertices, indices, texture, distortion, shader }
 	}
 
-	fn load_repeat_texture(g: &mut shade::Graphics, assets: &dyn AssetLoader, path: &str) -> Box<dyn shade::Texture2D> {
+	fn load_repeat_texture(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader, path: &str) -> Box<dyn shade::Texture2D> {
 		let bytes = assets.read(path).unwrap();
 		let image = shade::image::DecodedImage::load_memory_png(&bytes).unwrap();
 		let props = shade::TextureProps! {
@@ -143,7 +143,7 @@ impl ZeldaWater {
 }
 
 impl DemoInterface for ZeldaWater {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 		let uniform = Uniform {

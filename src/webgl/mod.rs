@@ -111,11 +111,6 @@ impl WebGLGraphics {
 			immediate_fbo: None,
 		}
 	}
-	/// Returns the graphics interface.
-	#[inline]
-	pub fn as_graphics(&mut self) -> &mut crate::Graphics {
-		crate::Graphics(self)
-	}
 }
 
 impl Drop for WebGLGraphics {
@@ -241,16 +236,16 @@ impl crate::IGraphics for WebGLGraphics {
 }
 
 impl ops::Deref for WebGLGraphics {
-	type Target = crate::Graphics;
+	type Target = dyn crate::IGraphics;
 
 	#[inline]
-	fn deref(&self) -> &crate::Graphics {
-		unsafe { mem::transmute(self as &dyn crate::IGraphics) }
+	fn deref(&self) -> &Self::Target {
+		self
 	}
 }
 impl ops::DerefMut for WebGLGraphics {
 	#[inline]
-	fn deref_mut(&mut self) -> &mut crate::Graphics {
-		crate::Graphics(self)
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		self
 	}
 }

@@ -155,7 +155,7 @@ pub struct Renderable {
 	pub instance: Instance,
 }
 impl Renderable {
-	pub fn create(g: &mut shade::Graphics) -> Renderable {
+	pub fn create(g: &mut dyn shade::IGraphics) -> Renderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 
 		let mut source = shade::shader_interface! {
@@ -187,7 +187,7 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
+	pub fn draw(&self, g: &mut dyn shade::IGraphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
 		let uniforms = LightTransformUniforms {
 			light_transform: light.light_view_proj,
 		};
@@ -214,7 +214,7 @@ impl Renderable {
 impl super::IRenderable for Renderable {
 	fn update(&mut self, _globals: &crate::Globals) {
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

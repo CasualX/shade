@@ -78,7 +78,7 @@ struct OldTreeRenderable {
 }
 
 impl OldTreeRenderable {
-	fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> OldTreeRenderable {
+	fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> OldTreeRenderable {
 		dataview::embed!(VERTICES: [shade::d3::TexturedVertexN] = "../../../../assets/oldtree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 		let texture = {
@@ -102,7 +102,7 @@ impl OldTreeRenderable {
 		OldTreeRenderable { mesh, material, instance }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, camera: &shade::d3::Camera) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -136,7 +136,7 @@ enum ProjectionType {
 	Orthographic,
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(OldTree::new(g, assets))
 }
 
@@ -149,7 +149,7 @@ struct OldTree {
 }
 
 impl OldTree {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> OldTree {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> OldTree {
 		let tree = OldTreeRenderable::create(g, assets);
 		let camera = {
 			let pivot = tree.mesh.bounds.center().set_x(0.0).set_y(0.0);
@@ -187,7 +187,7 @@ impl DemoInterface for OldTree {
 		self.screen_size = Vec2(size.x, size.y);
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.5, 0.2, 0.2, 1.0), depth: 1.0);
 		if self.auto_rotate {

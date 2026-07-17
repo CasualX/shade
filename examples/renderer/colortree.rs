@@ -131,7 +131,7 @@ pub struct Renderable {
 	instance: Instance,
 }
 impl Renderable {
-	pub fn create(g: &mut shade::Graphics) -> Renderable {
+	pub fn create(g: &mut dyn shade::IGraphics) -> Renderable {
 		dataview::embed!(VERTICES: [Vertex] = "../../assets/colortree/vertices.bin");
 		let mesh = shade::d3::VertexMesh::new(g, Vec3f::ZERO, &VERTICES, shade::BufferUsage::Static);
 
@@ -153,7 +153,7 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
+	pub fn draw(&self, g: &mut dyn shade::IGraphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
 		let uniforms = TransformUniforms { transform, light_transform };
@@ -180,7 +180,7 @@ impl Renderable {
 impl super::IRenderable for Renderable {
 	fn update(&mut self, _globals: &crate::Globals) {
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

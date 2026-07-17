@@ -16,7 +16,7 @@ msdf-atlas-gen.exe -font Roboto-Regular.ttf -chars "[0x20, 0x7e]" -type mtsdf -f
 Results in two files: the texture `Roboto.png` and the metadata `Roboto.json`.
 
 ```rust
-let mut g: &mut shade::Graphics = ..;
+let mut g: &mut dyn shade::IGraphics = ..;
 
 let roboto = {
 	let font = std::fs::read_to_string("Roboto.json").unwrap();

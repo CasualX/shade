@@ -1,6 +1,6 @@
 use crate::*;
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Text3d::new(g, assets))
 }
 
@@ -15,7 +15,7 @@ struct Text3d {
 }
 
 impl Text3d {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Text3d {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Text3d {
 		let mut shader_source = shade::shader_interface! {
 			files {
 				"mtsdf.glsl" => shade::shaders::MTSDF,
@@ -42,7 +42,7 @@ impl Text3d {
 		d3::Camera { viewport, aspect_ratio, position, near, far, view, projection, view_proj, inv_view_proj, clip }
 	}
 
-	fn draw_text(&self, g: &mut shade::Graphics, camera: &d3::Camera) {
+	fn draw_text(&self, g: &mut dyn shade::IGraphics, camera: &d3::Camera) {
 		let mut buf = d2::TextBuffer3::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.depth_test = Some(shade::Compare::LessEqual);
@@ -123,7 +123,7 @@ impl Text3d {
 		}
 	}
 
-	fn add_text_plane<'a>(&'a self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
+	fn add_text_plane<'a>(&'a self, g: &mut dyn shade::IGraphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
 		buf.uniform.plane_transform = plane;
 		buf.uniform.text.transform = Transform2f::compose(Vec2f(scale, 0.0), Vec2f(0.0, -scale), Vec2f::ZERO);
 		let bounds = Bounds2f::point(Vec2f::ZERO, Vec2f::ZERO);
@@ -133,7 +133,7 @@ impl Text3d {
 }
 
 impl DemoInterface for Text3d {
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseButton { button: gui::MouseButton::LEFT, pressed, .. } => self.left_drag = pressed,
 			Input::MouseButton { button: gui::MouseButton::RIGHT, pressed, .. } => self.right_drag = pressed,
@@ -153,7 +153,7 @@ impl DemoInterface for Text3d {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.08, 0.10, 0.12, 1.0), depth: 1.0);
 		let camera = self.camera(frame.viewport);

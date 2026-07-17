@@ -91,7 +91,7 @@ impl<'a> shade::UniformVisitor for MyUniform3<'a> {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Scene::new(g, assets))
 }
 
@@ -101,7 +101,7 @@ struct Scene {
 }
 
 impl Scene {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Scene {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Scene {
 		let props = shade::TextureProps! {
 			usage: shade::TextureUsage::TEXTURE,
 			filter: shade::TextureFilter::Nearest,
@@ -123,7 +123,7 @@ impl Scene {
 }
 
 impl DemoInterface for Scene {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		let curtime = frame.time as f32;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });

@@ -20,7 +20,7 @@ impl AtlasMode {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(GlyphAtlas::new(g, assets))
 }
 
@@ -40,7 +40,7 @@ const FONT_DESC: &str = "font/font.json";
 const FONT_TEXTURE: &str = "font/font.png";
 
 impl GlyphAtlas {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> GlyphAtlas {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> GlyphAtlas {
 		let font = load_font(g, assets, FONT_DESC, FONT_TEXTURE, false);
 		let raw_texture = {
 			let data = assets.read(FONT_TEXTURE).expect("failed to load font texture");
@@ -227,7 +227,7 @@ impl GlyphAtlas {
 		text
 	}
 
-	fn draw_atlas_raw(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_atlas_raw(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		let mut buf = d2::TexturedBuffer::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.cull_mode = None;
@@ -245,7 +245,7 @@ impl GlyphAtlas {
 		buf.draw(g);
 	}
 
-	fn draw_atlas_msdf(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_atlas_msdf(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		let meta = &self.font.font.meta;
 		let mut buf = d2::TextBuffer::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
@@ -297,14 +297,14 @@ impl GlyphAtlas {
 		buf.draw(g);
 	}
 
-	fn draw_atlas(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_atlas(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		match self.atlas_mode {
 			AtlasMode::Raw => self.draw_atlas_raw(g, viewport, atlas_rect),
 			AtlasMode::Msdf => self.draw_atlas_msdf(g, viewport, atlas_rect),
 		}
 	}
 
-	fn draw_overlays(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_overlays(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		let mut buf = d2::ColorBuffer::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.cull_mode = None;
@@ -372,7 +372,7 @@ impl GlyphAtlas {
 		buf.draw(g);
 	}
 
-	fn draw_text(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw_text(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let mut text = d2::TextBuffer::new();
 		text.blend_mode = shade::BlendMode::Alpha;
 		text.uniform.transform = Transform2::ortho(viewport.cast());
@@ -406,7 +406,7 @@ impl DemoInterface for GlyphAtlas {
 		self.viewport = Bounds2!(0, 0, size.x, size.y);
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position } => {
 				self.cursor = position;
@@ -432,7 +432,7 @@ impl DemoInterface for GlyphAtlas {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		self.viewport = viewport;
 		let atlas_rect = self.atlas_screen_rect(viewport);

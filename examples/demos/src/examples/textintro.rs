@@ -9,7 +9,7 @@ const OPENING_CARD: &str = "OUT BEYOND THE VISIBLE FRUSTUM,\nA NEW RENDER PASSES
 const TITLE_TEXT: &str = "SHADE\nTEXT INTRO";
 const CRAWL_TEXT: &str = "SEQUENCE ONE\nTHE OPENING CRAWL\n\nThe render deck is restless.\nAcross the quiet span of the\nframe, a patient convoy of\nglyphs climbs toward the\nvanishing point, determined\nto look dramatic at any scale.\n\nArmed with signed distance\nfields, careful blending, and\na suspicious amount of golden\noutline, the crew presses on\nthrough perspective and depth.\n\nTheir mission is simple:\ndelight the eye, test the atlas,\nand make the viewport feel\njust a little more heroic.\n\nIf the sampler stays honest\nand the timing holds together,\nthis humble scene might earn\nitself another triumphant loop.";
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(TextIntro::new(g, assets))
 }
 
@@ -142,7 +142,7 @@ struct TextIntro {
 }
 
 impl TextIntro {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> TextIntro {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> TextIntro {
 		let font = load_font(g, assets, "font/font.json", "font/font.png", true);
 		TextIntro { font, storyboard: Self::storyboard() }
 	}
@@ -226,7 +226,7 @@ impl TextIntro {
 		Vec3f(0.0, up.x, up.y)
 	}
 
-	fn add_text_plane<'a>(&'a self, g: &mut shade::Graphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
+	fn add_text_plane<'a>(&'a self, g: &mut dyn shade::IGraphics, buf: &mut d2::TextBuffer3<'a>, text: &str, scale: f32, plane: Transform3f, scribe: &d2::Scribe) {
 		buf.uniform.plane_transform = plane;
 		buf.uniform.text.transform = Transform2f::compose(Vec2f(scale, 0.0), Vec2f(0.0, -scale), Vec2f::ZERO);
 		let bounds = Bounds2f::point(Vec2f::ZERO, Vec2f::ZERO);
@@ -236,7 +236,7 @@ impl TextIntro {
 }
 
 impl DemoInterface for TextIntro {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let elapsed = frame.time as f32 % LOOP_DURATION;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.01, 0.01, 0.03, 1.0), depth: 1.0);

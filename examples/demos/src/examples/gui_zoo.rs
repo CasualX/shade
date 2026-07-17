@@ -17,7 +17,7 @@ const DRAWING_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::
 const MAIN_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(shade::cvmath::Point2(24, 24), shade::cvmath::Point2(494, 664));
 const FLOATING_WINDOW_BOUNDS: shade::cvmath::Bounds2i = shade::cvmath::Bounds2i::new(shade::cvmath::Point2(790, 98), shade::cvmath::Point2(1060, 288));
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(GuiZoo::new(g, assets))
 }
 
@@ -107,7 +107,7 @@ impl GuiZoo {
 		self.scene.get_cursor(&self.state, &self.ctx).unwrap_or(Cursor::Default)
 	}
 
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> GuiZoo {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> GuiZoo {
 		let mut shader_source = shade::shader_interface! {
 			files {
 				"color.glsl" => shade::shaders::COLOR,
@@ -162,7 +162,7 @@ impl DemoInterface for GuiZoo {
 		self.scene.show(self.background, shade::cvmath::Bounds2i::vec(size));
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position } => {
 				let pointer = position.cast();
@@ -192,7 +192,7 @@ impl DemoInterface for GuiZoo {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(g, color: shade::cvmath::Vec4(0.105, 0.115, 0.13, 1.0));

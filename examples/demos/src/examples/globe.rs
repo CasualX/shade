@@ -93,7 +93,7 @@ struct GlobeRenderable {
 }
 
 impl GlobeRenderable {
-	fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> GlobeRenderable {
+	fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> GlobeRenderable {
 		let mesh = shade::d3::icosahedron::icosahedron_flat(g);
 		let mut source = shade::shader_interface! {
 			files {
@@ -116,7 +116,7 @@ impl GlobeRenderable {
 		GlobeRenderable { mesh, instance, material }
 	}
 
-	fn draw(&self, g: &mut shade::Graphics, camera: &shade::d3::Camera) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, camera: &shade::d3::Camera) {
 		g.draw(&shade::DrawArgs {
 			scissor: None,
 			blend_mode: shade::BlendMode::Solid,
@@ -137,7 +137,7 @@ impl GlobeRenderable {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Globe::new(g, assets))
 }
 
@@ -153,7 +153,7 @@ struct Globe {
 }
 
 impl Globe {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Globe {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Globe {
 		let globe = GlobeRenderable::create(g, assets);
 		let camera = shade::d3::ArcballCamera::new(Vec3(0.0, 3.2, 1.8), Vec3::ZERO, Vec3f::Z);
 		Globe {
@@ -187,7 +187,7 @@ impl DemoInterface for Globe {
 		self.screen_size = Vec2(size.x, size.y);
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseButton { button: gui::MouseButton::LEFT, pressed, .. } => self.left_click = pressed,
 			Input::MouseButton { button: gui::MouseButton::MIDDLE, pressed, .. } => self.middle_click = pressed,
@@ -215,7 +215,7 @@ impl DemoInterface for Globe {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.05, 0.05, 0.1, 1.0), depth: 1.0);
 		if self.auto_rotate {

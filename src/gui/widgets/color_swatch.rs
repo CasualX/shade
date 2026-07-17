@@ -19,7 +19,7 @@ impl Widget for ColorSwatch {
 		self.key
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let shader = resx.get_shader(SystemResources::COLOR_SHADER_KEY).unwrap();
 		let bounds = cvmath::Bounds2i::vec(ctx.bounds.size()).inset(self.inset);
 		let color = self.color.copied_or(app, app_ctx, TRANSPARENT);

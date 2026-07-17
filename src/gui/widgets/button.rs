@@ -103,7 +103,7 @@ impl Widget for Button {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let enabled = self.is_enabled(app, app_ctx);
 		let fill = if !enabled { DISABLED_FILL }
 		else if self.state == ButtonState::Pressed { PRESSED_FILL }

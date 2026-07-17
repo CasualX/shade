@@ -31,7 +31,7 @@ pub struct DrawBuffer<'a, U> {
 }
 
 impl<'a, U: UniformVisitor> DrawBuffer<'a, U> {
-	pub fn draw(&self, g: &mut Graphics) {
+	pub fn draw(&self, g: &mut dyn IGraphics) {
 		for cmd in &self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -54,7 +54,7 @@ impl<'a, U: UniformVisitor> DrawBuffer<'a, U> {
 			});
 		}
 	}
-	pub fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>) {
+	pub fn draw_range(&self, g: &mut dyn IGraphics, range: ops::Range<usize>) {
 		for cmd in &self.commands[range] {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -88,7 +88,7 @@ struct DrawBufferRef<'a, U> {
 }
 
 impl<'a, U: TUniform> DrawBufferRef<'a, U> {
-	fn draw(&self, g: &mut Graphics) {
+	fn draw(&self, g: &mut dyn IGraphics) {
 		for cmd in self.commands {
 			let uniforms = &self.uniforms[cmd.pipeline_state.uniform_index as usize];
 			g.draw_indexed(&DrawIndexedArgs {
@@ -171,7 +171,7 @@ impl<'a, U: TUniform> DrawBufferRef<'a, U> {
 /// ```
 /// use shade::{cvmath, d2, im};
 ///
-/// fn draw(g: &mut shade::Graphics, viewport: cvmath::Bounds2i, shader: &dyn shade::ShaderProgram) {
+/// fn draw(g: &mut dyn shade::IGraphics, viewport: cvmath::Bounds2i, shader: &dyn shade::ShaderProgram) {
 /// 	// Construct a new DrawBuilder instance
 /// 	let mut cv = im::DrawBuilder::<d2::ColorVertex, d2::ColorUniform>::new();
 ///
@@ -254,7 +254,7 @@ impl<'a, V: TVertex, U: TUniform> DrawBuilder<'a, V, U> {
 	}
 
 	/// Commit the DrawBuilder to a DrawBuffer.
-	pub fn commit(self, g: &mut Graphics, usage: BufferUsage) -> DrawBuffer<'a, U> {
+	pub fn commit(self, g: &mut dyn IGraphics, usage: BufferUsage) -> DrawBuffer<'a, U> {
 		let vertices = g.vertex_buffer(&self.vertices, usage);
 		let indices = g.index_buffer(&self.indices, self.vertices.len() as IndexT, usage);
 
@@ -267,7 +267,7 @@ impl<'a, V: TVertex, U: TUniform> DrawBuilder<'a, V, U> {
 	}
 
 	/// Draws the buffer.
-	pub fn draw(&self, g: &mut Graphics) {
+	pub fn draw(&self, g: &mut dyn IGraphics) {
 		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Stream);
 		let indices = g.index_buffer(&self.indices, self.vertices.len() as IndexT, BufferUsage::Stream);
 

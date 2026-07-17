@@ -25,9 +25,9 @@ trait IDrawBuffer<'a> {
 	fn buffer_type_id(&self) -> BufferTypeId;
 	fn buffer_ptr(&mut self) -> *mut ();
 	fn clear(&mut self);
-	fn data(&self, g: &mut Graphics) -> DrawData;
-	fn draw(&self, g: &mut Graphics);
-	fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>, data: &DrawData);
+	fn data(&self, g: &mut dyn IGraphics) -> DrawData;
+	fn draw(&self, g: &mut dyn IGraphics);
+	fn draw_range(&self, g: &mut dyn IGraphics, range: ops::Range<usize>, data: &DrawData);
 	fn commands_len(&self) -> usize;
 	fn shared_state(&self) -> SharedState;
 }
@@ -57,15 +57,15 @@ impl<'a, T: TVertex, U: TUniform + TUniformKey + 'a> IDrawBuffer<'a> for DrawBui
 	fn clear(&mut self) {
 		self.clear();
 	}
-	fn data(&self, g: &mut Graphics) -> DrawData {
+	fn data(&self, g: &mut dyn IGraphics) -> DrawData {
 		let vertices = g.vertex_buffer(&self.vertices, BufferUsage::Static);
 		let indices = g.index_buffer(&self.indices, self.vertices.len() as u16, BufferUsage::Static);
 		DrawData { vertices, indices }
 	}
-	fn draw(&self, g: &mut Graphics) {
+	fn draw(&self, g: &mut dyn IGraphics) {
 		draw(self, g)
 	}
-	fn draw_range(&self, g: &mut Graphics, range: ops::Range<usize>, data: &DrawData) {
+	fn draw_range(&self, g: &mut dyn IGraphics, range: ops::Range<usize>, data: &DrawData) {
 		let batch = DrawBatch {
 			commands: &self.commands[range],
 			vertices: &*data.vertices,
@@ -94,7 +94,7 @@ pub struct DrawBatch<'a, 'r> {
 }
 
 /// Draws the DrawBuilder.
-fn draw<'a, V: TVertex, U: TUniform>(this: &DrawBuilder<'a, V, U>, g: &mut Graphics) {
+fn draw<'a, V: TVertex, U: TUniform>(this: &DrawBuilder<'a, V, U>, g: &mut dyn IGraphics) {
 	let vertices = g.vertex_buffer(&this.vertices, BufferUsage::Static);
 	let indices = g.index_buffer(&this.indices, this.vertices.len() as u16, BufferUsage::Static);
 	let range = DrawBatch {
@@ -107,7 +107,7 @@ fn draw<'a, V: TVertex, U: TUniform>(this: &DrawBuilder<'a, V, U>, g: &mut Graph
 }
 
 /// Draws the specified commands from the buffer.
-fn draw_range<'r, V: TVertex, U: TUniform>(this: &DrawBuilder<'r, V, U>, g: &mut Graphics, batch: &DrawBatch<'_, 'r>) {
+fn draw_range<'r, V: TVertex, U: TUniform>(this: &DrawBuilder<'r, V, U>, g: &mut dyn IGraphics, batch: &DrawBatch<'_, 'r>) {
 	for cmd in batch.commands {
 		let uniforms = &this.uniforms[cmd.pipeline_state.uniform_index as usize];
 		g.draw_indexed(&DrawIndexedArgs {
@@ -235,7 +235,7 @@ impl<'a> DrawPool<'a> {
 	}
 
 	/// Draws all commands in submission order.
-	pub fn draw(&mut self, g: &mut Graphics) {
+	pub fn draw(&mut self, g: &mut dyn IGraphics) {
 		// Update the last submission range
 		if let Some(last) = self.subs.last_mut() {
 			if let Some(buf) = self.pool.get_mut(&last.id) {
@@ -260,7 +260,7 @@ impl<'a> DrawPool<'a> {
 	/// Draws all commands without preserving submission order.
 	///
 	/// This can be more efficient when the scene uses depth buffering and does not require blending.
-	pub fn draw_unordered(&mut self, g: &mut Graphics) {
+	pub fn draw_unordered(&mut self, g: &mut dyn IGraphics) {
 		for buf in self.pool.values() {
 			buf.draw(g);
 		}

@@ -20,7 +20,7 @@ pub mod zeldawater;
 
 use crate::{AssetLoader, DemoInterface};
 
-pub type DemoCreateFn = fn(&mut shade::Graphics, &dyn AssetLoader) -> Box<dyn DemoInterface>;
+pub type DemoCreateFn = fn(&mut dyn shade::IGraphics, &dyn AssetLoader) -> Box<dyn DemoInterface>;
 
 pub struct DemoEntry {
 	pub id: &'static str,

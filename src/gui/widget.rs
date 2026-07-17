@@ -50,7 +50,7 @@ pub trait Widget: any::Any {
 	fn layout(&mut self, ctx: &DrawContext, resx: &dyn Resources, scene: &mut Scene, app: &dyn AppState, app_ctx: &dyn AppContext) {}
 
 	/// Draws the widget itself.
-	fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {}
+	fn draw<'a>(&mut self, g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {}
 }
 
 impl dyn Widget {

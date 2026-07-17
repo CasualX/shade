@@ -95,7 +95,7 @@ impl<'a> shade::UniformVisitor for StateUniforms<'a> {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Conway::new(g))
 }
 
@@ -109,7 +109,7 @@ struct Conway {
 }
 
 impl Conway {
-	fn new(g: &mut shade::Graphics) -> Conway {
+	fn new(g: &mut dyn shade::IGraphics) -> Conway {
 		let pp = shade::d2::PostProcessQuad::create(g);
 		let mut source = shade::shader_interface! {
 			files {
@@ -136,7 +136,7 @@ impl Conway {
 		Conway { pp, conway_shader, display_shader, field_size, ping: 0, state: [state0, state1] }
 	}
 
-	fn step(&mut self, g: &mut shade::Graphics) {
+	fn step(&mut self, g: &mut dyn shade::IGraphics) {
 		let src = &*self.state[self.ping];
 		let dst = &*self.state[1 - self.ping];
 		let viewport = Bounds2!(0, 0, self.field_size.x, self.field_size.y);
@@ -154,7 +154,7 @@ impl Conway {
 }
 
 impl DemoInterface for Conway {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		self.step(g);
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.0, 0.0, 0.0, 1.0));

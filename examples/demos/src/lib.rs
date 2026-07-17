@@ -13,11 +13,11 @@ pub trait DemoInterface {
 
 	fn resize(&mut self, _size: Vec2i) {}
 
-	fn input(&mut self, _input: Input, _g: &mut shade::Graphics, _shell: &mut dyn ShellServices) {}
+	fn input(&mut self, _input: Input, _g: &mut dyn shade::IGraphics, _shell: &mut dyn ShellServices) {}
 
-	fn file_opened(&mut self, _request_id: u32, _path: Option<String>, _bytes: Option<Vec<u8>>, _g: &mut shade::Graphics, _shell: &mut dyn ShellServices) {}
+	fn file_opened(&mut self, _request_id: u32, _path: Option<String>, _bytes: Option<Vec<u8>>, _g: &mut dyn shade::IGraphics, _shell: &mut dyn ShellServices) {}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics);
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -110,7 +110,7 @@ impl fmt::Display for AssetError {
 
 impl std::error::Error for AssetError {}
 
-pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, font_desc: &str, font_texture: &str, text_3d: bool) -> shade::d2::FontResource<shade::atlas::Font> {
+pub fn load_font(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader, font_desc: &str, font_texture: &str, text_3d: bool) -> shade::d2::FontResource<shade::atlas::Font> {
 	// Load the font metadata
 	let font = {
 		let text = assets.read_to_string(font_desc).expect("failed to load font metadata");
@@ -121,7 +121,7 @@ pub fn load_font(g: &mut shade::Graphics, assets: &dyn AssetLoader, font_desc: &
 }
 
 pub fn load_atlas_font(
-	g: &mut shade::Graphics,
+	g: &mut dyn shade::IGraphics,
 	assets: &dyn AssetLoader,
 	atlas_desc: &str,
 	font_texture: &str,
@@ -136,7 +136,7 @@ pub fn load_atlas_font(
 }
 
 fn load_font_resource(
-	g: &mut shade::Graphics,
+	g: &mut dyn shade::IGraphics,
 	assets: &dyn AssetLoader,
 	font: shade::atlas::Font,
 	font_texture: &str,

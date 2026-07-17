@@ -27,7 +27,7 @@ impl Widget for ProgressBar {
 		self.key
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let value = self.value.copied_or(app, app_ctx, 0.0).clamp(0.0, 1.0);
 		let fill = self.fill.copied_or(app, app_ctx, DEFAULT_FILL);

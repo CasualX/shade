@@ -99,12 +99,12 @@ pub struct SharedContext {
 }
 
 impl SharedContext {
-	pub fn new(create: fn(&mut shade::Graphics, &dyn AssetLoader) -> Box<dyn demos::DemoInterface>) -> SharedContext {
+	pub fn new(create: fn(&mut dyn shade::IGraphics, &dyn AssetLoader) -> Box<dyn demos::DemoInterface>) -> SharedContext {
 		shade::webgl::setup_panic_hook();
 		let mut webgl = shade::webgl::WebGLGraphics::new(shade::webgl::WebGLConfig {
 			srgb: false,
 		});
-		let demo = create(webgl.as_graphics(), &StaticAssets);
+		let demo = create(&mut webgl, &StaticAssets);
 		SharedContext {
 			webgl,
 			demo,
@@ -120,7 +120,7 @@ impl SharedContext {
 			pending_redraw: &mut self.pending_redraw,
 			time: self.last_time,
 		};
-		self.demo.input(input, self.webgl.as_graphics(), &mut shell);
+		self.demo.input(input, &mut self.webgl, &mut shell);
 	}
 
 	fn file_opened_impl(&mut self, request_id: u32, path: Option<String>, bytes: Option<Vec<u8>>) {
@@ -128,7 +128,7 @@ impl SharedContext {
 			pending_redraw: &mut self.pending_redraw,
 			time: self.last_time,
 		};
-		self.demo.file_opened(request_id, path, bytes, self.webgl.as_graphics(), &mut shell);
+		self.demo.file_opened(request_id, path, bytes, &mut self.webgl, &mut shell);
 	}
 }
 
@@ -178,7 +178,7 @@ impl DemoContext for SharedContext {
 		let dt = (time - self.last_time) as f32;
 		let frame = Frame { viewport, time, dt };
 		self.last_time = time;
-		self.demo.draw(frame, self.webgl.as_graphics());
+		self.demo.draw(frame, &mut self.webgl);
 	}
 
 	fn redraw_mode(&self) -> RedrawMode {

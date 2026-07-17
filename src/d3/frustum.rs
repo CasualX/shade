@@ -14,7 +14,7 @@ pub struct FrustumModel {
 }
 
 impl FrustumModel {
-	pub fn create(g: &mut Graphics, clip: Clip) -> FrustumModel {
+	pub fn create(g: &mut dyn IGraphics, clip: Clip) -> FrustumModel {
 		// There's no BaseVertex support in WebGL!
 		// To keep compatibility the vertices are selected when the frustum is created
 		let vertices = match clip {
@@ -29,7 +29,7 @@ impl FrustumModel {
 		FrustumModel { vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &FrustumInstance) {
+	pub fn draw(&self, g: &mut dyn IGraphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &FrustumInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.view_proj.inverse(),
 			colormod: Vec4f::ONE,

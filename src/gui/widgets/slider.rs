@@ -133,7 +133,7 @@ impl Widget for Slider {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let enabled = self.is_enabled(app, app_ctx);
 		let shader = resx.get_shader(SystemResources::COLOR_SHADER_KEY).unwrap();

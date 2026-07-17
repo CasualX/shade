@@ -50,7 +50,7 @@ void main() {
 #endif
 "#;
 
-pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(ShaderToy::new(g))
 }
 
@@ -60,7 +60,7 @@ struct ShaderToy {
 }
 
 impl ShaderToy {
-	fn new(g: &mut shade::Graphics) -> ShaderToy {
+	fn new(g: &mut dyn shade::IGraphics) -> ShaderToy {
 		let pp = shade::d2::PostProcessQuad::create(g);
 		let mut source = shade::shader_interface! {
 			files {
@@ -73,7 +73,7 @@ impl ShaderToy {
 }
 
 impl DemoInterface for ShaderToy {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		self.pp.draw(g, &*self.shadertoy, shade::BlendMode::Solid, &[&ShaderToyUniforms {
 			time: frame.time as f32,

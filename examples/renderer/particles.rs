@@ -163,7 +163,7 @@ static INSTANCE_QUAD: [shade::d2::TexturedVertex; 6] = [
 ];
 
 impl Renderable {
-	pub fn create(g: &mut shade::Graphics) -> Renderable {
+	pub fn create(g: &mut dyn shade::IGraphics) -> Renderable {
 		let bounds = Bounds3f(Vec3f(-64.0, -64.0, 0.0), Vec3f(64.0, 64.0, 64.0));
 		let instance = Instance { bounds };
 
@@ -220,7 +220,7 @@ impl Renderable {
 		Renderable { mesh, material, instance, positions: [positions, positions2], index: false, pp, update_shader }
 	}
 
-	pub fn update_positions(&mut self, g: &mut shade::Graphics, globals: &crate::Globals) {
+	pub fn update_positions(&mut self, g: &mut dyn shade::IGraphics, globals: &crate::Globals) {
 		let src = if self.index { 1 } else { 0 };
 		let dst = if self.index { 0 } else { 1 };
 		self.index = !self.index;
@@ -248,7 +248,7 @@ impl Renderable {
 impl crate::IRenderable for Renderable {
 	fn update(&mut self, _globals: &crate::Globals) {}
 
-	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, _shadow: bool) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light, _shadow: bool) {
 		// if _shadow {
 		// 	false;
 		// }

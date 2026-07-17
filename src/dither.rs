@@ -6,7 +6,7 @@
 /// Can be used directly as a texture:
 ///
 /// ```rust
-/// fn example(g: &mut shade::Graphics) {
+/// fn example(g: &mut dyn shade::IGraphics) {
 /// 	let dither_texture = g.image(&shade::dither::BAYER4x4);
 /// }
 /// ```

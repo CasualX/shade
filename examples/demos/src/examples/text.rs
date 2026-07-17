@@ -13,7 +13,7 @@ const PANEL_TARGET_X: [d2::layout::Unit; 3] = [
 ];
 const PANEL_TARGET_Y: [d2::layout::Unit; 3] = PANEL_TARGET_X;
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Text::new(g, assets))
 }
 
@@ -23,7 +23,7 @@ struct Text {
 }
 
 impl Text {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Text {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Text {
 		let (atlas, font) = load_atlas_font(g, assets, "font/atlas.json", "font/font.png", "font", false);
 		let panel = atlas.sprites["panel.rounded"].as_frame().expect("panel.rounded must be a single frame").clone();
 		Text { font, panel }
@@ -73,7 +73,7 @@ fn flex_panel<const N: usize, const M: usize>(min: f32, max: f32, template: &[d2
 }
 
 impl DemoInterface for Text {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(g, color: Vec4(0.4, 0.4, 0.7, 1.0), depth: 1.0);

@@ -84,7 +84,7 @@ struct DragState {
 	index: usize,
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Panels::new(g, assets))
 }
 
@@ -107,7 +107,7 @@ fn flex_panel(min: f32, max: f32, template: &[d2::layout::Unit]) -> Vec<f32> {
 }
 
 impl Panels {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Panels {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Panels {
 		let mut panels = Vec::new();
 		let mut shader_interface = shade::shader_interface! {
 			files {
@@ -369,7 +369,7 @@ impl DemoInterface for Panels {
 		RedrawMode::OnDemand
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position, .. } => {
 				self.cursor_moved(Vec2(position.x as i32, position.y as i32));
@@ -391,7 +391,7 @@ impl DemoInterface for Panels {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });
 		shade::clear!(g, color: Vec4(0.10, 0.11, 0.13, 1.0));

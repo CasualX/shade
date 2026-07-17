@@ -243,7 +243,7 @@ impl Scene {
 	}
 
 	/// Draws the scene.
-	pub fn draw<'a>(&mut self, g: &mut Graphics, im: &mut im::DrawPool<'a>, time: time::Instant, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	pub fn draw<'a>(&mut self, g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, time: time::Instant, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let draw_ctx = DrawContext {
 			viewport: cvmath::Bounds2i::vec(self.size),
 			clip: cvmath::Bounds2i::vec(self.size),
@@ -409,7 +409,7 @@ fn layout_tree(key: SlotKey, draw_ctx: &DrawContext, resx: &dyn Resources, mut a
 	})
 }
 
-fn draw_tree<'a>(g: &mut Graphics, im: &mut im::DrawPool<'a>, key: SlotKey, draw_ctx: &DrawContext, resx: &'a dyn Resources, mut app: &dyn AppState, app_ctx: &dyn AppContext, scene: &mut Scene) {
+fn draw_tree<'a>(g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, key: SlotKey, draw_ctx: &DrawContext, resx: &'a dyn Resources, mut app: &dyn AppState, app_ctx: &dyn AppContext, scene: &mut Scene) {
 	app = app.scope(key, app_ctx);
 	scene.with_widget(key, |widget, scene| {
 		widget.draw(g, im, draw_ctx, resx, app, app_ctx);

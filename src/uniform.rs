@@ -27,7 +27,7 @@ pub trait UniformSetter {
 	fn sampler2d(&mut self, name: &str, texture: &[&dyn crate::Texture2D]);
 }
 
-impl<'a> dyn UniformSetter + 'a {
+impl dyn UniformSetter + '_ {
 	/// Sets a uniform uniform value.
 	#[inline]
 	pub fn value<T: TUniformValue + ?Sized>(&mut self, name: &str, value: &T) {

@@ -207,9 +207,8 @@ impl App {
 		let window = GlWindow::new(event_loop, size);
 		let mut graphics = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
 		let mut demo = {
-			let g: &mut shade::Graphics = graphics.as_graphics();
 			if let Some(demo) = demos::examples::find(demo_id) {
-				(demo.create)(g, assets)
+				(demo.create)(&mut graphics, assets)
 			}
 			else {
 				eprintln!("Unknown demo '{demo_id}'. Available demos: {}", demos::examples::names_csv());
@@ -236,7 +235,7 @@ impl App {
 			window: &self.window.window,
 			state: &mut self.shell,
 		};
-		self.demo.input(input, self.graphics.as_graphics(), &mut shell);
+		self.demo.input(input, &mut self.graphics, &mut shell);
 
 		loop {
 			let pending_file_open = mem::take(&mut self.shell.pending_file_open);
@@ -252,7 +251,7 @@ impl App {
 					file.request_id,
 					file.path,
 					file.bytes,
-					self.graphics.as_graphics(),
+					&mut self.graphics,
 					&mut shell,
 				);
 			}
@@ -288,7 +287,7 @@ impl App {
 			dt: now.duration_since(self.last_frame).as_secs_f32(),
 		};
 		self.last_frame = now;
-		self.demo.draw(frame, self.graphics.as_graphics());
+		self.demo.draw(frame, &mut self.graphics);
 	}
 
 	fn swap_buffers(&self) {

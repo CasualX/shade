@@ -191,7 +191,7 @@ pub struct Renderable {
 }
 
 impl Renderable {
-	pub fn create(g: &mut shade::Graphics) -> Renderable {
+	pub fn create(g: &mut dyn shade::IGraphics) -> Renderable {
 		// Create the vertex and index buffers
 		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
 		let vertices_len: u32 = VERTICES.len() as u32;
@@ -236,7 +236,7 @@ impl Renderable {
 
 		Renderable { mesh, material, instance }
 	}
-	pub fn draw(&self, g: &mut shade::Graphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
+	pub fn draw(&self, g: &mut dyn shade::IGraphics, _globals: &super::Globals, camera: &shade::d3::Camera, light: &super::Light, shadow: bool) {
 		let transform = camera.view_proj * self.instance.model;
 		let light_transform = light.light_view_proj * self.instance.model;
 		let uniforms = TransformUniforms {
@@ -275,7 +275,7 @@ impl super::IRenderable for Renderable {
 		let model = local * rot_a * rot_b;
 		self.instance.model = model;
 	}
-	fn draw(&self, g: &mut shade::Graphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
+	fn draw(&self, g: &mut dyn shade::IGraphics, globals: &crate::Globals, camera: &shade::d3::Camera, light: &crate::Light<'_>, shadow: bool) {
 		self.draw(g, globals, camera, light, shadow)
 	}
 	fn get_bounds(&self) -> (Bounds3f, Transform3f) {

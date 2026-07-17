@@ -15,7 +15,7 @@ pub struct AxesModel {
 }
 
 impl AxesModel {
-	pub fn create(g: &mut Graphics) -> AxesModel {
+	pub fn create(g: &mut dyn IGraphics) -> AxesModel {
 		let vertices = g.vertex_buffer(&VERTICES, BufferUsage::Static);
 		let vertices_len = VERTICES.len() as u32;
 		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
@@ -24,7 +24,7 @@ impl AxesModel {
 		AxesModel { vertices, vertices_len, indices, indices_len }
 	}
 
-	pub fn draw(&self, g: &mut Graphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &AxesInstance) {
+	pub fn draw(&self, g: &mut dyn IGraphics, shader: &dyn ShaderProgram, camera: &camera::Camera, instance: &AxesInstance) {
 		let uniforms = ColorUniform3 {
 			transform: camera.view_proj * instance.local,
 			colormod: Vec4f::ONE,

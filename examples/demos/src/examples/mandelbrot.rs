@@ -221,7 +221,7 @@ fn ease_out_cubic(t: f32) -> f32 {
 	1.0 - (1.0 - t).powi(3)
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Mandelbrot::new(g, assets))
 }
 
@@ -238,7 +238,7 @@ struct Mandelbrot {
 }
 
 impl Mandelbrot {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Mandelbrot {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Mandelbrot {
 		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
 		let mut source = shade::shader_interface! {
 			files {
@@ -287,7 +287,7 @@ impl DemoInterface for Mandelbrot {
 		self.screen_size = size.cast();
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position, .. } => {
 				let prev_cursor = self.cursor;
@@ -324,7 +324,7 @@ impl DemoInterface for Mandelbrot {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		let aspect_ratio = viewport.width() as f32 / viewport.height() as f32;
 		g.begin(&shade::BeginArgs::BackBuffer { viewport });

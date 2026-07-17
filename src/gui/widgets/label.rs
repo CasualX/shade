@@ -24,7 +24,7 @@ impl Widget for Label {
 		false
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let mut scribe = d2::Scribe {
 			font_size: self.font_size,
 			line_height: self.font_size * DEFAULT_LINE_HEIGHT_SCALE,

@@ -60,7 +60,7 @@ void main() {
 #endif
 "#;
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Dither::new(g, assets))
 }
 
@@ -74,7 +74,7 @@ struct Dither {
 }
 
 impl Dither {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Dither {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Dither {
 		let dither = [
 			g.image(&shade::dither::BAYER2x2),
 			g.image(&shade::dither::BAYER4x4),
@@ -114,7 +114,7 @@ impl DemoInterface for Dither {
 		RedrawMode::OnDemand
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::KeyDown(Key::ArrowLeft) => self.next_index(-1),
 			Input::KeyDown(Key::ArrowRight) => self.next_index(1),
@@ -125,7 +125,7 @@ impl DemoInterface for Dither {
 		shell.request_redraw();
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		let index = self.dither_index;
 		let uniforms = PostProcessDitherUniforms {

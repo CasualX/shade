@@ -57,7 +57,7 @@ void main() {
 #endif
 "#;
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Triangle::new(g, assets))
 }
 
@@ -67,7 +67,7 @@ struct Triangle {
 }
 
 impl Triangle {
-	fn new(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Triangle {
+	fn new(g: &mut dyn shade::IGraphics, _assets: &dyn AssetLoader) -> Triangle {
 		let vertices = g.vertex_buffer(&[
 				TriangleVertex { position: Vec2(0.0, 0.5), color: [255, 0, 0, 255] },
 				TriangleVertex { position: Vec2(-0.5, -0.5), color: [0, 255, 0, 255] },
@@ -86,9 +86,9 @@ impl Triangle {
 }
 
 impl DemoInterface for Triangle {
-	fn input(&mut self, _input: crate::Input, _g: &mut shade::Graphics, _shell: &mut dyn ShellServices) {}
+	fn input(&mut self, _input: crate::Input, _g: &mut dyn shade::IGraphics, _shell: &mut dyn ShellServices) {}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.2, 0.5, 0.2, 1.0));
 		g.draw(&shade::DrawArgs {

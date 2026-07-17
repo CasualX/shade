@@ -88,7 +88,7 @@ impl Widget for RadioButton {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let outer_top = rc.top() + (rc.height() - OUTER_SIZE) / 2;
 		let outer = cvmath::Bounds2!(rc.left(), outer_top, rc.left() + OUTER_SIZE, outer_top + OUTER_SIZE);

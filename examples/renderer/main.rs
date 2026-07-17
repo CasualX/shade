@@ -15,7 +15,7 @@ mod particles;
 
 trait IRenderable {
 	fn update(&mut self, globals: &Globals);
-	fn draw(&self, g: &mut shade::Graphics, globals: &Globals, camera: &shade::d3::Camera, light: &Light<'_>, shadow: bool);
+	fn draw(&self, g: &mut dyn shade::IGraphics, globals: &Globals, camera: &shade::d3::Camera, light: &Light<'_>, shadow: bool);
 	fn get_bounds(&self) -> (Bounds3f, Transform3f);
 }
 
@@ -69,7 +69,7 @@ struct RendererDemo {
 	color3d_shader: Box<dyn shade::ShaderProgram>,
 }
 impl RendererDemo {
-	fn create(g: &mut shade::Graphics) -> RendererDemo {
+	fn create(g: &mut dyn shade::IGraphics) -> RendererDemo {
 		let epoch = time::Instant::now();
 
 		let camera = {
@@ -124,7 +124,7 @@ impl RendererDemo {
 			color3d_shader,
 		}
 	}
-	fn draw(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw(&mut self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let time = self.epoch.elapsed().as_secs_f32();
 		let globals = Globals { time };
 
@@ -380,12 +380,12 @@ impl App {
 	fn new(event_loop: &winit::event_loop::ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) -> Box<App> {
 		let window = GlWindow::new(event_loop, size);
 		let mut opengl = shade::gl::GlGraphics::new(shade::gl::GlConfig { srgb: true });
-		let demo = RendererDemo::create(opengl.as_graphics());
+		let demo = RendererDemo::create(&mut opengl);
 		Box::new(App { window, opengl, demo })
 	}
 	fn draw(&mut self) {
 		let viewport = Bounds2!(0, 0, self.window.size.width as i32, self.window.size.height as i32);
-		self.demo.draw(self.opengl.as_graphics(), viewport);
+		self.demo.draw(&mut self.opengl, viewport);
 	}
 }
 

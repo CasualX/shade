@@ -3,7 +3,7 @@ use crate::*;
 const PICK_RADIUS_PX: f32 = 12.0;
 const NO_DRAG: usize = usize::MAX;
 
-pub fn create(g: &mut shade::Graphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, _assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(Polygon::new(g))
 }
 
@@ -19,7 +19,7 @@ struct Polygon {
 }
 
 impl Polygon {
-	fn new(g: &mut shade::Graphics) -> Polygon {
+	fn new(g: &mut dyn shade::IGraphics) -> Polygon {
 		let mut shader_source = shade::shader_interface! {
 			files {
 				"color.glsl" => shade::shaders::COLOR,
@@ -147,7 +147,7 @@ impl DemoInterface for Polygon {
 		RedrawMode::OnDemand
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::KeyDown(Key::Shift) => self.shift = true,
 			Input::KeyUp(Key::Shift) => self.shift = false,
@@ -197,7 +197,7 @@ impl DemoInterface for Polygon {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		shade::clear!(g, color: Vec4(0.08, 0.09, 0.11, 1.0));
 		let mut cv = shade::d2::ColorBuffer::new();

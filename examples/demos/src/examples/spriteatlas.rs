@@ -21,7 +21,7 @@ struct SpriteRegion {
 	duration: Option<f32>,
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(SpriteAtlas::new(g, assets))
 }
 
@@ -42,7 +42,7 @@ struct SpriteAtlas {
 }
 
 impl SpriteAtlas {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> SpriteAtlas {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> SpriteAtlas {
 		let atlas: shade::atlas::Atlas = {
 			let text = assets.read_to_string(ATLAS_DESC).expect("failed to load atlas metadata");
 			serde_json::from_str(&text).expect("failed to parse atlas metadata")
@@ -293,7 +293,7 @@ impl SpriteAtlas {
 		text
 	}
 
-	fn draw_texture(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_texture(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		let mut buf = d2::TexturedBuffer::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.cull_mode = None;
@@ -311,7 +311,7 @@ impl SpriteAtlas {
 		buf.draw(g);
 	}
 
-	fn draw_overlays(&self, g: &mut shade::Graphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
+	fn draw_overlays(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i, atlas_rect: Bounds2f) {
 		let mut buf = d2::ColorBuffer::new();
 		buf.blend_mode = shade::BlendMode::Alpha;
 		buf.cull_mode = None;
@@ -376,7 +376,7 @@ impl SpriteAtlas {
 		buf.draw(g);
 	}
 
-	fn draw_text(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw_text(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let mut text = d2::TextBuffer::new();
 		text.blend_mode = shade::BlendMode::Alpha;
 		text.uniform.transform = Transform2::ortho(viewport.cast());
@@ -414,7 +414,7 @@ impl DemoInterface for SpriteAtlas {
 		}
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position } => {
 				if let Some(previous) = self.drag_cursor {
@@ -468,7 +468,7 @@ impl DemoInterface for SpriteAtlas {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		self.viewport = viewport;
 		let atlas_rect = self.atlas_screen_rect(viewport);

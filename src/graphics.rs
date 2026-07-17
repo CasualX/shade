@@ -215,37 +215,7 @@ pub trait IGraphics {
 	fn texture2d_read_into(&mut self, texture: &dyn Texture2D, level: u8, data: &mut [u8]);
 }
 
-/// Graphics interface.
-///
-/// Adds helper methods to the [IGraphics](IGraphics) interface.
-#[repr(transparent)]
-pub struct Graphics {
-	inner: dyn IGraphics,
-}
-
-/// Graphics constructor.
-#[allow(non_snake_case)]
-#[inline]
-pub fn Graphics(g: &mut dyn IGraphics) -> &mut Graphics {
-	unsafe { mem::transmute(g) }
-}
-
-impl ops::Deref for Graphics {
-	type Target = dyn IGraphics;
-
-	#[inline]
-	fn deref(&self) -> &Self::Target {
-		&self.inner
-	}
-}
-impl ops::DerefMut for Graphics {
-	#[inline]
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.inner
-	}
-}
-
-impl Graphics {
+impl dyn IGraphics + '_ {
 	/// Creates a texture from an image.
 	#[inline]
 	pub fn image<F: ImageToTexture>(&mut self, image: &F) -> Box<dyn Texture2D> {
@@ -320,15 +290,14 @@ impl Graphics {
 	/// Creates and writes data to the vertex buffer.
 	#[inline]
 	pub fn vertex_buffer<T: TVertex>(&mut self, data: &[T], usage: BufferUsage) -> Box<dyn VertexBuffer> {
-		let this = &mut self.inner;
-		let mut buffer = this.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
-		this.vertex_buffer_write(&mut *buffer, 0, dataview::bytes(data));
+		let mut buffer = self.vertex_buffer_create(mem::size_of_val(data), T::LAYOUT, usage);
+		<Self as IGraphics>::vertex_buffer_write(self, &mut *buffer, 0, dataview::bytes(data));
 		return buffer;
 	}
 	/// Writes data to the vertex buffer.
 	#[inline]
 	pub fn vertex_buffer_write<T: TVertex>(&mut self, buffer: &mut dyn VertexBuffer, offset: usize, data: &[T]) {
-		self.inner.vertex_buffer_write(buffer, offset, dataview::bytes(data))
+		<Self as IGraphics>::vertex_buffer_write(self, buffer, offset, dataview::bytes(data))
 	}
 	/// Creates and writes data to the index buffer.
 	#[inline]
@@ -343,14 +312,13 @@ impl Graphics {
 				}
 			}
 		}
-		let this = &mut self.inner;
-		let mut buffer = this.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
-		this.index_buffer_write(&mut *buffer, 0, dataview::bytes(data));
+		let mut buffer = self.index_buffer_create(mem::size_of_val(data), T::Index::TYPE, usage);
+		<Self as IGraphics>::index_buffer_write(self, &mut *buffer, 0, dataview::bytes(data));
 		return buffer;
 	}
 	/// Writes data to the index buffer.
 	#[inline]
 	pub fn index_buffer_write<T: TIndex>(&mut self, buffer: &mut dyn IndexBuffer, offset: usize, data: &[T]) {
-		self.inner.index_buffer_write(buffer, offset, dataview::bytes(data))
+		<Self as IGraphics>::index_buffer_write(self, buffer, offset, dataview::bytes(data))
 	}
 }

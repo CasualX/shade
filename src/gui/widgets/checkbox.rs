@@ -81,7 +81,7 @@ impl Widget for Checkbox {
 		}
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, app: &dyn AppState, app_ctx: &dyn AppContext) {
 		let rc = cvmath::Bounds2i::vec(ctx.bounds.size());
 		let box_top = rc.top() + (rc.height() - BOX_SIZE) / 2;
 		let box_rc = cvmath::Bounds2!(rc.left(), box_top, rc.left() + BOX_SIZE, box_top + BOX_SIZE);

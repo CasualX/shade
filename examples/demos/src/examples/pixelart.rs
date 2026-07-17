@@ -51,7 +51,7 @@ struct TurnZoomGesture {
 	start_rotation: Anglef,
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(PixelArt::new(g, assets))
 }
 
@@ -79,7 +79,7 @@ struct PixelArt {
 }
 
 impl PixelArt {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> PixelArt {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> PixelArt {
 		let mut shader_source = shade::shader_interface! {
 			files {
 				"textured.glsl" => shade::shaders::TEXTURED,
@@ -139,7 +139,7 @@ impl PixelArt {
 		}
 	}
 
-	fn ensure_render_texture(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn ensure_render_texture(&mut self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let info = shade::Texture2DInfo {
 			format: shade::TextureFormat::SRGBA8,
 			width: viewport.width(),
@@ -153,7 +153,7 @@ impl PixelArt {
 		g.texture2d_ensure(&mut self.render_texture, &info);
 	}
 
-	fn load_image_bytes(&mut self, g: &mut shade::Graphics, path: Option<String>, bytes: &[u8]) -> Result<(), String> {
+	fn load_image_bytes(&mut self, g: &mut dyn shade::IGraphics, path: Option<String>, bytes: &[u8]) -> Result<(), String> {
 		let image = shade::image::DecodedImage::load_memory(bytes).map_err(|err| format!("{err:?}"))?;
 		let nearest_props = shade::TextureProps! {
 			filter: shade::TextureFilter::Nearest,
@@ -218,7 +218,7 @@ impl PixelArt {
 		self.rotation = gesture.start_rotation + basis_dir.signed_angle(current_dir);
 	}
 
-	fn draw_turn_zoom_overlay(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw_turn_zoom_overlay(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let DragMode::TurnZoom(gesture) = self.drag_mode else {
 			return;
 		};
@@ -246,7 +246,7 @@ impl PixelArt {
 		buf.draw(g);
 	}
 
-	fn draw_scene(&mut self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw_scene(&mut self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		self.ensure_render_texture(g, viewport);
 		let render_texture = &**self.render_texture.as_ref().expect("render texture was not created");
 		g.begin(&shade::BeginArgs::Immediate {
@@ -288,7 +288,7 @@ impl PixelArt {
 		g.end();
 	}
 
-	fn draw_hud(&self, g: &mut shade::Graphics, viewport: Bounds2i) {
+	fn draw_hud(&self, g: &mut dyn shade::IGraphics, viewport: Bounds2i) {
 		let mut hud = d2::TextBuffer::new();
 		hud.blend_mode = shade::BlendMode::Alpha;
 		hud.uniform.transform = Transform2::ortho(viewport.cast());
@@ -339,7 +339,7 @@ impl DemoInterface for PixelArt {
 		self.viewport = Bounds2!(0, 0, size.x, size.y);
 	}
 
-	fn input(&mut self, input: Input, _g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn input(&mut self, input: Input, _g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		match input {
 			Input::MouseMove { position } => {
 				let delta = position - self.cursor;
@@ -376,7 +376,7 @@ impl DemoInterface for PixelArt {
 		}
 	}
 
-	fn file_opened(&mut self, request_id: u32, path: Option<String>, bytes: Option<Vec<u8>>, g: &mut shade::Graphics, shell: &mut dyn ShellServices) {
+	fn file_opened(&mut self, request_id: u32, path: Option<String>, bytes: Option<Vec<u8>>, g: &mut dyn shade::IGraphics, shell: &mut dyn ShellServices) {
 		if request_id == OPEN_IMAGE_REQUEST {
 			if let Some(bytes) = bytes {
 				if let Err(err) = self.load_image_bytes(g, path, &bytes) {
@@ -386,7 +386,7 @@ impl DemoInterface for PixelArt {
 		}
 	}
 
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		let viewport = frame.viewport;
 		self.viewport = viewport;
 		self.draw_scene(g, viewport);

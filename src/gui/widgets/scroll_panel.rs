@@ -42,7 +42,7 @@ impl Widget for ScrollPanel {
 		self.update_content_bounds(ctx.bounds.size());
 	}
 
-	fn draw<'a>(&mut self, _g: &mut Graphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, _app: &dyn AppState, _app_ctx: &dyn AppContext) {
+	fn draw<'a>(&mut self, _g: &mut dyn IGraphics, im: &mut im::DrawPool<'a>, ctx: &DrawContext, resx: &'a dyn Resources, _app: &dyn AppState, _app_ctx: &dyn AppContext) {
 		self.vbar.draw(im, ctx, resx, self.content_height);
 	}
 

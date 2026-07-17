@@ -16,7 +16,7 @@ impl<'a> shade::UniformVisitor for PostProcessMeltUniforms<'a> {
 	}
 }
 
-pub fn create(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
+pub fn create(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Box<dyn DemoInterface> {
 	Box::new(ScreenMelt::new(g, assets))
 }
 
@@ -30,7 +30,7 @@ struct ScreenMelt {
 }
 
 impl ScreenMelt {
-	fn new(g: &mut shade::Graphics, assets: &dyn AssetLoader) -> ScreenMelt {
+	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> ScreenMelt {
 		let delay_texture = {
 			let mut delays = Vec::new();
 			let mut offset = 128u8;
@@ -76,7 +76,7 @@ impl ScreenMelt {
 }
 
 impl DemoInterface for ScreenMelt {
-	fn draw(&mut self, frame: Frame, g: &mut shade::Graphics) {
+	fn draw(&mut self, frame: Frame, g: &mut dyn shade::IGraphics) {
 		g.begin(&shade::BeginArgs::BackBuffer { viewport: frame.viewport });
 		self.pp.draw(g,
 			&*self.pp_copy_shader,
