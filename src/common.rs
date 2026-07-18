@@ -42,13 +42,12 @@ impl fmt::Debug for dyn IndexBuffer + '_ {
 
 /// Index type for index buffers.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum IndexType { U8, U16, U32 }
+pub enum IndexType { U16, U32 }
 
 impl IndexType {
 	#[inline]
 	pub const fn size(self) -> usize {
 		match self {
-			IndexType::U8 => 1,
 			IndexType::U16 => 2,
 			IndexType::U32 => 4,
 		}
@@ -60,9 +59,6 @@ pub trait TIndex: Copy + Ord + Default + dataview::Pod + fmt::Debug {
 	const TYPE: IndexType;
 }
 
-impl TIndex for u8 {
-	const TYPE: IndexType = IndexType::U8;
-}
 impl TIndex for u16 {
 	const TYPE: IndexType = IndexType::U16;
 }

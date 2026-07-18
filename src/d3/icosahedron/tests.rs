@@ -161,7 +161,7 @@ fn triangle_uvs(a: Vec3f, b: Vec3f, c: Vec3f) -> [Vec2f; 3] {
 
 /// Generate smooth-shaded icosahedron.
 /// Returns vertices and indices. Vertices are duplicated where needed for UV seams and poles.
-fn generate_smooth() -> (Vec<TexturedVertexN>, Vec<u8>) {
+fn generate_smooth() -> (Vec<TexturedVertexN>, Vec<u16>) {
 	let (positions, triangles) = icosahedron_base();
 
 	// For smooth shading, we want to share vertices where possible.
@@ -173,12 +173,12 @@ fn generate_smooth() -> (Vec<TexturedVertexN>, Vec<u8>) {
 	// vertices that have the same position and UV.
 
 	let mut vertices: Vec<TexturedVertexN> = Vec::new();
-	let mut indices: Vec<u8> = Vec::new();
+	let mut indices: Vec<u16> = Vec::new();
 
 	// Map from (position_index, quantized_u) to vertex index for deduplication
 	// We quantize U to handle floating point comparison
 	use std::collections::HashMap;
-	let mut vertex_map: HashMap<(u8, i32, i32), u8> = HashMap::new();
+	let mut vertex_map: HashMap<(u8, i32, i32), u16> = HashMap::new();
 
 	for tri in triangles {
 		let pa = positions[tri[0] as usize];
@@ -199,7 +199,7 @@ fn generate_smooth() -> (Vec<TexturedVertexN>, Vec<u8>) {
 				idx
 			}
 			else {
-				let idx = vertices.len() as u8;
+				let idx = vertices.len() as u16;
 				vertices.push(TexturedVertexN {
 					pos,
 					normal: pos, // For a unit sphere, normal equals position

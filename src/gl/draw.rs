@@ -511,7 +511,6 @@ pub fn indexed(this: &mut GlGraphics, args: &crate::DrawIndexedArgs) {
 	};
 	let count = args.index_end - args.index_start;
 	let type_ = match ib.ty {
-		crate::IndexType::U8 => gl::UNSIGNED_BYTE,
 		crate::IndexType::U16 => gl::UNSIGNED_SHORT,
 		crate::IndexType::U32 => gl::UNSIGNED_INT,
 	};

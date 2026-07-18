@@ -24,7 +24,7 @@ impl FrustumModel {
 		let vertices_len = vertices.len() as u32;
 		let vertices = g.vertex_buffer(vertices, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
-		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
+		let indices = g.index_buffer(&INDICES, vertices_len as u16, BufferUsage::Static);
 
 		FrustumModel { vertices, vertices_len, indices, indices_len }
 	}
@@ -100,7 +100,7 @@ static VERTICES: [ColorVertex3; 16] = [
 	ColorVertex3 { pos: Vec3f( 1.0, -1.0,  1.0), color: FAR  }, // Far BR
 ];
 
-static INDICES: [u8; 24 + 36] = [
+static INDICES: [u16; 24 + 36] = [
 	// Line indices [0]
 	0, 1, 1, 2, 2, 3, 3, 0, // Near face
 	4, 5, 5, 6, 6, 7, 7, 4, // Far face

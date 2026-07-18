@@ -18,7 +18,7 @@ impl AxesModel {
 	pub fn create(g: &mut dyn IGraphics) -> AxesModel {
 		let vertices = g.vertex_buffer(&VERTICES, BufferUsage::Static);
 		let vertices_len = VERTICES.len() as u32;
-		let indices = g.index_buffer(&INDICES, vertices_len as u8, BufferUsage::Static);
+		let indices = g.index_buffer(&INDICES, vertices_len as u16, BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
 		AxesModel { vertices, vertices_len, indices, indices_len }
@@ -90,7 +90,7 @@ static VERTICES: [ColorVertex3; 27] = [
 	ColorVertex3 { pos: Vec3f::new(0.04, -0.04, 1.1), color: BLUE },
 ];
 
-static INDICES: [u8; 34] = [
+static INDICES: [u16; 34] = [
 	// X axis
 	0, 1,       // axis line
 	2, 3, 3, 4, // arrowhead lines

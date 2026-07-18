@@ -540,7 +540,6 @@ pub fn indexed(this: &mut WebGLGraphics, args: &crate::DrawIndexedArgs) {
 	};
 	let count = args.index_end - args.index_start;
 	let type_ = match ib.ty {
-		crate::IndexType::U8 => api::UNSIGNED_BYTE,
 		crate::IndexType::U16 => api::UNSIGNED_SHORT,
 		crate::IndexType::U32 => api::UNSIGNED_INT,
 	};

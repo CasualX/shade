@@ -63,7 +63,7 @@ static VERTICES: [Vertex; 24] = [
 	Vertex { pos: Vec3(X_MIN, Y_MIN, Z_MAX), normal: Vec3(0.0, -1.0, 0.0), uv: Vec2(1.0, 1.0), color: shade::norm!([128, 128, 128, 255]) },
 ];
 
-static INDICES: [u8; 36] = [
+static INDICES: [u16; 36] = [
 	 0, 1, 2,  2, 1, 3, // front
 	 4, 5, 6,  6, 5, 7, // back
 	 8, 9,10, 10, 9,11, // left
@@ -195,7 +195,7 @@ impl Renderable {
 		// Create the vertex and index buffers
 		let vertices = g.vertex_buffer(&VERTICES, shade::BufferUsage::Static);
 		let vertices_len: u32 = VERTICES.len() as u32;
-		let indices = g.index_buffer(&INDICES, VERTICES.len() as u8, shade::BufferUsage::Static);
+		let indices = g.index_buffer(&INDICES, VERTICES.len() as u16, shade::BufferUsage::Static);
 		let indices_len = INDICES.len() as u32;
 
 		let mesh = shade::d3::VertexIndexedMesh {
