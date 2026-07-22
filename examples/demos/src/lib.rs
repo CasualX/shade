@@ -110,14 +110,8 @@ impl fmt::Display for AssetError {
 
 impl std::error::Error for AssetError {}
 
-pub fn load_font(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader, font_desc: &str, font_texture: &str, text_3d: bool) -> shade::d2::FontResource<shade::atlas::Font> {
-	// Load the font metadata
-	let font = {
-		let text = assets.read_to_string(font_desc).expect("failed to load font metadata");
-		let font: shade::msdfgen::FontDto = serde_json::from_str(&text).expect("failed to parse font metadata");
-		font.into()
-	};
-	load_font_resource(g, assets, font, font_texture, text_3d)
+pub fn load_font(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader, atlas_desc: &str, font_texture: &str, text_3d: bool) -> shade::d2::FontResource<shade::atlas::Font> {
+	load_atlas_font(g, assets, atlas_desc, font_texture, "font", text_3d).1
 }
 
 pub fn load_atlas_font(

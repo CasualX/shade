@@ -7,6 +7,7 @@
  */
 
 use std::collections::HashMap;
+use std::{error, fmt, str};
 use crate::atlas;
 
 impl From<FontDto> for atlas::Font {
@@ -61,7 +62,7 @@ impl From<FontDto> for atlas::Font {
 		let meta = atlas::Metadata {
 			width: atlas.width,
 			height: atlas.height,
-			kind: atlas.r#type.into(),
+			kind: atlas.mode.into(),
 			distance_range: atlas.distance_range,
 			distance_range_middle: atlas.distance_range_middle,
 		};
@@ -104,7 +105,8 @@ pub struct FontVariant {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Atlas {
-	pub r#type: Type,
+	#[serde(rename = "type")]
+	pub mode: Mode,
 	pub distance_range: f32,
 	pub distance_range_middle: f32,
 	pub size: f32,
@@ -113,9 +115,9 @@ pub struct Atlas {
 	pub y_origin: YOrigin,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Type {
+pub enum Mode {
 	/// Monochrome (true) signed distance field.
 	Sdf,
 	/// Monochrome signed perpendicular distance field.
@@ -126,13 +128,91 @@ pub enum Type {
 	Mtsdf,
 }
 
-impl From<Type> for atlas::Kind {
-	fn from(value: Type) -> Self {
+impl Mode {
+	#[inline]
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Mode::Sdf => "sdf",
+			Mode::Psdf => "psdf",
+			Mode::Msdf => "msdf",
+			Mode::Mtsdf => "mtsdf",
+		}
+	}
+}
+
+impl fmt::Display for Mode {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str(self.as_str())
+	}
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct ParseModeError;
+
+impl fmt::Display for ParseModeError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str("unknown msdfgen mode")
+	}
+}
+
+impl error::Error for ParseModeError {}
+
+impl str::FromStr for Mode {
+	type Err = ParseModeError;
+
+	fn from_str(value: &str) -> Result<Self, Self::Err> {
 		match value {
-			Type::Sdf => atlas::Kind::Sdf,
-			Type::Psdf => atlas::Kind::Psdf,
-			Type::Msdf => atlas::Kind::Msdf,
-			Type::Mtsdf => atlas::Kind::Mtsdf,
+			"sdf" => Ok(Mode::Sdf),
+			"psdf" => Ok(Mode::Psdf),
+			"msdf" => Ok(Mode::Msdf),
+			"mtsdf" => Ok(Mode::Mtsdf),
+			_ => Err(ParseModeError),
+		}
+	}
+}
+
+impl From<Mode> for atlas::Kind {
+	fn from(value: Mode) -> Self {
+		match value {
+			Mode::Sdf => atlas::Kind::Sdf,
+			Mode::Psdf => atlas::Kind::Psdf,
+			Mode::Msdf => atlas::Kind::Msdf,
+			Mode::Mtsdf => atlas::Kind::Mtsdf,
+		}
+	}
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
+pub enum FillRule {
+	#[default]
+	NonZero,
+	EvenOdd,
+	Positive,
+	Negative,
+}
+
+impl FillRule {
+	#[inline]
+	pub fn as_str(self) -> &'static str {
+		match self {
+			FillRule::NonZero => "nonzero",
+			FillRule::EvenOdd => "evenodd",
+			FillRule::Positive => "positive",
+			FillRule::Negative => "negative",
+		}
+	}
+}
+
+impl str::FromStr for FillRule {
+	type Err = ();
+
+	fn from_str(value: &str) -> Result<FillRule, Self::Err> {
+		match value {
+			"nonzero" => Ok(FillRule::NonZero),
+			"evenodd" => Ok(FillRule::EvenOdd),
+			"positive" => Ok(FillRule::Positive),
+			"negative" => Ok(FillRule::Negative),
+			_ => Err(()),
 		}
 	}
 }
@@ -193,8 +273,6 @@ impl From<Bounds> for atlas::PlaneBounds {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GlyphDto {
-	// When using -allglyphs this is the glyph index instead of unicode
-	#[serde(alias = "index")]
 	pub unicode: u32,
 	pub advance: f32,
 	#[serde(skip_serializing_if = "Option::is_none")]

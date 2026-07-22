@@ -1,6 +1,6 @@
+pub mod atlas;
 pub mod conway;
 pub mod dither;
-pub mod glyphatlas;
 pub mod globe;
 pub mod gui_zoo;
 pub mod mandelbrot;
@@ -11,7 +11,6 @@ pub mod polygon;
 pub mod scene;
 pub mod screenmelt;
 pub mod shadertoy;
-pub mod spriteatlas;
 pub mod text;
 pub mod text3d;
 pub mod textintro;
@@ -34,8 +33,7 @@ const DEMOS: &[DemoEntry] = &[
 	DemoEntry { id: "pixelart", create: pixelart::create },
 	DemoEntry { id: "conway", create: conway::create },
 	DemoEntry { id: "dither", create: dither::create },
-	DemoEntry { id: "glyphatlas", create: glyphatlas::create },
-	DemoEntry { id: "spriteatlas", create: spriteatlas::create },
+	DemoEntry { id: "atlas", create: atlas::create },
 	DemoEntry { id: "globe", create: globe::create },
 	DemoEntry { id: "gui_zoo", create: gui_zoo::create },
 	DemoEntry { id: "mandelbrot", create: mandelbrot::create },

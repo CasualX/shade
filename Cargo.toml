@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	".",
+	"atlaskit",
 	"examples/demos",
 	"examples/desktop",
 	"examples/webgl",

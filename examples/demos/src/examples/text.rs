@@ -24,7 +24,7 @@ struct Text {
 
 impl Text {
 	fn new(g: &mut dyn shade::IGraphics, assets: &dyn AssetLoader) -> Text {
-		let (atlas, font) = load_atlas_font(g, assets, "font/atlas.json", "font/font.png", "font", false);
+		let (atlas, font) = load_atlas_font(g, assets, "font/font.json", "font/font.png", "font", false);
 		let panel = atlas.sprites["panel.rounded"].as_frame().expect("panel.rounded must be a single frame").clone();
 		Text { font, panel }
 	}

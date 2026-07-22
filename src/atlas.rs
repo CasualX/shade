@@ -374,6 +374,46 @@ pub enum Kind {
 	Mtsdf,
 }
 
+impl fmt::Display for Kind {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let value = match self {
+			Kind::Bitmap => "bitmap",
+			Kind::Sdf => "sdf",
+			Kind::Psdf => "psdf",
+			Kind::Msdf => "msdf",
+			Kind::Mtsdf => "mtsdf",
+		};
+		f.write_str(value)
+	}
+}
+
+/// Error returned when parsing an unknown atlas texture encoding.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct ParseKindError;
+
+impl fmt::Display for ParseKindError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.write_str("unknown atlas kind")
+	}
+}
+
+impl error::Error for ParseKindError {}
+
+impl str::FromStr for Kind {
+	type Err = ParseKindError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"bitmap" => Ok(Kind::Bitmap),
+			"sdf" => Ok(Kind::Sdf),
+			"psdf" => Ok(Kind::Psdf),
+			"msdf" => Ok(Kind::Msdf),
+			"mtsdf" => Ok(Kind::Mtsdf),
+			_ => Err(ParseKindError),
+		}
+	}
+}
+
 /// Texture metadata for sprite and font atlases.
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
