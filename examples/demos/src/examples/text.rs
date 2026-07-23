@@ -81,7 +81,8 @@ impl DemoInterface for Text {
 		let mut cv = d2::TextBuffer::new();
 		cv.blend_mode = shade::BlendMode::Alpha;
 		cv.uniform.transform = Transform2::ortho(viewport.cast());
-		cv.uniform.unit_range = Vec2::dup(self.font.font.meta.distance_range) / Vec2(self.font.font.meta.width as f32, self.font.font.meta.height as f32);
+		cv.uniform.distance_range = self.font.font.meta.distance_range;
+		cv.uniform.distance_range_middle = self.font.font.meta.distance_range_middle;
 		cv.uniform.outline_width_relative = 0.125;
 
 		let panel_width = (viewport.width() as f32 - 80.0).clamp(300.0, 620.0);

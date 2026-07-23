@@ -92,8 +92,8 @@ impl ToVertexUV<TextVertex> for TextTemplate {
 pub struct TextUniform<'a> {
 	pub transform: Transform2f,
 	pub texture: &'a dyn Texture2D,
-	pub unit_range: Vec2f,
-	pub threshold: f32,
+	pub distance_range: f32,
+	pub distance_range_middle: f32,
 	pub out_bias: f32,
 	pub outline_width_absolute: f32,
 	pub outline_width_relative: f32,
@@ -105,8 +105,8 @@ impl<'a> Default for TextUniform<'a> {
 		TextUniform {
 			transform: Transform2::IDENTITY,
 			texture: &crate::DefaultTexture2D,
-			unit_range: Vec2::dup(4.0f32) / Vec2(232.0f32, 232.0f32),
-			threshold: 0.5,
+			distance_range: 4.0,
+			distance_range_middle: 0.0,
 			out_bias: 0.0,
 			outline_width_absolute: 1.0,
 			outline_width_relative: 0.125,
@@ -116,10 +116,15 @@ impl<'a> Default for TextUniform<'a> {
 
 impl<'a> UniformVisitor for TextUniform<'a> {
 	fn visit(&self, set: &mut dyn UniformSetter) {
+		let texture_info = self.texture.info();
+		let texture_size = Vec2(texture_info.width as f32, texture_info.height as f32);
+		let unit_range = Vec2::dup(self.distance_range) / texture_size;
+		let threshold = 0.5 - self.distance_range_middle / self.distance_range;
+
 		set.value("u_transform", &self.transform);
 		set.value("u_texture", self.texture);
-		set.value("u_unitRange", &self.unit_range);
-		set.value("u_threshold", &self.threshold);
+		set.value("u_unitRange", &unit_range);
+		set.value("u_threshold", &threshold);
 		set.value("u_outBias", &self.out_bias);
 		set.value("u_outlineWidthAbsolute", &self.outline_width_absolute);
 		set.value("u_outlineWidthRelative", &self.outline_width_relative);

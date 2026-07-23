@@ -14,6 +14,7 @@ pub mod shadertoy;
 pub mod text;
 pub mod text3d;
 pub mod textintro;
+pub mod textmatrix;
 pub mod triangle;
 pub mod zeldawater;
 
@@ -45,6 +46,7 @@ const DEMOS: &[DemoEntry] = &[
 	DemoEntry { id: "shadertoy", create: shadertoy::create },
 	DemoEntry { id: "text3d", create: text3d::create },
 	DemoEntry { id: "textintro", create: textintro::create },
+	DemoEntry { id: "textmatrix", create: textmatrix::create },
 ];
 
 pub fn all() -> &'static [DemoEntry] {

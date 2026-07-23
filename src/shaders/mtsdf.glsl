@@ -38,7 +38,7 @@ const float Z_FIGHT_BIAS = 0.00005;
 void main() {
 	v_uv = a_uv;
 	v_color = srgbToLinear(a_color);
-	v_outline = a_outline;
+	v_outline = srgbToLinear(a_outline);
 
 #ifdef MTSDF_3D
 	vec2 plane_pos = u_transform * vec3(a_pos, 1.0);

@@ -444,6 +444,14 @@ const demos = [
 		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/textintro.rs',
 	},
 	{
+		id: 'textmatrix',
+		title: 'Text Matrix',
+		hint: 'Animated 3D streams of changing glyphs',
+		module: 'webgl.wasm',
+		constructor: 'new_textmatrix',
+		source: 'https://github.com/CasualX/shade/blob/master/examples/demos/src/examples/textmatrix.rs',
+	},
+	{
 		id: 'pixelart',
 		title: 'Pixel Art',
 		hint: 'Interactive texture filtering demo',

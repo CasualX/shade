@@ -516,8 +516,8 @@ impl AtlasViewer {
 		buf.shader = Some(&*self.distance_shader);
 		buf.uniform.transform = Transform2::ortho(viewport.cast());
 		buf.uniform.texture = &*self.distance_texture;
-		buf.uniform.unit_range = Vec2::dup(meta.distance_range) / Vec2(meta.width as f32, meta.height as f32);
-		buf.uniform.threshold = 0.5 - meta.distance_range_middle / meta.distance_range;
+		buf.uniform.distance_range = meta.distance_range;
+		buf.uniform.distance_range_middle = meta.distance_range_middle;
 		buf.uniform.outline_width_absolute = 0.0;
 		buf.uniform.outline_width_relative = 0.0;
 

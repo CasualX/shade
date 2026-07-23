@@ -72,6 +72,11 @@ pub extern "C" fn new_textintro() -> *mut DemoHandle {
 }
 
 #[cfg_attr(target_family = "wasm", no_mangle)]
+pub extern "C" fn new_textmatrix() -> *mut DemoHandle {
+	into_handle(SharedContext::new(demos::examples::textmatrix::create))
+}
+
+#[cfg_attr(target_family = "wasm", no_mangle)]
 pub extern "C" fn new_pixelart() -> *mut DemoHandle {
 	into_handle(SharedContext::new(demos::examples::pixelart::create))
 }
